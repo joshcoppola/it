@@ -8564,7 +8564,7 @@ class Camera:
 
         (nx, ny) = self.map2cam(ox, oy)
 
-        if game.mouse_is_on_map():
+        if camera.mouse_is_on_map():
             dragging = True
             momentum = 0
             while dragging:
@@ -8596,6 +8596,10 @@ class Camera:
                 render_handler.render_all()
 
                 self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
+
+    def mouse_is_on_map(self):
+        ''' Ensures mouse doesn't pick up activity outside edge of camera '''
+        return (0 <= mouse.cx <= self.width and 0 <= mouse.cy <= self.height)
 
 
 def create_shirt():
@@ -9113,7 +9117,7 @@ def battle_hover_information():
     (x, y) = camera.cam2map(mouse.cx, mouse.cy)  #from screen to map coordinates
 
     target = None
-    if game.mouse_is_on_map() and M.is_val_xy((x, y)) and M.tiles[x][y].explored:
+    if camera.mouse_is_on_map() and M.is_val_xy((x, y)) and M.tiles[x][y].explored:
         for obj in M.tiles[x][y].objects:
             if obj.creature and obj.creature.status != 'dead':
                 target = obj
@@ -9356,6 +9360,7 @@ class Game:
         self.quit_game = 1
 
     def switch_map_state(self, map_state):
+        ''' Toggles map state between larger "world" view and human-scaled map '''
         bwidth = 20
         self.map_state = map_state
 
@@ -9391,13 +9396,12 @@ class Game:
                                    ]
 
     def handle_fov_recompute(self):
+        ''' FOV / map is only re-rendered when fov_recompue is set to true '''
         if self.map_state == 'world':
             WORLD.fov_recompute = 1
         elif self.map_state == 'battle':
             M.fov_recompute = 1
 
-    def mouse_is_on_map(self):
-        return (0 <= mouse.cx <= CAMERA_WIDTH and 0 <= mouse.cy <= CAMERA_HEIGHT)
 
     def save_game(self):
         #open a new empty shelve (possibly overwriting an old one) to write the game data
@@ -9615,7 +9619,7 @@ class Game:
         elif key.vk == libtcod.KEY_ESCAPE:
             return 'exit'  #exit game
 
-        if mouse.lbutton and self.mouse_is_on_map():
+        if mouse.lbutton and camera.mouse_is_on_map():
             camera.click_and_drag(ox=x, oy=y)
 
         if mouse.wheel_up:
@@ -9635,7 +9639,7 @@ class Game:
                         game.world_map_display_type = 'normal'
 
             if self.map_state == 'battle':
-                if mouse.lbutton_pressed and self.mouse_is_on_map():
+                if mouse.lbutton_pressed and camera.mouse_is_on_map():
                     # Clicking on a fellow sapient lets you talk to it
                     if len(M.tiles[x][y].objects) or M.tiles[x][y].interactable:
                         choose_object_to_interact_with(objs=M.tiles[x][y].objects, x=x, y=y)
