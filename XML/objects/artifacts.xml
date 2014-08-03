@@ -1,0 +1,46 @@
+
+<objects>
+	<object>
+		<name>holy relic</name>
+		<char>*</char>
+		<color>use_material</color>
+		<blocks_mov>0</blocks_mov>
+		<blocks_vis>0</blocks_vis>
+		<description>This is a holy relic</description>
+
+		<weapon_component>None</weapon_component>
+
+		<components>
+			<component>
+				<component_name>relic</component_name>
+				<sharp>0</sharp>
+				<functions/>
+				<!-->
+					<function></function>
+				</functions>
+				<!-->
+				<attaches_to>None</attaches_to>
+				<attach_strength>None</attach_strength>
+
+				<wearing_info>0</wearing_info>
+
+				<layers>
+					<layer>
+						<material_tokens>
+							<material_token>copper</material_token>
+						</material_tokens>
+						<material_types>
+						</material_types>
+
+						<coverage>1</coverage>
+						<width> .2 </width>
+						<height> .5 </height>
+						<depth> .2 </depth>
+						<filled> .75 </filled>
+					</layer>
+				</layers>
+			</component>
+		</components>
+	</object>
+
+</objects>

@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+
+<resources>
+	<resource>
+		<name>copper ore</name>
+		<category>ores</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>200</break_chance>
+	</resource>
+	<resource>
+		<name>bronze ore</name>
+		<category>ores</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>100</break_chance>
+	</resource>
+	<resource>
+		<name>iron ore</name>
+		<category>ores</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>60</break_chance>
+	</resource>
+	
+	<resource>
+		<name>food</name>
+		<category>foods</category>
+		<class>strategic</class>
+		<gather_amount>8</gather_amount>
+		<break_chance>1</break_chance>
+	</resource>
+	
+	<resource>
+		<name>clay</name>
+		<category>clays</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>200</break_chance>
+	</resource>
+	<resource>
+		<name>silt</name>
+		<category>clays</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>200</break_chance>
+	</resource>
+	
+	<resource>
+		<name>wood</name>
+		<category>woods</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>200</break_chance>
+	</resource>
+	
+	<resource>
+		<name>flax</name>
+		<category>cloths</category>
+		<class>strategic</class>
+		<gather_amount>4</gather_amount>
+		<break_chance>200</break_chance>
+	</resource>
+
+</resources>
