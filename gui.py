@@ -85,7 +85,7 @@ class GuiPanel:
     def set_back_color(self, color):
         libtcod.console_set_default_background(self.con, color)
 
-    def render_panel(self, map_state, mouse):
+    def render_panel(self, map_scale, mouse):
         if self.render:
             libtcod.console_set_default_background(self.con, self.backcolor)
             libtcod.console_set_default_foreground(self.con, self.frontcolor)
@@ -99,11 +99,11 @@ class GuiPanel:
             for button in self.gen_buttons:
                 button.display(mouse)
             # Specific to worldmap ( TODO - fix.... )
-            if map_state == 'world':
+            if map_scale == 'world':
                 for button in self.wmap_dynamic_buttons + self.wmap_buttons:
                     button.display(mouse)
 
-            elif map_state == 'battle':
+            elif map_scale == 'human':
                 for button in self.bmap_dynamic_buttons + self.bmap_buttons:
                     button.display(mouse)
 

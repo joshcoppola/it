@@ -1588,7 +1588,7 @@ class World:
         player_party = None
 
         game.world_map_display_type = 'normal'
-        game.map_state = 'world'
+        game.map_scale = 'world'
 
         # Need to first set camera
         camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
@@ -3280,7 +3280,7 @@ class World:
     def goto_battle_map(self):
         ''' Create battle map from player's world coords '''
         global M
-        game.switch_map_state(map_state='battle')
+        game.switch_map_scale(map_scale='human')
 
         x, y = player_party.x, player_party.y
 
@@ -5025,7 +5025,7 @@ class Object:
         obj.set_current_holder(self)
 
         ''' TODO - this is causing the game to freak out on worldmap view before a scale map has been created '''
-        if game.map_state == 'battle':
+        if game.map_scale == 'human':
             obj.remove_from_map()
 
 
@@ -5949,7 +5949,7 @@ def debug_menu():
 
     wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
 
-    if game.map_state == 'world':
+    if game.map_scale == 'world':
         buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
                  text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
 
@@ -5959,7 +5959,7 @@ def debug_menu():
                     gui.Button(gui_panel=wpanel, func=list_factions, args=[],
                  text='Factions', topleft=(3, 8), width=width-4, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
                    ]
-    elif game.map_state == 'battle':
+    elif game.map_scale == 'human':
         buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
                  text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
 
@@ -8417,10 +8417,6 @@ class TimeCycle(object):
                     army.ai.next_tick = self.next_day()
                     army.ai.take_turn()
 
-            for army in WORLD.armies[:]:
-                if army.ai and army.check_for_battle() and not army.ai.has_battled:
-                    npc_battle(army)
-
                     #M.fov_recompute = True
                     #############################################
 
@@ -8492,14 +8488,14 @@ class Camera:
         self.center(int(round(WORLD_WIDTH / 2)), int(round(WORLD_HEIGHT / 2)))
 
     def move(self, dx, dy):
-        if game.map_state == 'world':
+        if game.map_scale == 'world':
             # Make sure the new camera coordinate won't let the camera see off the map
             if 0 <= self.x + dx < WORLD_WIDTH - self.width - 1:
                 self.x += dx
             if 0 <= self.y + dy < WORLD_HEIGHT - self.height - 1:
                 self.y += dy
 
-        if game.map_state == 'battle':
+        if game.map_scale == 'human':
             # Make sure the new camera coordinate won't let the camera see off the map
             if 0 <= self.x + dx < M.width - self.width - 1:
                 self.x += dx
@@ -8514,88 +8510,71 @@ class Camera:
         #make sure the camera doesn't see outside the map
         if x < 0: x = 0
         if y < 0: y = 0
-        if game.map_state == 'world':
+        if game.map_scale == 'world':
             if x > WORLD_WIDTH - self.width - 1:
                 x = WORLD_WIDTH - self.width - 1
             if y > WORLD_HEIGHT - self.height - 1:
                 y = WORLD_HEIGHT - self.height - 1
-            #if x != self.x or y != self.y: WORLD.fov_recompute = True
+
         ## Add FOV compute once it works for the world.
-        elif game.map_state == 'battle':
+        elif game.map_scale == 'human':
             if x > M.width - self.width - 1:
                 x = M.width - self.width - 1
             if y > M.height - self.height - 1:
                 y = M.height - self.height - 1
-            #if x != self.x or y != self.y: M.fov_recompute = True
 
         (self.x, self.y) = (x, y)
 
     def map2cam(self, x, y):
-        #convert coordinates on the map to coordinates on the screen
+        ''' 'convert coordinates on the map to coordinates on the screen '''
         (x, y) = (x - self.x, y - self.y)
         return (x, y)
 
     def cam2map(self, x, y):
-        #convert coordinates on the map to coordinates on the screen
+        ''' convert coordinates on the map to coordinates on the screen '''
         (x, y) = (x + self.x, y + self.y)
         return (x, y)
 
-    '''
-    def center(self, world_x, world_y):
-        # Center on an object. Coords need to be at least half a camera's size away from the edge of the screen to prevent seeing over the edge
-        if game.map_state == 'world':
-            if int(round(self.width / 2)) <= world_x < WORLD_WIDTH - int(round(self.width / 2)) - 1:
-                self.x = world_x - int(round(self.width / 2)) - 1
+    def click_and_drag(self, mouse):
+        ''' Handles clicking and dragging to move map around, on both scale-level maps '''
+        ox, oy = self.cam2map(mouse.cx, mouse.cy)
 
-            if int(round(self.height / 2)) <= world_y < WORLD_HEIGHT - int(round(self.height / 2)) - 1:
-                self.y = world_y - int(round(self.height / 2)) - 1
+        dragging = True
+        momentum = 0
+        while dragging:
+            # Need to force game to update FOV while dragging if on human-scale map; otherwise map console will not update
+            if game.map_scale == 'human':
+                game.handle_fov_recompute()
+            render_handler.render_all()
 
-        elif game.map_state == 'battle':
-            if int(round(self.width / 2)) <= world_x < M.width - int(round(self.width / 2)) - 1:
-                self.x = world_x - int(round(self.width / 2)) - 1
+            event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)  #get mouse position and click status
+            if mouse.lbutton_pressed:
+                dragging = False
 
-            if int(round(self.height / 2)) <= world_y < M.height - int(round(self.height / 2)) - 1:
-                self.y = world_y - int(round(self.height / 2)) - 1
-                # Otherwise, try to move to closest location? For centering on non-player objects near map edge
-    '''
 
-    def click_and_drag(self, ox, oy):
-        global mouse, key
+            (x, y) = self.cam2map(mouse.cx, mouse.cy)
 
-        (nx, ny) = self.map2cam(ox, oy)
+            dif_x, dif_y = (x - ox, y - oy)
+            # add some momentum to the camera
+            if dif_x != ox and dif_y != oy:
+                momentum += 2
+            else:
+                momentum = max(momentum - 1, 0)
 
-        if camera.mouse_is_on_map():
-            dragging = True
-            momentum = 0
-            while dragging:
-                #render the screen.
-                render_handler.render_all()
+            self.move(-dif_x, -dif_y)
 
-                event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)  #get mouse position and click status
-                if mouse.lbutton_pressed:
-                    dragging = False
+        # after button is released, move the camera a bit more based on momentum
+        total_momentum = momentum
+        m_amt = 1
+        while momentum > 0 and int(round(dif_x * m_amt)) + int(round(dif_y * m_amt)):
+            momentum -= 1
+            m_amt = momentum / total_momentum
+            # Need to force game to update FOV while dragging if on human-scale map; otherwise map console will not update
+            if game.map_scale == 'human':
+                game.handle_fov_recompute()
+            render_handler.render_all()
 
-                (x, y) = (self.x + mouse.cx, self.y + mouse.cy) #from screen to map coordinates
-
-                dif_x, dif_y = (x - ox, y - oy)
-                # add some momentum to the camera
-                if dif_x != ox and dif_y != oy:
-                    momentum += 2
-                else:
-                    momentum = max(momentum - 1, 0)
-
-                self.move(-dif_x, -dif_y)
-
-            # after button is released, move the camera a bit more based on momentum
-            total_momentum = momentum
-            m_amt = 1
-            while momentum > 0 and int(round(dif_x * m_amt)) + int(round(dif_y * m_amt)):
-                momentum -= 1
-                m_amt = momentum / total_momentum
-
-                render_handler.render_all()
-
-                self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
+            self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
 
     def mouse_is_on_map(self):
         ''' Ensures mouse doesn't pick up activity outside edge of camera '''
@@ -8775,7 +8754,7 @@ def get_info_under_mouse():
     ''' get info to be printed in the sidebar '''
     (x, y) = camera.cam2map(mouse.cx, mouse.cy)
     info = []
-    if game.map_state == 'battle' and M.is_val_xy((x, y)):
+    if game.map_scale == 'human' and M.is_val_xy((x, y)):
         info.append(('Tick: ' + str(time_cycle.current_tick), PANEL_FRONT))
         info.append(('at coords %i, %i height is %i' %(x, y, M.tiles[x][y].height), PANEL_FRONT))
         ### This will spit out some info about the unit we've selected (debug stuff)
@@ -8823,7 +8802,7 @@ def get_info_under_mouse():
 						info.append((component.name, color))
 				'''
 
-    elif game.map_state == 'world':
+    elif game.map_scale == 'world':
         color = PANEL_FRONT
         xc, yc = camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
@@ -8948,15 +8927,15 @@ class RenderHandler:
 
     def render_all(self, do_flush=1):
 
-        if game.map_state == 'battle' and M.fov_recompute:
+        if game.map_scale == 'human' and M.fov_recompute:
             M.display(self.debug_active_unit_dijmap)
 
-        elif game.map_state == 'world':
+        elif game.map_scale == 'world':
             WORLD.display()
 
         # Handle the basic rendering steps on the GUI panels
         for panel in interface.gui_panels:
-            panel.render_panel(game.map_state, mouse)
+            panel.render_panel(game.map_scale, mouse)
 
         # Debug - print FPS
         libtcod.console_print(panel2.con, x=2, y=1, fmt='%i FPS' %int(libtcod.sys_get_fps()) )
@@ -8964,7 +8943,7 @@ class RenderHandler:
         if game.state == 'playing':
             # Current date and time info
             libtcod.console_print(panel2.con, 2, 2, time_cycle.get_current_date())
-            if game.map_state == 'world':
+            if game.map_scale == 'world':
                 libtcod.console_print(panel2.con, 2, 3, 'Year %i, %i pop, %i imp' %(time_cycle.current_year, len(WORLD.all_figures), len(WORLD.important_figures)))
 
             ##### PANEL 4 - ECONOMY STUFF
@@ -9071,7 +9050,7 @@ class RenderHandler:
                        title_inset=True)
             ### Done rendering player info ###
 
-            if game.map_state == 'battle':
+            if game.map_scale == 'human':
                 battle_hover_information()
 
         y = 4
@@ -9312,7 +9291,7 @@ class Game:
         self.interface.set_game(self)
 
         self.state = 'worldgen'
-        self.map_state = 'world'        self.msgs = []
+        self.map_scale = 'world'        self.msgs = []
 
         self.quit_game = 0
 
@@ -9359,12 +9338,12 @@ class Game:
     def switch_to_quit_game(self):
         self.quit_game = 1
 
-    def switch_map_state(self, map_state):
+    def switch_map_scale(self, map_scale):
         ''' Toggles map state between larger "world" view and human-scaled map '''
         bwidth = 20
-        self.map_state = map_state
+        self.map_scale = map_scale
 
-        if self.map_state == 'battle':
+        if self.map_scale == 'human':
 
             panel2.bmap_buttons = [
                                    gui.Button(gui_panel=panel2, func=player_order_move, args=[],
@@ -9382,7 +9361,7 @@ class Game:
                                       topleft=(4, PANEL2_HEIGHT-6), width=20, height=5)
                                    ]
 
-        elif self.map_state == 'world':
+        elif self.map_scale == 'world':
 
             panel2.wmap_buttons = [
                                    gui.Button(gui_panel=panel2, func=debug_menu, args=[],
@@ -9397,9 +9376,9 @@ class Game:
 
     def handle_fov_recompute(self):
         ''' FOV / map is only re-rendered when fov_recompue is set to true '''
-        if self.map_state == 'world':
+        if self.map_scale == 'world':
             WORLD.fov_recompute = 1
-        elif self.map_state == 'battle':
+        elif self.map_scale == 'human':
             M.fov_recompute = 1
 
 
@@ -9432,7 +9411,7 @@ class Game:
     def new_game(self):
         global player, player_party
 
-        self.switch_map_state(map_state='world')
+        self.switch_map_scale(map_scale='world')
 
         playerciv = WORLD.cities[0]
         #create object representing the player
@@ -9517,7 +9496,7 @@ class Game:
         #WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))
         #####################################################################
 
-        self.switch_map_state(map_state='battle')
+        self.switch_map_scale(map_scale='human')
         self.state = 'playing'
 
 
@@ -9595,7 +9574,7 @@ class Game:
         '''
         M.clear_objects()
 
-        self.switch_map_state(map_state='world')
+        self.switch_map_scale(map_scale='world')
         camera.center(player_party.x, player_party.y)
 
 
@@ -9620,7 +9599,7 @@ class Game:
             return 'exit'  #exit game
 
         if mouse.lbutton and camera.mouse_is_on_map():
-            camera.click_and_drag(ox=x, oy=y)
+            camera.click_and_drag(mouse)
 
         if mouse.wheel_up:
             game.set_msg_index(amount=-1)
@@ -9629,7 +9608,7 @@ class Game:
 
         if self.state == 'playing':
 
-            if self.map_state == 'world':
+            if self.map_scale == 'world':
                 if key_char == 't':
                     if game.world_map_display_type == 'normal':
                         game.world_map_display_type = 'culture'
@@ -9638,7 +9617,7 @@ class Game:
                     elif game.world_map_display_type == 'territory':
                         game.world_map_display_type = 'normal'
 
-            if self.map_state == 'battle':
+            if self.map_scale == 'human':
                 if mouse.lbutton_pressed and camera.mouse_is_on_map():
                     # Clicking on a fellow sapient lets you talk to it
                     if len(M.tiles[x][y].objects) or M.tiles[x][y].interactable:
@@ -9706,7 +9685,7 @@ class Game:
         self.handle_fov_recompute()
 
     def player_move_or_attack(self, dx, dy):
-        if self.map_state == 'battle':
+        if self.map_scale == 'human':
             #the coordinates the player is moving to/attacking
             x = player.x + dx
             y = player.y + dy
@@ -9737,7 +9716,7 @@ class Game:
                 camera.center(player.x, player.y)
 
 
-        elif self.map_state == 'world':
+        elif self.map_scale == 'world':
             x = player_party.x + dx
             y = player_party.y + dy
 
@@ -9758,7 +9737,7 @@ class Game:
 
             #if battle_check:
                 #game.add_message('Going to battle map')
-                #game.switch_map_state(map_state='battle')
+                #game.switch_map_scale(map_scale='human')
                 #M = Wmap(WORLD, MAP_WIDTH, MAP_HEIGHT, (x, y))
 
 
