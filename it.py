@@ -3277,7 +3277,7 @@ class World:
         return closest_city
 
 
-    def goto_battle_map(self):
+    def goto_scale_map(self):
         ''' Create battle map from player's world coords '''
         global M
         game.switch_map_scale(map_scale='human')
@@ -8539,18 +8539,14 @@ class Camera:
         ''' Handles clicking and dragging to move map around, on both scale-level maps '''
         ox, oy = self.cam2map(mouse.cx, mouse.cy)
 
-        dragging = True
         momentum = 0
-        while dragging:
+        while not mouse.lbutton_pressed:
             # Need to force game to update FOV while dragging if on human-scale map; otherwise map console will not update
             if game.map_scale == 'human':
                 game.handle_fov_recompute()
             render_handler.render_all()
 
             event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)  #get mouse position and click status
-            if mouse.lbutton_pressed:
-                dragging = False
-
 
             (x, y) = self.cam2map(mouse.cx, mouse.cy)
 
@@ -9366,7 +9362,7 @@ class Game:
             panel2.wmap_buttons = [
                                    gui.Button(gui_panel=panel2, func=debug_menu, args=[],
                                               text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=WORLD.goto_battle_map, args=[],
+                                   gui.Button(gui_panel=panel2, func=WORLD.goto_scale_map, args=[],
                                               text='Go to scale map', topleft=(4, PANEL2_HEIGHT-16), width=bwidth, height=5),
                                    gui.Button(gui_panel=panel2, func=show_civs, args=[WORLD],
                                               text='Civ info', topleft=(4, PANEL2_HEIGHT-11), width=bwidth, height=5),
