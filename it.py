@@ -20,6 +20,7 @@ import physics as phys
 from traits import TRAIT_INFO, TRAITS
 from dijkstra import Dijmap, update_map_test
 import gen_languages as lang
+import gen_creatures
 import religion
 import gui
 from floodfill import floodfill
@@ -1580,7 +1581,7 @@ class Wmap:
 
 class World:
     def __init__(self, width, height):
-        global camera, time_cycle
+        global camera, time_cycle, player_party
 
         self.height = height
         self.width = width
@@ -1611,6 +1612,7 @@ class World:
 
 
         # Set up other important lists
+        self.sentient_races = []
         self.bands = []
         self.languages = []
         self.cities = []
@@ -2654,6 +2656,7 @@ class World:
 
 
     def gen_history(self, years):
+        self.gen_sentient_races()
         self.gen_cultures()
         self.create_civ_cradle()
         self.settle_cultures()
@@ -2669,6 +2672,26 @@ class World:
             panel2.wmap_buttons.append(gui.Button(gui_panel=panel2, func=game.new_game, args=[],
                                                   text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
+
+    def gen_sentient_races(self):
+        ''' Generate some sentient races to populate the world. Very basic for now '''
+        for i in xrange(5):
+            # Throwaway language for now
+            race_name_lang = lang.Language()
+            creature_name = race_name_lang.gen_word(syllables=roll(1, 3), num_phonemes=(2, 20))
+            # Shares physical components with humans for now
+            phys_info = copy.deepcopy(phys.creature_dict['human'])
+
+            description = gen_creatures.gen_creature_description(lang.spec_cap(creature_name))
+
+            phys_info['name'] = creature_name
+            phys_info['description'] = description
+
+            phys.creature_dict[creature_name] = phys_info
+            self.sentient_races.append(creature_name)
+
+            game.add_message('{0} added'.format(creature_name))
+
     def gen_cultures(self):
         begin = time.time()
 
@@ -2681,8 +2704,19 @@ class World:
                 # spawn a band
                 language = lang.Language()
                 self.languages.append(language)
-                band = Culture(color=random.choice(civ_colors), language=language, world=self)
-                #band = Culture(color=random.choice(civ_colors), language=language)
+                if roll(1, 10) > 2:
+                    races = [random.choice(self.sentient_races)]
+                else:
+                    # Pick more than one race to be a part of this culture
+                    races = []
+                    for i in xrange(2):
+                        while 1:
+                            race = random.choice(self.sentient_races)
+                            if race not in races:
+                                races.append(race)
+                                break
+
+                band = Culture(color=random.choice(civ_colors), language=language, world=self, races=races)
 
                 ## Track neighbors
                 neighbor_cultures = []
@@ -3704,7 +3738,7 @@ class Site:
             culture = self.culture
             hometown = self
 
-        human = culture.create_human(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=0)
+        human = culture.create_being(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=0)
 
         ## Add to list of all figures, and important ones if we're important
         WORLD.all_figures.append(human)
@@ -4587,7 +4621,7 @@ class Title(Profession):
 
             heir = random.choice(self.faction.members)
             if heir is None:
-                heir = self.building.site.culture.create_human(sex=1, born=roll(time_cycle.current_year - 45, time_cycle.current_year - 20),
+                heir = self.building.site.culture.create_being(sex=1, born=roll(time_cycle.current_year - 45, time_cycle.current_year - 20),
                                                                char='o', dynasty=None, important=0, faction=self.faction, armed=1)
                 self.set_heir(heir=heir, number_in_line=1)
 
@@ -5424,7 +5458,7 @@ class Object:
 
     def fulltitle(self):
         if self.sapient and self.creature: # and self.creature.status != 'dead':
-            return ''.join([self.sapient.firstname, ' ', self.sapient.lastname, ', ', self.sapient.get_profession()])
+            return '{0} {1}, {2} {3}'.format(self.sapient.firstname, self.sapient.lastname, lang.spec_cap(self.creature.creature_type), self.sapient.get_profession())
         else:
             return self.name
 
@@ -6121,7 +6155,7 @@ class Army:
         for unit_type, amount in self.units.iteritems():
             for j in xrange(amount):
                 born = roll(time_cycle.current_year - 45, time_cycle.current_year - 20)
-                human = self.culture.create_human(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, armed=1)
+                human = self.culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, armed=1)
                 human.sapient.army = self
 
                 profession = Profession(name='Soldier', category='commoner')
@@ -8586,17 +8620,16 @@ def create_shirt():
 
 
 class Culture:
-    def __init__(self, color, language, world=None):
+    def __init__(self, color, language, world, races):
         self.color = color
         self.language = language
         self.name = self.gen_word(syllables=roll(1, 3), num_phonemes=(3, 20), cap=1)
 
+        self.world = world
+        self.races = races
         # Set astrology from the world
-        self.astrology = None
-        self.pantheon = None
-        if world:
-            self.astrology = religion.Astrology(world.moons, world.suns, language=self.language)
-            self.pantheon = religion.Pantheon(astrology=self.astrology, num_misc_gods=1)
+        self.astrology = religion.Astrology(world.moons, world.suns, language=self.language)
+        self.pantheon = religion.Pantheon(astrology=self.astrology, num_misc_gods=1)
 
         self.subsistence = 'Hunter-gatherer'
 
@@ -8677,13 +8710,18 @@ class Culture:
 
 
 
-    def create_human(self, sex, born, char, dynasty, important, faction, wx=None, wy=None, armed=0):
+    def create_being(self, sex, born, char, dynasty, important, faction, wx=None, wy=None, armed=0, race=None):
         ''' Create a human, using info loaded from xml in the physics module '''
+
+        # If race=None then we'll need to pick a random race from this culture
+        if not race:
+            race = random.choice(self.races)
+
         # The creature component
-        creature_component = Creature(creature_type='human', sex=sex)
+        creature_component = Creature(creature_type=race, sex=sex)
 
         # Look up the creature (imported as a dict with a million nested dicts
-        info = phys.creature_dict['human']
+        info = phys.creature_dict[race]
 
         # Gen names based on culture and dynasty
         if sex == 1: firstname = lang.spec_cap(random.choice(self.language.vocab_m.values()))
@@ -9132,6 +9170,13 @@ def battle_hover_information():
             text = [skill + ': ' + str(value) for skill, value in target.creature.cskills.iteritems()]
             text.insert(0, target.creature.stance + ' stance')
 
+            description = textwrap.wrap(target.description, 40)
+            # Beginning with the last line, add each line of the description to the hover info
+            text.insert(0, '')
+            for line in reversed(description):
+                text.insert(0, line)
+
+
             if target.ai:
                 text.append(' :- - - - - - - : ')
                 text.append('State: %s'%target.ai.ai_state )
@@ -9411,7 +9456,7 @@ class Game:
 
         playerciv = WORLD.cities[0]
         #create object representing the player
-        player = playerciv.culture.create_human(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1)
+        player = playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1)
         player.ai = None
 
         player_party = WORLD.create_army(x=playerciv.x, y=playerciv.y, char='@', name=player.fullname() + '\'s party',
@@ -9448,7 +9493,8 @@ class Game:
         ##################### Create a dummy world just for the quick battle
         WORLD = World(width=3, height=3)
         WORLD.setup_world()
-        cult = Culture(color=libtcod.grey, language=lang.Language())
+        WORLD.gen_sentient_races()
+        cult = Culture(color=libtcod.grey, language=lang.Language(), world=WORLD, races=WORLD.sentient_races)
         for x in xrange(WORLD.width):
             for y in xrange(WORLD.height):
                 WORLD.tiles[x][y].region = 'temperate forest'
@@ -9467,7 +9513,7 @@ class Game:
         faction1.set_enemy_faction(faction=faction2)
 
         ### Make the player ###
-        player = cult.create_human(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1)
+        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1)
         player.char = '@'
         player.ai = None
 
