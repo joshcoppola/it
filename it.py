@@ -18,7 +18,7 @@ from collections import Counter
 import economy as econ
 import physics as phys
 from traits import TRAIT_INFO, TRAITS
-from dijkstra import Dijmap, update_map_test
+from dijkstra import Dijmap
 import gen_languages as lang
 import gen_creatures
 import religion
@@ -8862,9 +8862,9 @@ def get_info_under_mouse():
             if WORLD.tiles[x][y].site is not None:
                 site = WORLD.tiles[x][y].site
 
-                info.append((site.name.capitalize() + ' (' + site.site_type + ')', color))
+                info.append(('{0} ({1})'.format(site.name.capitalize(), site.site_type), color))
                 if site.site_type == 'city':
-                    info.append((str(len(site.caravans)) + ' caravans harbored here', color))
+                    info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
                     #for caravan in site.caravans:
                     #    info.append((caravan.name, color))
 
@@ -8880,22 +8880,22 @@ def get_info_under_mouse():
 
             # Resources
             for resource, amount in WORLD.tiles[x][y].res.iteritems():
-                info.append((resource.capitalize() + ' (' + str(amount) + ')', color))
+                info.append(('{0} ({1})'.format(resource.capitalize(), amount), color))
             info.append((' ', color))
             # Armies
             for army in WORLD.tiles[x][y].armies:
                 acolor = libtcod.color_lerp(army.color, PANEL_FRONT, .5)
-                info.append(('* ' + army.name + ' *', acolor))
+                info.append(('* {0} *'.format(army.name), acolor))
 
                 ## TODO - add caravan goals so I no longer need this workaround
                 if len(army.get_leader().sapient.goals):
                     info.append((army.get_leader().sapient.goals[0].name, acolor))
                 for figure in army.figures:
-                    info.append(('-' + figure.fulltitle(), acolor))
+                    info.append(('-{0}'.format(figure.fulltitle()), acolor))
                 for troop, amount in army.units.iteritems():
-                    info.append((troop + ' (' + str(amount) + ')', acolor))
+                    info.append(('{0} ({1})'.format(troop, amount), acolor))
                 for item, amount in army.goods.iteritems():
-                    info.append((item + ' (' + str(amount) + ')', acolor))
+                    info.append(('{0} ({1})'.format(item, amount), acolor))
                 info.append((' ', acolor))
 
             info.append((' ', color))

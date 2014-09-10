@@ -71,20 +71,5 @@ class Dijmap:
             for node in self.nodes:
                 if node.active:
                     marked_status = node.expand()
-
-
-def update_map_test(dmap, target_nodes):
-    dmap.dmap = [row[:] for row in dmap.empty_map]
-
-    dmap.nodes = []
-    for x, y in target_nodes:
-        dmap.nodes.append(Node(dmap, x, y))
-        dmap.dmap[x][y] = 0
-
-    marked_status = True
-    ## Take the target nodes, and expand each of them until none of them mark a spot
-    while marked_status:
-        marked_status = False
-        for node in dmap.nodes:
-            if node.active:
-                marked_status = node.expand()
+                    
+                    
