@@ -17,9 +17,9 @@ features = {
                      'value':['ears']
                      },
 
-            'face':{'prefix':['a scowling', 'a wizened', 'a friendly', 'a gaunt', 'a sulking'],
+            'face':{'prefix':['a scowling', 'a wizened', 'a friendly', 'a gaunt', 'a sulking', 'a sullen', 'a pensive'],
                     'color':[],
-                    'value':['face', 'face', 'face', 'face', 'face', 'visage', 'countenance', 'appearance']
+                    'value':['face', 'face', 'face', 'face', 'visage', 'countenance', 'appearance', 'disposition']
                     },
 
             'arms':{'prefix':['muscular', 'slender', 'strong', 'bulky', 'long'],
@@ -44,10 +44,26 @@ features = {
                     },
 
 
+            'skin_chitin':{'prefix':['smooth', 'rough', 'thick', 'segmented'],
+                                  'color':['black', 'brownish', 'greyish'],
+                                  'value':['chitin']
+                    },
+
+
             'skin_covering_hair':{'prefix':['partially covered in', 'sparsely covered in', 'mostly covered in', 'covered in', 'completely covered in', 'completely covered in thick', 'covered in thick'],
                                   'color':['brown', 'dull brown', 'dull grey', 'grey', 'black'],
-                                  'value':['hair', 'hair', 'fur']
+                                  'value':['hair']
                     },
+
+            'skin_covering_fur':{'prefix':['coated in', 'coated in short', 'coated in long', 'coated in shaggy', 'coated in thin', 'coated in thick'],
+                                  'color':['golden', 'brown speckled', 'black-striped', 'brown-spotted', 'grey speckled', 'grey-speckled', 'black-spotted'],
+                                  'value':['fur', 'fur', 'hide']
+                    },
+
+            'skin_covering_hairless':{'prefix':['completely', 'totally', 'effectively', 'utterly'],
+                                  'color':[],
+                                  'value':['without hair', 'without hair or fur', 'lacking hair', 'hairless', 'hairless', 'hairless', 'glabrous']
+                    }
 
             }
 
@@ -76,12 +92,15 @@ def gen_creature_description(creature_name):
         flavor_text_values.append(flavor_text)
 
     size = describe_feature('size')
-    skin = describe_feature('skin_naked')
 
-    if roll(1, 10) > 1:
-        hair = describe_feature('skin_covering_hair')
+    skin_type = random.choice(('skin_naked', 'skin_naked', 'skin_naked', 'skin_naked', 'skin_scaled', 'skin_chitin'))
+    skin = describe_feature(skin_type)
+
+    if skin_type == 'skin_naked' and roll(1, 10) > 2:
+        if roll(0, 1):  hair = describe_feature('skin_covering_hair')
+        else:           hair = describe_feature('skin_covering_fur')
     else:
-        hair = 'completely hairless'
+        hair = describe_feature('skin_covering_hairless')
 
     description = random.choice([
                     'A {0} with {1} and {2}. It has {3} and is {4}.',
@@ -103,4 +122,4 @@ def gen_creature_description(creature_name):
 
 if __name__ == '__main__':
     for i in xrange(8):
-        print gen_creature_description('test')
+        print gen_creature_description('test') + '\n'
