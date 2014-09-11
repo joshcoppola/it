@@ -33,7 +33,7 @@ features = {
                     },
 
 
-            'skin_naked':{'prefix':['dull', 'pale', 'muted', 'smooth', 'rough'],
+            'skin_naked':{'prefix':['dull', 'pale', 'muted', 'smooth', 'rough', 'thick'],
                            'color':['green', 'blue', 'tan', 'pinkish'],
                            'value':['skin']
                     },
@@ -50,7 +50,7 @@ features = {
                     },
 
 
-            'skin_covering_hair':{'prefix':['partially covered in', 'sparsely covered in', 'mostly covered in', 'covered in', 'completely covered in', 'completely covered in thick', 'covered in thick'],
+            'skin_covering_hair':{'prefix':['partially covered in', 'sparsely covered in', 'mostly covered in', 'covered in', 'completely covered in'],
                                   'color':['brown', 'dull brown', 'dull grey', 'grey', 'black'],
                                   'value':['hair']
                     },
@@ -61,8 +61,8 @@ features = {
                     },
 
             'skin_covering_hairless':{'prefix':['completely', 'totally', 'effectively', 'utterly'],
-                                  'color':[],
-                                  'value':['without hair', 'without hair or fur', 'lacking hair', 'hairless', 'hairless', 'hairless', 'glabrous']
+                                      'color':[],
+                                      'value':['without hair', 'without hair or fur', 'lacking hair', 'hairless', 'hairless', 'hairless', 'glabrous']
                     }
 
             }
@@ -84,7 +84,7 @@ def describe_feature(feature):
 def gen_creature_description(creature_name):
     # Using the human template for now, this will be updated to include actual procedurally generated creatures eventually
 
-    possible_flavor_text_values = ['eyes', 'teeth', 'ears', 'face', 'arms']
+    possible_flavor_text_values = ['eyes', 'teeth', 'ears', 'face']
     flavor_text_values = []
 
     for i in xrange(2):
@@ -103,10 +103,12 @@ def gen_creature_description(creature_name):
         hair = describe_feature('skin_covering_hairless')
 
     description = random.choice([
-                    'A {0} with {1} and {2}. It has {3} and is {4}.',
+                    'A {0} with {1} and {2}. It has {3} and its body is {4}.',
                     'A {0} with {1} and {2}. It has {3} and is {4}.',
                     'A {0} with {1} and {2}. It is {4} and has {3}.',
+                    'A {0} with {1} and {2}. Is body is {4} and has {3}.',
                     'A {0} with {3}. It has {1} and {2}. It is {4}.',
+                    'A {0} with {3}. It has {1} and {2}. Its body is {4}.',
                     'A {0} that is {4}. It has {3}, {1}, and {2}.',
                     'This {0} has {3} and is {4}. It has {1} and {2}.',
                     'This {0} is {4} and has {3}. It has {1} and {2}.',
