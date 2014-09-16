@@ -165,6 +165,8 @@ DARK_COLORS = (
                libtcod.Color(118, 43, 26), libtcod.Color(107, 95, 50)
                )
 
+DEBUG_MSG_COLOR = libtcod.dark_red
+
 
 ## For individual facing information
 NEIGHBORS = ( (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1) )
@@ -1613,6 +1615,8 @@ class World:
 
         # Set up other important lists
         self.sentient_races = []
+        self.brutish_races = []
+
         self.bands = []
         self.languages = []
         self.cities = []
@@ -2678,7 +2682,7 @@ class World:
         for i in xrange(5):
             # Throwaway language for now
             race_name_lang = lang.Language()
-            creature_name = race_name_lang.gen_word(syllables=roll(1, 3), num_phonemes=(2, 20))
+            creature_name = race_name_lang.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20))
             # Shares physical components with humans for now
             phys_info = copy.deepcopy(phys.creature_dict['human'])
 
@@ -2690,7 +2694,27 @@ class World:
             phys.creature_dict[creature_name] = phys_info
             self.sentient_races.append(creature_name)
 
-            game.add_message('{0} added'.format(creature_name))
+            game.add_message('{0} added'.format(lang.spec_cap(creature_name)))
+
+        ## These guys will be less intelligent and more brute-ish. Generally live in lairs
+        for i in xrange(5):
+            # Throwaway language for now
+            race_name_lang = lang.Language()
+            creature_name = race_name_lang.gen_word(syllables=roll(1, 2), num_phonemes=(2, 10))
+            # Shares physical components with humans for now
+            phys_info = copy.deepcopy(phys.creature_dict['human'])
+
+            description = gen_creatures.gen_creature_description(creature_name=lang.spec_cap(creature_name), creature_size=3)
+
+            phys_info['name'] = creature_name
+            phys_info['description'] = description
+
+            phys.creature_dict[creature_name] = phys_info
+            self.brutish_races.append(creature_name)
+
+            game.add_message('{0} added (br)'.format(lang.spec_cap(creature_name)))
+
+
 
     def gen_cultures(self):
         begin = time.time()
@@ -3551,6 +3575,11 @@ class World:
         bandits = self.create_army(x=wx, y=wy, char='B', name='Bandit band', color=libtcod.black, speed=3, goods={}, figures=[leader], units={'Swordsmen':10}, faction=bandit_faction, culture=closest_city.culture, ai=None)
         hideout_building.add_garrison(bandits)
 
+        ## Prisoner
+        prisoner = closest_city.create_inhabitant(sex=1, born=time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
+        bandits.add_captive(figure=prisoner)
+        ############
+
         #self.hideouts.append(hideout_site)
         return leader, hideout_building
 
@@ -4349,6 +4378,8 @@ class Building:
 
             self.name = front + ending
 
+    def get_name(self):
+        return self.name
 
     def add_worker(self, worker):
         self.current_workers.append(worker)
@@ -4362,9 +4393,6 @@ class Building:
         profession.building = self
         profession.current_work_building = self
         self.professions.append(profession)
-
-    def get_name(self):
-        return self.name
 
     def fill_position(self, profession):
         # Give temples and nobles and stuff an initial dynasty to begin with
@@ -4739,8 +4767,6 @@ class Faction:
         materials = ('iron', 'copper', 'bronze')
 
         ''' Create a few types of unique weapons for this culture '''
-        #weapon_types = ('sword', 'axe')
-
         for wtype in weapon_types:
             material_name = random.choice(materials)
             material = phys.materials[material_name]
@@ -4750,17 +4776,15 @@ class Faction:
             # Send it over to the item generator to generate the weapon
             weapon_info_dict = phys.wgenerator.generate_weapon(wtype=wtype, material=material, special_properties=special_properties)
 
-            weapon_name = self.site.culture.gen_word(syllables=roll(1, 2))
+            weapon_name = self.site.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
 
             name = '%s %s' %(weapon_name, wtype)
             weapon_info_dict['name'] = name
 
             # Finally, append to list of object dicts
-            #self.weapon_info_dicts.append(weapon_info_dict)
             self.weapons.append(name)
 
             phys.object_dict[name] = weapon_info_dict
-
 
 
 class Rect:
@@ -5711,7 +5735,7 @@ def player_give_order(target, order):
             libtcod.console_put_char_ex(con=map_con.con, x=mx, y=my, c='X', fore=libtcod.grey, back=libtcod.black)
 
             if mouse.lbutton:
-                player.sapient.say_something('%s, move over there'%target.fullname())
+                player.sapient.say('%s, move over there'%target.fullname())
                 target.ai.set_state('moving', target_location=(x, y))
                 break
             elif mouse.rbutton:
@@ -5724,11 +5748,11 @@ def player_give_order(target, order):
 
     elif order == 'follow':
         target.ai.set_state('following', target_figure=player)
-        player.sapient.say_something('%s, follow me!'%target.fullname())
+        player.sapient.say('%s, follow me!'%target.fullname())
 
 def player_order_follow():
     ''' Player orders all nearby allies to follow him '''
-    player.sapient.say_something('Everyone, follow me!')
+    player.sapient.say('Everyone, follow me!')
     for figure in filter(lambda figure: figure.sapient.army == player_party and figure != player and figure.distance_to(player) <= 50 and figure.ai.perception_info['closest_enemy'] is None, M.sapients):
         figure.ai.set_state('following', target_figure=player)
 
@@ -5757,7 +5781,7 @@ def player_order_move():
                     libtcod.console_put_char_ex(con=map_con.con, x=i, y=j, c='X', fore=libtcod.grey, back=libtcod.black)
 
         if mouse.lbutton_pressed and len(locs) >= len(figures):
-            player.sapient.say_something('Everyone, move over there')
+            player.sapient.say('Everyone, move over there')
             for i, figure in enumerate(figures):
                 figure.ai.set_state('moving', target_location=locs[i])
             break
@@ -6128,8 +6152,7 @@ class Army:
     def add_captive(self, figure):
         ''' Add a captive to the army '''
         leader = self.get_leader()
-        figure.sapient.captor = leader
-        leader.sapient.captives.append(figure)
+        leader.sapient.take_captive(figure=figure)
         self.captives.append(figure)
 
     def free_captive(self, figure):
@@ -6142,6 +6165,7 @@ class Army:
         ''' Once the army returns to a site, it can transfer captives to buildings '''
         self.captives.remove(figure)
         target_building.captives.append(figure)
+        game.add_message('{0} transferred {1} to {2}. Needs work because {1} does not know what he/she belongs to'.format(self.name, figure.fulltitle(), target_building.get_name()), DEBUG_MSG_COLOR)
 
     def get_leader(self):
         return self.figures[0]
@@ -6149,7 +6173,7 @@ class Army:
     def add_to_map(self, startrect, startbuilding, patrol_locations):
         ''' Add this army to the map '''
         ## TODO - better captive placement
-        allmembers = self.figures[:] # + self.captives[:]
+        allmembers = self.figures[:]
 
         ## Create all who have not been created
         for unit_type, amount in self.units.iteritems():
@@ -6189,7 +6213,7 @@ class Army:
         ####################################
 
         # Place somewhere in startling location that isn't blocked
-        for figure in allmembers:
+        for figure in allmembers + self.captives[:]:
             # Try 200 times to find a good spot in the starting area..
             found_spot = 0
             for counter in xrange(200):
@@ -6209,6 +6233,8 @@ class Army:
                     if not M.tile_blocks_mov(x, y):
                         break
             ###### end safety step #####################################
+            if figure in self.captives:
+                game.add_message('{0} is a captive and at {1}, {2}'.format(figure.fulltitle(), figure.x, figure.y))
 
             M.add_object_to_map(x=x, y=y, obj=figure)
 
@@ -6846,29 +6872,29 @@ class SapientComponent:
         ''' Sending the answer through the game messages '''
 
         if answer_type == 'no answer':
-            self.say_something('I don\'t want to tell you that.')
+            self.say('I don\'t want to tell you that.')
 
         elif answer_type == 'truth':
             if question_type == 'name':
-                self.say_something('My name is %s.' % self.owner.fullname() )
+                self.say('My name is %s.' % self.owner.fullname() )
 
             elif question_type == 'profession':
                 if self.profession:
-                    self.say_something('I am a %s.' % self.profession.name)
+                    self.say('I am a %s.' % self.profession.name)
                 else:
-                    self.say_something('I do not have any profession.')
+                    self.say('I do not have any profession.')
 
             elif question_type == 'age':
                 age = self.get_age()
-                self.say_something('I am %i.' % age)
+                self.say('I am %i.' % age)
 
             elif question_type == 'city':
                 current_citizen_of = self.current_citizenship
 
                 if current_citizen_of:
-                    self.say_something('I currently live in %s.' % current_citizen_of.name)
+                    self.say('I currently live in %s.' % current_citizen_of.name)
                 else:
-                    self.say_something('I currently do not hold any citizenship.')
+                    self.say('I currently do not hold any citizenship.')
 
             elif question_type == 'goals':
                 goals = []
@@ -6876,14 +6902,14 @@ class SapientComponent:
                     for goal in self.goals:
                         goals.append(goal)
 
-                        self.say_something('I currently am %s.' )
+                        self.say('I currently am %s.' )
                 else:
-                    self.say_something('I have no goals currently.')
+                    self.say('I have no goals currently.')
 
         ## Shouldn't break the mold here... but answer_type is different
         if question_type == 'recruit':
             if answer_type == 'yes':
-                self.say_something('I will gladly join you!')
+                self.say('I will gladly join you!')
                 ### TODO - put this into a function!
                 self.profession = Profession('Adventurer', 'commoner')
                 self.owner.sapient.join_army(player_party)
@@ -6891,20 +6917,20 @@ class SapientComponent:
             elif answer_type == 'no':
                 ## Decline, with a reason why
                 if self.army:
-                    self.say_something('I am already a member of %s.' % self.army.name)
+                    self.say('I am already a member of %s.' % self.army.name)
                 elif self.get_profession:
-                    self.say_something('As a %s, I cannot join you.' % self.get_profession() )
+                    self.say('As a %s, I cannot join you.' % self.get_profession() )
                 else:
-                    self.say_something('I cannot join you.')
+                    self.say('I cannot join you.')
 
         # Same with greetings...
         elif question_type == 'greet':
             if answer_type == 'return greeting':
-                self.say_something('Hello there.')
+                self.say('Hello there.')
             elif answer_type == 'no answer':
                 self.nonverbal_behavior('does not answer')
             elif answer_type == 'busy':
-                self.say_something('I\m sorry, I am busy right now.')
+                self.say('I\m sorry, I am busy right now.')
 
 
     def get_valid_questions(self, target):
@@ -7032,10 +7058,10 @@ class SapientComponent:
     #    score = 5
     #    return score
 
-    def say_something(self, text_string):
+    def say(self, text_string):
         msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
 
-        game.add_message(self.owner.fullname() + ': ' + text_string, msg_color )
+        game.add_message('{0}: {1}'.format(self.owner.fullname(), text_string), msg_color)
 
     def nonverbal_behavior(self, behavior, msg_color=None):
         ''' Any nonverbal behavior that this creature can undertake '''
@@ -7065,9 +7091,34 @@ class SapientComponent:
             elif pain_composite > .3:
                 self.nonverbal_behavior('grunts')
 
+    def take_captive(self, figure):
+        figure.sapient.captor = self.owner
+        self.captives.append(figure)
+
+    def is_captive(self):
+        ''' Function simply returns whether or not this guy is a captive '''
+        return self.captor is not None
+
+    def sapient_free_from_captivity(self):
+        ''' Handles setting a sapient free from captivity, and making sure any army holding it captive is also properly handled '''
+        if self.captor.sapient.army and self.owner in self.captor.sapient.army.captives:
+            self.captor.sapient.army.captives.remove(self.owner)
+
+        self.captor.sapient.captives.remove(self.owner)
+        self.captor = None
+
+        # Unsure if this will work properly, but, once freed, all sapients should re-evaluate to make sure captives show up as enemies properly
+        for figure in M.sapients:
+            if figure.ai:
+                figure.ai.set_enemy_perceptions_from_cached_factions()
+        ############################################################
+
+        self.say('I\'m free!')
+
+
     def is_available_to_act(self):
         ''' Way to check whether the figure can act of their own accord.'''
-        if self.captor is not None or self.owner.creature.status == 'dead':
+        if self.is_captive() or self.owner.creature.status == 'dead':
             return 0
 
         return 1
@@ -7827,7 +7878,7 @@ class Creature:
 
     def handle_renegade_faction(self, target):
         utterance = random.choice(('HEY!', 'WHAT ARE YOU DOING?!', 'AAAAHHHH!!!'))
-        target.sapient.say_something(utterance)
+        target.sapient.say(utterance)
 
         if target.creature.current_weapon is not None and target.creature.current_weapon.weapon:
             target.ai.set_state('attacking')
@@ -7941,10 +7992,13 @@ class DijmapSapient:
 
 
     def set_enemy_perceptions_from_cached_factions(self):
-        for enemy_faction in self.owner.sapient.enemy_factions:
-            for member in M.factions_on_map[enemy_faction]:
-                if member not in self.perceived_enemies.keys():
-                    self.unperceived_enemies.append(member)
+        # Make sure We are not a captive (later, if freed, captives will need to run this routine)
+        if not self.owner.sapient.is_captive():
+
+            for enemy_faction in self.owner.sapient.enemy_factions:
+                for member in M.factions_on_map[enemy_faction]:
+                    if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
+                        self.unperceived_enemies.append(member)
 
 
     def take_turn(self):
@@ -7965,7 +8019,7 @@ class DijmapSapient:
             perceived, threat_level = actor.creature.check_to_perceive(figure)
 
             if perceived:
-                self.owner.sapient.say_something('I see you, %s'%figure.fullname())
+                self.owner.sapient.say('I see you, %s'%figure.fullname())
                 self.perceived_enemies[figure] = threat_level
                 self.unperceived_enemies.remove(figure)
 
@@ -9671,31 +9725,31 @@ class Game:
                     self.handle_fov_recompute()
 
             #movement keys
-            if key.vk == libtcod.KEY_UP or key_char == 'w':
+            if key.vk == libtcod.KEY_UP or key_char == 'w' or key.vk == libtcod.KEY_KP8:
                 self.player_move_or_attack(0, -1)
 
-            elif key.vk == libtcod.KEY_DOWN or key_char == 'x':
+            elif key.vk == libtcod.KEY_DOWN or key_char == 'x' or key.vk == libtcod.KEY_KP2:
                 self.player_move_or_attack(0, 1)
 
-            elif key.vk == libtcod.KEY_LEFT or key_char == 'a':
+            elif key.vk == libtcod.KEY_LEFT or key_char == 'a' or key.vk == libtcod.KEY_KP4:
                 self.player_move_or_attack(-1, 0)
 
-            elif key.vk == libtcod.KEY_RIGHT or key_char == 'd':
+            elif key.vk == libtcod.KEY_RIGHT or key_char == 'd' or key.vk == libtcod.KEY_KP6:
                 self.player_move_or_attack(1, 0)
 
-            elif key.vk == libtcod.KEY_SPACE or key_char == 's':
+            elif key.vk == libtcod.KEY_SPACE or key_char == 's' or key.vk == libtcod.KEY_KP5:
                 self.player_move_or_attack(0, 0)
 
-            elif key_char == 'q':
+            elif key_char == 'q' or key.vk == libtcod.KEY_KP7:
                 self.player_move_or_attack(-1, -1)
 
-            elif key_char == 'e':
+            elif key_char == 'e' or key.vk == libtcod.KEY_KP9:
                 self.player_move_or_attack(1, -1)
 
-            elif key_char == 'c':
+            elif key_char == 'c' or key.vk == libtcod.KEY_KP3:
                 self.player_move_or_attack(1, 1)
 
-            elif key_char == 'z':
+            elif key_char == 'z' or key.vk == libtcod.KEY_KP1:
                 self.player_move_or_attack(-1, 1)
 
 
