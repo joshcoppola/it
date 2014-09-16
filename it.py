@@ -7927,40 +7927,32 @@ class Creature:
     def map_death(self, reason):
         ''' Die ! '''
 
+        creature_obj = self.owner
         self.set_status('dead')
 
-        obj = self.owner
-
         # Drop any things we have
-        for component in obj.components:
+        for component in creature_obj.components:
             if component.grasped_item is not None:
-                #M.tiles[component.grasped_item.x][component.grasped_item.y].objects.append(component.grasped_item)
-                M.tiles[obj.x][obj.y].objects.insert(0, component.grasped_item)
-                component.grasped_item.x, component.grasped_item.y = obj.x, obj.y
-                M.objects.append(component.grasped_item)
+                # Drop the object (and release hold on it)
+                creature_obj.drop_object(own_component=component, obj=component.grasped_item)
 
-                component.remove_grasp_on_item(component.grasped_item)
-
-        if obj in obj.sapient.army.figures:
-            obj.sapient.army.figures.remove(obj)
+        if creature_obj in creature_obj.sapient.army.figures:
+            creature_obj.sapient.army.figures.remove(creature_obj)
             #else:
         ### Need to have it subtract one from the actual unit this guy belongs to
         #creature.sapient.army.keys()[0] -= 1
 
-        M.sapients.remove(obj)
-        M.objects.append(obj)
+        M.sapients.remove(creature_obj)
+        M.objects.append(creature_obj)
 
-        if obj.sapient:
-            obj.sapient.nonverbal_behavior('has died due to %s' %reason, libtcod.darker_red)
-        #game.add_message(obj.name.capitalize() + ' is dead!', libtcod.orange)
+        if creature_obj.creature:
+            game.add_message('{0} has died due to {1}'.format(creature_obj.fulltitle(), reason), libtcod.darker_red)
 
-        #obj.char = '%'
-        #obj.color = libtcod.black
-        obj.set_display_color(obj.death_color)
-        obj.blocks_mov = False
-        obj.ai = None
-        libtcod.map_set_properties(M.fov_map, obj.x, obj.y, True, True)
-        obj.name = '%s corpse' %obj.name
+        creature_obj.set_display_color(creature_obj.death_color)
+        creature_obj.blocks_mov = False
+        creature_obj.ai = None
+        libtcod.map_set_properties(M.fov_map, creature_obj.x, creature_obj.y, True, True)
+        creature_obj.name = 'Corpse of {0}'.format(creature_obj.fulltitle())
 
 
 
