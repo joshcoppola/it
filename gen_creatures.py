@@ -29,7 +29,7 @@ features = {
 
             'size':{'prefix':['small', 'smallish', 'medium-sized', 'stout', 'squat', 'large', 'hulking', 'hefty', 'lanky', 'limber'],
                     'color':[],
-                    'value':['humanoid', 'humanoid', 'humanoid' , 'creature', 'biped', 'critter'] # 'being'
+                    'value':['humanoid', 'humanoid', 'humanoid' , 'sentient creature', 'anthropoid', 'human-like creature', 'sapient'] # 'being' # biped
                     },
 
 
@@ -81,7 +81,7 @@ def describe_feature(feature):
     return description
 
 
-def gen_creature_description(creature_name):
+def gen_creature_description(creature_name, creature_size=2):
     # Using the human template for now, this will be updated to include actual procedurally generated creatures eventually
 
     possible_flavor_text_values = ['eyes', 'teeth', 'ears', 'face']
@@ -91,7 +91,15 @@ def gen_creature_description(creature_name):
         flavor_text = describe_feature(possible_flavor_text_values.pop(roll(0, len(possible_flavor_text_values)-1)))
         flavor_text_values.append(flavor_text)
 
-    size = describe_feature('size')
+
+    # Creature generator will need to be expanded in the future, for now a working prototype lets us hack in a pre-specified size
+    # (All sentient humanoids are size 2, whereas large ones become unintelligent for now
+    if creature_size == 1:
+        size = '{0} {1}'.format(random.choice(('small', 'smallish')), 'humanoid')
+    elif creature_size == 2:
+        size = describe_feature('size')
+    elif creature_size == 3:
+        size = '{0}, {1}'.format(random.choice(('large', 'large', 'hulking', 'hefty')), 'barely intelligent humanoid')
 
     skin_type = random.choice(('skin_naked', 'skin_naked', 'skin_naked', 'skin_naked', 'skin_scaled', 'skin_chitin'))
     skin = describe_feature(skin_type)
