@@ -799,12 +799,12 @@ class Wmap:
 
         # Now add a dmap for each
         for faction, member_set in self.factions_on_map.iteritems():
-            self.add_dmap(key=faction.name, target_nodes=[(obj.x, obj.y) for obj in member_set], dmrange=DIJMAP_CREATURE_DISTANCE)
+            self.add_dmap(key=faction.faction_name, target_nodes=[(obj.x, obj.y) for obj in member_set], dmrange=DIJMAP_CREATURE_DISTANCE)
 
             # Make sure all sapients know who their enemies are
             for enemy_faction in faction.enemy_factions:
                 if enemy_faction in self.factions_on_map.keys():
-                    game.add_message('%s: setting enemy - %s'%(faction.name, enemy_faction.name), libtcod.color_lerp(faction.color, PANEL_FRONT, .5) )
+                    game.add_message('%s: setting enemy - %s'%(faction.faction_name, enemy_faction.faction_name), libtcod.color_lerp(faction.color, PANEL_FRONT, .5) )
                     for obj in member_set:
                         obj.sapient.add_enemy_faction(enemy_faction)
 
@@ -816,17 +816,17 @@ class Wmap:
     def update_dmaps(self):
         #jobs = []
         #def stupid_function(target_nodes):
-        #    self.dijmaps[faction.name].update_map(target_nodes)
+        #    self.dijmaps[faction.faction_name].update_map(target_nodes)
 
         for faction, member_set in self.factions_on_map.iteritems():
             target_nodes = [(obj.x, obj.y) for obj in member_set if obj.creature.status == 'alive' and (obj == player or (obj != player and obj.ai.ai_state != 'idle'))]
-            self.dijmaps[faction.name].update_map(target_nodes=target_nodes)
-            #update_map_test(self.dijmaps[faction.name], target_nodes)
+            self.dijmaps[faction.faction_name].update_map(target_nodes=target_nodes)
+            #update_map_test(self.dijmaps[faction.faction_name], target_nodes)
 
-            #j = multiprocessing.Process(target=self.dijmaps[faction.name].update_map, args=(target_nodes))
-            #j = multiprocessing.Process(target=self.dijmaps[faction.name].update_map, args=(target_nodes))
-            #j = multiprocessing.Process(target=game.add_message, args=(faction.name,))
-            #j = multiprocessing.Process(target=update_map_test, args=(self.dijmaps[faction.name], target_nodes))
+            #j = multiprocessing.Process(target=self.dijmaps[faction.faction_name].update_map, args=(target_nodes))
+            #j = multiprocessing.Process(target=self.dijmaps[faction.faction_name].update_map, args=(target_nodes))
+            #j = multiprocessing.Process(target=game.add_message, args=(faction.faction_name,))
+            #j = multiprocessing.Process(target=update_map_test, args=(self.dijmaps[faction.faction_name], target_nodes))
 
             #jobs.append(j)
             #j.start()
@@ -1036,7 +1036,7 @@ class Wmap:
 
     def create_and_add_object(self, name, x, y, creature=None, sapient=None, ai=None, force_material=None):
         # Add an object to a tile
-        obj = assemble_object(object_blueprint=phys.object_dict[name], creature=creature, sapient=sapient, ai=ai, force_material=force_material)
+        obj = assemble_object(object_blueprint=phys.object_dict[name], creature=creature, sapient=sapient, ai=ai, force_material=force_material, wx=self.wx, wy=self.wy)
 
         # Check to see if the obj blocks movement
         if not obj.creature and (obj.blocks_mov or obj.blocks_vis):
@@ -1578,6 +1578,7 @@ class Wmap:
                     print 'Patrol route could not find acceptable location near', px, ',', py
 
         return cleaned_patrol_route
+
 
 
 
@@ -2696,7 +2697,7 @@ class World:
 
             game.add_message('{0} added'.format(lang.spec_cap(creature_name)))
 
-        ## These guys will be less intelligent and more brute-ish. Generally live in lairs
+        ## These guys will be less intelligent and more brute-ish. Generally live in lairs or move into existing empty structures
         for i in xrange(5):
             # Throwaway language for now
             race_name_lang = lang.Language()
@@ -2712,7 +2713,7 @@ class World:
             phys.creature_dict[creature_name] = phys_info
             self.brutish_races.append(creature_name)
 
-            game.add_message('{0} added (br)'.format(lang.spec_cap(creature_name)))
+            game.add_message('- {0} added'.format(lang.spec_cap(creature_name)))
 
 
 
@@ -2878,15 +2879,16 @@ class World:
             civ_color = random.choice(civ_colors)
             name = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
 
-            leader_title = Title(name='King', category='noble', succession='dynasty')
-            city_faction = Faction(name='City of %s'%name, color=civ_color, leader_title=leader_title)
+            profession = Profession(name='King', category='noble')
+            city_faction = Faction(leader_prefix='King', faction_name='City of %s'%name, color=civ_color, succession='dynasty')
 
             city = self.make_city(cx=nx, cy=ny, char=chr(10), color=civ_color, name=name, faction=city_faction)
-            leader_title.initial_set_building(city.get_building('City Hall'))
 
             ### Add initial leader and dynasty ####
             leader, all_new_figures = city.create_initial_dynasty(wife_is_new_dynasty=1)
-            city.faction.leader_title.update_holder(new_holder=leader)
+            city_faction.set_leader(leader)
+            profession.give_profession_to(figure=leader)
+            profession.set_building(building=city.get_building(building_name='City Hall'))
 
             created_cities.append(city)
             ####################################
@@ -2907,17 +2909,17 @@ class World:
                     ## Creating a village which will be vassal to the original city
                     vname = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
 
-
-                    vleader_title = Title(name='Chief', category='noble', succession='dynasty')
-                    new_faction = Faction(name='Province of %s'%vname, color=civ_color, leader_title=vleader_title)
+                    profession = Profession(name='Chief', category='noble')
+                    new_faction = Faction(leader_prefix='Chief', faction_name='Chiefdom of %s'%vname, color=civ_color, succession='dynasty')
                     city.faction.set_subfaction(new_faction)
 
                     village = self.make_city(cx=wx, cy=wy, char='+', color=civ_color, name=vname, faction=new_faction)
-                    vleader_title.initial_set_building(village.get_building('City Hall'))
 
                     ## New dynasty here too
                     leader, all_new_figures = village.create_initial_dynasty(wife_is_new_dynasty=1)
-                    village.faction.leader_title.update_holder(leader)
+                    new_faction.set_leader(leader)
+                    profession.give_profession_to(figure=leader)
+                    profession.set_building(building=village.get_building(building_name='City Hall'))
 
                     created_cities.append(village)
                     #########################
@@ -2953,7 +2955,8 @@ class World:
             #### Give the culture's pantheon a holy object ####
             object_blueprint = phys.object_dict['holy relic']
             material = phys.materials['copper']
-            obj = assemble_object(object_blueprint=object_blueprint, creature=None, sapient=None, ai=None, force_material=material)
+            initial_location = random.choice(culture.territory)
+            obj = assemble_object(object_blueprint=object_blueprint, creature=None, sapient=None, ai=None, force_material=material, wx=initial_location[0], wy=initial_location[1])
             culture.pantheon.add_holy_object(obj)
             self.add_famous_object(obj=obj)
 
@@ -3096,12 +3099,12 @@ class World:
 
         ## Make sure succession gets set up
         for faction in self.factions:
-            faction.leader_title.get_heirs(3)
+            faction.get_heirs(3)
 
         # For now, just add some ruins in some unused possible city slots
-        #for x, y in self.ideal_locs:
-        #    if self.is_valid_site(x, y):
-        #        self.add_ruins(x, y)
+        for x, y in self.ideal_locs:
+            if self.is_valid_site(x, y):
+                self.add_ruins(x, y)
 
 
         # Each city gets a few bandits near it
@@ -3351,14 +3354,12 @@ class World:
 
 
         # Make map
-        if self.tiles[x][y].site:
-            if self.tiles[x][y].site.site_type == 'city':
+        if self.tiles[x][y].site and self.tiles[x][y].site.site_type == 'city':
+            hm = M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
+            base_color = self.tiles[x][y].get_base_color()
+            M.create_map_tiles(hm, base_color, explored=1)
 
-                hm = M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
-                base_color = self.tiles[x][y].get_base_color()
-                M.create_map_tiles(hm, base_color, explored=1)
-
-                M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=30, disorg=6)
+            M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=30, disorg=6)
 
         else:
             hm = M.create_heightmap_from_surrounding_tiles()
@@ -3512,13 +3513,35 @@ class World:
 
     def add_ruins(self, cx, cy):
         # Make ruins
-        name = 'Ruins'
+        site_name = self.tiles[cx][cy].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
+        name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
         ruins = Site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
 
-        self.tiles[cx][cy].site = ruins
-        self.make_world_road(cx, cy)
+        #self.tiles[cx][cy].site = ruins
+        #self.make_world_road(cx, cy)
+        #self.sites.append(ruins)
 
-        self.sites.append(ruins)
+        ruin_site = self.tiles[cx][cy].add_minor_site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        self.tiles[cx][cy].char = 259
+        self.tiles[cx][cy].char_color = libtcod.black
+        for i in xrange(roll(1, 3)):
+            building = ruin_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+
+
+        if roll(0, 1):
+            race_name = random.choice(self.brutish_races)
+            name = '{0} raiders'.format(race_name)
+            #title = Title(profession_name='Chief', category='noble', title_name='{0}s of {1}'.format(race_name, site_name), succession='strongman')
+            faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman')
+            culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
+
+            leader = culture.create_being(sex=1, born=0, char='u', dynasty=None, important=0, faction=faction, wx=cx, wy=cy, armed=1, save_being=1)
+            faction.set_leader(leader)
+            #leader.sapient.change_citizenship(new_city=None, new_house=building)
+
+            army = self.create_army(x=cx, y=cy, char='u', name=name, color=libtcod.black, speed=1, goods={}, figures=[leader], units={'Swordsmen':10}, faction=faction, culture=culture, ai=None)
+            # Set the headquarters and update the title to the building last created.
+            building.add_garrison(army)
 
         return ruins
 
@@ -3538,10 +3561,8 @@ class World:
             closest_city = random.choice(self.cities)
             print 'Bandits could not find closest city'
 
-        bname = lang.spec_cap(closest_city.culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))) + ' bandits'
-
-        bandit_title = Title(name='Bandit leader', category='commoner', succession='strongman')
-        bandit_faction = Faction(name=bname, color=libtcod.black, leader_title=bandit_title)
+        bname = lang.spec_cap(closest_city.culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
+        bandit_faction = Faction(leader_prefix='Bandit', faction_name=bname, color=libtcod.black, succession='strongman')
 
         # Make enemies with all other factions
         for faction in self.factions:
@@ -3555,13 +3576,11 @@ class World:
         else:
             hideout_building = random.choice(hideout_site.buildings)
         ##########################
-        bandit_title.initial_set_building(hideout_building)
-
-        #bandit_faction.set_site(hideout_site)
         bandit_faction.set_headquarters(hideout_building)
 
         # Create a bandit leader from nearby city
         leader = closest_city.create_inhabitant(sex=1, born=time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=1, house=None)
+        bandit_faction.set_leader(leader)
         # He leaves
         closest_city.dispatch_figure(leader)
         # Give him the house
@@ -3569,8 +3588,6 @@ class World:
         # Have him actually go there
         leader.wx, leader.wy = wx, wy
         #hideout_site.receive_figure(leader)
-
-        bandit_title.update_holder(leader)
 
         bandits = self.create_army(x=wx, y=wy, char='B', name='Bandit band', color=libtcod.black, speed=3, goods={}, figures=[leader], units={'Swordsmen':10}, faction=bandit_faction, culture=closest_city.culture, ai=None)
         hideout_building.add_garrison(bandits)
@@ -3767,12 +3784,7 @@ class Site:
             culture = self.culture
             hometown = self
 
-        human = culture.create_being(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=0)
-
-        ## Add to list of all figures, and important ones if we're important
-        WORLD.all_figures.append(human)
-        if important:
-            WORLD.important_figures.append(human)
+        human = culture.create_being(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=0, save_being=1)
 
         # Make sure our new inhabitant has a house
         if house is None:
@@ -3993,7 +4005,8 @@ class City(Site):
                                        important=0, house=None)
 
         for other in self.figures:
-            human.sapient.meet(other)
+            if other != human:
+                human.sapient.meet(other)
 
         ## Actually give profession to the person ##
         market = self.get_building('Market')
@@ -4002,6 +4015,18 @@ class City(Site):
 
         merchant = self.econ.add_merchant(sell_economy=sell_economy, traded_item=traded_item, attached_to=human)
         location = merchant.current_location.owner
+
+        # A bit of a hack to make sure the merchant starts in the appropriate city
+        if location != self:
+            # Send him off
+            market.remove_worker(human)
+            self.dispatch_figure(human)
+            # Teleport the merchant to the other location
+            human.wx, human.wy = location.x, location.y
+            # Other city receives him, and he finds lodging
+            location.receive_figure(human)
+            location.get_building('Market').add_worker(human)
+
         ## Now add the caravan to a list
         caravan_goods = Counter(merchant.inventory)
         units = {'Light Cavalry': 20}
@@ -4010,14 +4035,7 @@ class City(Site):
 
         # TODO - make caravans play by the same rules as regular armies
         caravan.auto_enter_cites = 0
-        # A bit of a hack
-        if location != self:
-            # Send him off
-            market.remove_worker(human)
-            self.dispatch_figure(human)
-            # Other city receives him, and he finds lodging
-            location.receive_figure(human)
-            location.get_building('Market').add_worker(human)
+
 
     def create_caravan(self, caravan_name, units, figures, char, goods, city, location, destination):
         caravan = Army(x=location.x, y=location.y, char=char, name=caravan_name, color=city.color,
@@ -4037,7 +4055,10 @@ class City(Site):
                 if figure in market.current_workers:
                     market.remove_worker(figure)
 
-                self.dispatch_figure(figure)
+                if figure in self.figures:
+                    self.dispatch_figure(figure)
+                else:
+                    game.add_message('{0} tried to dispatch with the caravan but was not in {1}\'s list of figures'.format(figure.fulltitle(), self.name), DEBUG_MSG_COLOR)
 
             # Remove from city's list of caravans
             self.caravans.remove(caravan)
@@ -4545,133 +4566,21 @@ class Profession:
 
 
 
-class Title(Profession):
-    def __init__(self, name, category, succession):
-        Profession.__init__(self, name, category)
+class Faction:
+    def __init__(self, leader_prefix, faction_name, color, succession):
+        self.leader_prefix = leader_prefix # What the person will be referred to as, "Mayor" "governor" etc
+        self.faction_name = faction_name
+        self.color = color
 
+        self.leader = None
         # So far:
         # 'dynasty' for a city type faction
         # 'strongman' for bandit factions
         self.succession = succession
-
-        # Faction to be written in Faction init
-        self.faction = None
         self.heirs = []
 
-    def initial_set_building(self, building):
-        ''' Since the title must be created before cities are (so that cities can create inhabitants with proper factions)
-        this is a special function to be called once after the city gets created '''
-        self.set_building(building)
-        self.building.add_profession(self)
-
-
-    def update_holder(self, new_holder):
-        if (new_holder != None) and (self.holder != None):
-            self.holder.sapient.title = None
-
-            self.give_profession_to(new_holder)
-
-            self.holder = new_holder
-            self.holder.sapient.title = self
-
-        elif (new_holder != None) and (self.holder == None):
-            self.give_profession_to(new_holder)
-            self.holder = new_holder
-            self.holder.sapient.title = self
-
-        elif (new_holder is None) and (self.holder is not None):
-            self.holder.sapient.title = None
-            self.remove_profession_from(self.holder)
-            self.holder = None
-
-        else:
-            print 'DEBUG - update holder not functioning correctly'
-
-    def standard_succession(self):
-        ''' Title will pass to the firstborn son of the current holder.
-        If none, it will pass to the oldest member of the dynasty'''
-        if self.heirs != []:
-            heir = self.heirs[0]
-            # Now that they're in the new position, remove them from the list of heirs
-            self.unset_heir(heir)
-
-            game.add_message(''.join([heir.fullname(), ' has succeeded ', self.holder.fullname(), ' as ', self.name, ' of ', self.building.site.name]))
-            self.update_holder(heir)
-
-            # Re-calculate succession
-            self.get_heirs(3)
-
-        # Not sure if title should immediately pass onto someone, or have None be a valid holder for the title
-        # while others fight it out.
-        else:
-            game.add_message(''.join([self.holder.fullname(), ' of ', self.building.site.name, ' has died with no heir to succeed him']), libtcod.light_red)
-            self.update_holder(new_holder=None)
-
-
-    def set_heir(self, heir, number_in_line):
-        self.heirs.append(heir)
-        heir.sapient.inheritance[self] = number_in_line
-
-    def unset_heir(self, heir):
-        assert self in heir.sapient.inheritance, '%s not in %s\'s inheritance' %(self.name, heir.fullname())
-        del heir.sapient.inheritance[self]
-
-    def get_heirs(self, number):
-
-        # First, make sure to clear the knowledge of inheritance from all heirs
-        for heir in self.heirs:
-            self.unset_heir(heir)
-
-        if self.holder and self.succession == 'dynasty':
-            self.heirs = []
-
-            child_heirs = [child for child in self.holder.sapient.children if child.creature.sex == 1 and not child.creature.status == 'dead']
-            child_heirs = sorted(child_heirs, key=lambda child: child.sapient.born)
-            ## Look at other heirs - make sure it does not include the title holder himself or his children, since they're already accounted for
-            if self.holder.sapient.dynasty is not None:
-                other_heirs = [member for member in self.holder.sapient.dynasty.members if member.creature.sex == 1 and member not in [self.holder] + child_heirs and not member.creature.status == 'dead']
-                other_heirs = sorted(other_heirs, key=lambda member: member.sapient.born)
-
-            else:
-                print 'BUG:', self.holder.fullname(), ' has no dynasty'
-                other_heirs = []
-
-            merged_list = child_heirs + other_heirs
-
-            for i, heir in enumerate(merged_list[:number]):
-                self.set_heir(heir=heir, number_in_line=i+1)
-
-            return merged_list[:number]
-
-
-        elif self.holder and self.succession == 'strongman':
-            self.heirs = []
-
-            heir = random.choice(self.faction.members)
-            if heir is None:
-                heir = self.building.site.culture.create_being(sex=1, born=roll(time_cycle.current_year - 45, time_cycle.current_year - 20),
-                                                               char='o', dynasty=None, important=0, faction=self.faction, armed=1)
-                self.set_heir(heir=heir, number_in_line=1)
-
-            return [heir]
-
-        else:
-            print self.name, 'was queried for heirs but has no holder'
-            return []
-
-
-
-
-
-class Faction:
-    def __init__(self, name, color, leader_title):
-        self.name = name # What the person will be referred to as, "Mayor" "governor" etc
-        self.color = color
-
-        #self.site = None # to be filled in later
+        self.faction_leader = None
         self.headquarters = None
-        self.leader_title = leader_title
-        self.leader_title.faction = self
 
         WORLD.factions.append(self)
 
@@ -4719,10 +4628,15 @@ class Faction:
         self.members.remove(figure)
 
     def set_leader(self, leader):
-        self.leader_title.update_holder(leader)
+        if self.leader:
+            self.leader.sapient.unset_as_faction_leader(self)
+        # Now install new leader
+        self.leader = leader
+        self.leader.sapient.set_as_faction_leader(self)
 
     def get_leader(self):
-        return self.leader_title.holder
+        return self.leader
+
 
     def modify_faction_relations(self, faction, reason, amount):
         if faction in self.faction_relations.keys():
@@ -4758,6 +4672,77 @@ class Faction:
         self.subfactions.append(other_faction)
 
 
+
+    def standard_succession(self):
+        ''' Title will pass to the firstborn son of the current holder.
+        If none, it will pass to the oldest member of the dynasty'''
+        if self.heirs != []:
+            heir = self.heirs.pop(0)
+            # Now that they're in the new position, remove them from the list of heirs
+            self.unset_heir(heir)
+            game.add_message('{0} has is now {1} of {2}'.format(heir.fullname(), self.leader_prefix, self.faction_name))
+            # Re-calculate succession
+            self.get_heirs(3)
+
+        # Not sure if title should immediately pass onto someone, or have None be a valid holder for the title
+        # while others fight it out.
+        else:
+            game.add_message('{0} now has no heir!'.format(self.faction_name))
+
+
+    def set_heir(self, heir, number_in_line):
+        self.heirs.append(heir)
+        heir.sapient.inheritance[self] = number_in_line
+
+    def unset_heir(self, heir):
+        assert self in heir.sapient.inheritance.keys(), '%s not in %s\'s inheritance' %(self.faction_name, heir.fulltitle())
+        del heir.sapient.inheritance[self]
+
+    def get_heirs(self, number):
+        # First, make sure to clear the knowledge of inheritance from all heirs
+        for heir in self.heirs:
+            self.unset_heir(heir)
+
+        if self.leader and self.succession == 'dynasty':
+            self.heirs = []
+
+            child_heirs = [child for child in self.leader.sapient.children if child.creature.sex == 1 and not child.creature.status == 'dead']
+            child_heirs = sorted(child_heirs, key=lambda child: child.sapient.born)
+            ## Look at other heirs - make sure it does not include the title holder himself or his children, since they're already accounted for
+            if self.leader.sapient.dynasty is not None:
+                other_heirs = [member for member in self.leader.sapient.dynasty.members if member.creature.sex == 1 and member != self.leader and member not in child_heirs and not member.creature.status == 'dead']
+                other_heirs = sorted(other_heirs, key=lambda member: member.sapient.born)
+
+            else:
+                print 'BUG:', self.leader.fullname(), ' has no dynasty'
+                other_heirs = []
+            # Child heirs will be given priority
+            merged_list = child_heirs + other_heirs
+
+            for i, heir in enumerate(merged_list[:number]):
+                self.set_heir(heir=heir, number_in_line=i+1)
+
+            return merged_list[:number]
+
+
+        elif self.leader and self.succession == 'strongman':
+            self.heirs = []
+
+            heir = random.choice(self.members)
+            if heir is None:
+                heir = self.headquarters.site.culture.create_being(sex=1, born=roll(time_cycle.current_year - 45, time_cycle.current_year - 20),
+                                                               char='o', dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
+                self.set_heir(heir=heir, number_in_line=1)
+
+            return [heir]
+
+        else:
+            print self.faction_name, 'was queried for heirs but has no holder'
+            return []
+
+
+
+
     def create_faction_weapons(self):
         ''' Culturally specific weapons '''
 
@@ -4786,6 +4771,10 @@ class Faction:
 
             phys.object_dict[name] = weapon_info_dict
 
+
+class HistoricalEvent():
+    def __init__(self, date, location, characters, related_buildings, related_sites):
+        pass
 
 class Rect:
     #a rectangle on the map. used to characterize a room.
@@ -5475,14 +5464,16 @@ class Object:
             return self.name
 
     def fullname(self):
-        if self.sapient: # and self.creature.status != 'dead':
-            return self.sapient.firstname + ' ' + self.sapient.lastname
+        if self.sapient and self.sapient.epithet: # and self.creature.status != 'dead':
+            return '{0} \"{1}\" {2}'.format(self.sapient.firstname, self.sapient.epithet, self.sapient.lastname)
+        if self.sapient:
+            return '{0} {1}'.format(self.sapient.firstname, self.sapient.lastname)
         else:
             return self.name
 
     def fulltitle(self):
         if self.sapient and self.creature: # and self.creature.status != 'dead':
-            return '{0} {1}, {2} {3}'.format(self.sapient.firstname, self.sapient.lastname, lang.spec_cap(self.creature.creature_type), self.sapient.get_profession())
+            return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.creature_type), self.sapient.get_profession())
         else:
             return self.name
 
@@ -6063,7 +6054,7 @@ def list_factions():
 
         y += 1
         buttons.append(gui.Button(gui_panel=wpanel, func=dbg_faction_relations, args=[faction],
-             text='%s (%i)' % (faction.name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
+             text='%s (%i)' % (faction.faction_name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
 
@@ -6080,12 +6071,12 @@ def dbg_faction_relations(faction):
     def render_text_func():
         y = 2
 
-        libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=faction.name)
+        libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=faction.faction_name)
 
         y += 3
         for other_faction in WORLD.factions:
             y += 1
-            libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=' - ' + other_faction.name + ' - ')
+            libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=' - ' + other_faction.faction_name + ' - ')
 
             relations = faction.get_faction_relations(other_faction)
 
@@ -6179,7 +6170,7 @@ class Army:
         for unit_type, amount in self.units.iteritems():
             for j in xrange(amount):
                 born = roll(time_cycle.current_year - 45, time_cycle.current_year - 20)
-                human = self.culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, armed=1)
+                human = self.culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, wx=self.x, wy=self.y, armed=1)
                 human.sapient.army = self
 
                 profession = Profession(name='Soldier', category='commoner')
@@ -6526,6 +6517,26 @@ class Goal:
         return not(len(self.behavior_list))
 
 
+class WaitBehavior:
+    ''' Used anytime a figure wants to wait somewhere and do some activity '''
+    def __init__(self, figure, num_days, activity, reason):
+        self.figure = figure
+        self.num_days = num_days
+        self.num_days_left = num_days
+        self.activity = activity
+        self.reason = reason
+
+        self.is_active = 0
+
+    def initialize_behavior(self):
+        pass
+
+    def is_completed(self):
+        return self.num_days_left == 0
+
+    def take_behavior_action(self):
+        self.num_days_left -= 1
+
 class ReturnHomeBehavior:
     ''' Used to clean up army data when one returns home at the end of a journey '''
     def __init__(self, figure):
@@ -6550,12 +6561,13 @@ class ReturnHomeBehavior:
 class MovLocBehavior:
     ''' Specific behavior component for moving to an area.
     Will use road paths if moving from city to city '''
-    def __init__(self, coords, figure):
+    def __init__(self, coords, figure, reason=None):
 
         self.x = coords[0]
         self.y = coords[1]
         # The object
         self.figure = figure
+        self.reason = reason
 
         self.is_active = 0
 
@@ -6568,7 +6580,7 @@ class MovLocBehavior:
         ##### Make create an army if they are not leading one
         if self.figure.sapient.army == None or self.figure.sapient.army.figures[0] != self.figure:
             army = WORLD.create_army(x=self.figure.wx, y=self.figure.wy, char='f', name=self.figure.fullname(), color=self.figure.color, speed=2,
-                                     goods={'food':2}, figures=[self.figure], units={}, faction=self.figure.sapient.faction, culture=self.figure.culture, ai=None)
+                                     goods={'food':2}, figures=[self.figure], units={}, faction=self.figure.sapient.faction, culture=self.figure.sapient.culture, ai=None)
 
             if self.figure.sapient.current_city:
                 self.figure.sapient.current_city.dispatch_figure(self.figure)
@@ -6638,7 +6650,7 @@ class MovTargBehavior:
         ##### Make create an army if they are not leading one
         if self.figure.sapient.army == None or self.figure.sapient.army.figures[0] != self.figure:
             army = WORLD.create_army(x=self.figure.wx, y=self.figure.wy, char='f', name=self.figure.fullname(), color=self.figure.color, speed=2,
-                                     goods={'food':2}, figures=[self.figure], units={}, faction=self.figure.sapient.faction, culture=self.figure.culture, ai=None)
+                                     goods={'food':2}, figures=[self.figure], units={}, faction=self.figure.sapient.faction, culture=self.figure.sapient.culture, ai=None)
 
             if self.figure.sapient.current_city:
                 self.figure.sapient.current_city.dispatch_figure(self.figure)
@@ -6712,7 +6724,7 @@ class CaptureTargBehavior:
                 ## city, for now they need to form an army to do this. As weird as it is, I think everything checks out
                 ## (like having the figure "dispatched" from the city) but there needs to be a simpler way of doing thigns
                 army = WORLD.create_army(x=self.figure.wx, y=self.figure.wy, char='f', name=self.figure.fullname(), color=self.figure.color, speed=2,
-                                         goods={'food':2}, figures=[self.figure], units={}, faction=self.figure.sapient.faction, culture=self.figure.culture, ai=None)
+                                         goods={'food':2}, figures=[self.figure], units={}, faction=self.figure.sapient.faction, culture=self.figure.sapient.culture, ai=None)
 
                 if self.figure.sapient.current_city:
                     self.figure.sapient.current_city.dispatch_figure(self.figure)
@@ -6770,9 +6782,11 @@ class SapientComponent:
         self.captives = []
 
         self.faction = None
+        # Sort of ugly, but a sapient needs to know if they are a faction leader
+        self.is_faction_leader = None
+
         self.army = None
         self.economy_agent = None
-        self.title = None
 
         self.enemy_factions = set([])
 
@@ -6784,6 +6798,7 @@ class SapientComponent:
 
         self.firstname = firstname
         self.lastname = lastname
+        self.epithet = None
 
         # Family stuff
         self.mother = None
@@ -6839,6 +6854,12 @@ class SapientComponent:
 
     def remove_enemy_faction(self, faction):
         self.enemy_factions.remove(faction)
+
+    def set_as_faction_leader(self, faction):
+        self.is_faction_leader = faction
+
+    def unset_as_faction_leader(self, faction):
+        self.is_faction_leader = None
 
     #def handle_question(self, asker, target, question_type):
     #    ''' Handles all functions relating to asking questions '''
@@ -7170,7 +7191,7 @@ class SapientComponent:
 
         if not (figure.wx == army.x and figure.wy == army.y):
             if figure.wx is not None:
-                print '%s joined %s but was not there. Army: %i, %i' %(figure.fulltitle(), army.name, army.x, army.y)
+                print '{0} joined {1} but was not there. Army: {2}, {3}'.format(figure.fulltitle(), army.name, army.x, army.y)
                 print ' -- Figure was at', figure.wx, figure.wy
 
             figure.wx = army.x
@@ -7201,24 +7222,39 @@ class SapientComponent:
 
     def add_goal(self, priority, goal_type, **kwargs):
         ' Terribly written general handler for any goal type \
-        messy implementation with **kwarfs for now...'
+        messy implementation with **kwargs for now...'
 
         # To be phased out at some point
-        if goal_type == 'travel':
+        if goal_type == 'wait':
+            # Name the location
+            if WORLD.tiles[self.owner.wx][self.owner.wy].site:
+                target_location = WORLD.tiles[self.owner.wx][self.owner.wy].site.name
+            else:
+                target_location = '{0}, {1}'.format([self.owner.wx][self.owner.wy])
+
+            goal_name = 'wait at {0} for {1} days'.format(target_location, kwargs['num_days'])
+            wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity'], reason=kwargs['reason'])
+            behavior_list = [wait]
+
+        elif goal_type == 'travel':
             target_tuple = kwargs['target']
-            goal_name = 'Travel to ' + str(target_tuple[0]) + ', ' + str(target_tuple[1])
-            goto_site = MovLocBehavior(coords=target_tuple, figure=self.owner)
+            if WORLD.tiles[target_tuple[0]][target_tuple[1]].site:
+                target_location = WORLD.tiles[target_tuple[0]][target_tuple[1]].site.name
+            else:
+                target_location = '{0}, {1}'.format(target_tuple[0], target_tuple[1])
+            goal_name = 'travel to {0}'.format(target_location)
+            goto_site = MovLocBehavior(coords=target_tuple, figure=self.owner, reason=kwargs['reason'])
             behavior_list = [goto_site]
         # also phased out
         elif goal_type == 'travel to person':
             target_figure = kwargs['target']
-            goal_name = 'Travel to ' + target_figure.fulltitle()
+            goal_name = 'travel to ' + target_figure.fulltitle()
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             behavior_list = [goto_target]
 
         elif goal_type == 'kill person':
             target_figure = kwargs['target']
-            goal_name = 'Kill ' + target_figure.fulltitle()
+            goal_name = 'kill ' + target_figure.fulltitle()
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             kill_target = KillTargBehavior(target=target_figure, figure=self.owner)
 
@@ -7228,7 +7264,7 @@ class SapientComponent:
             target_figure = kwargs['target']
             target_prison_bldg = kwargs['target_prison_bldg']
             target_prison_site = target_prison_bldg.site
-            goal_name = 'Capture ' + target_figure.fulltitle()
+            goal_name = 'capture ' + target_figure.fulltitle()
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             capture_target = CaptureTargBehavior(target=target_figure, figure=self.owner)
             #for after capture
@@ -7237,15 +7273,22 @@ class SapientComponent:
 
             behavior_list = [goto_target, capture_target, goto_target_location, imprison_target]
 
-        # Add the goal to the list
-        self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority))
+        ## Tell the world what you're doing
+        game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
+
+        # Add the goal to the list. Automatically add a goal to return home after the goal is complete
+        if len(self.goals) >= 2 and self.goals[-1].name == 'Return Home':
+            self.goals.insert(-1, Goal(name=goal_name, behavior_list=behavior_list, priority=priority))
+        else:
+            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority))
+
         if self.owner not in WORLD.goal_seekers:
             WORLD.goal_seekers.append(self.owner)
 
         # Auto return home
         if self.goals[-1].name != 'Return Home':
             home_city = self.current_citizenship
-            goal_name = 'Return home'
+            goal_name = 'Return Home'
             return_from_site = MovLocBehavior(coords=(home_city.x, home_city.y), figure=self.owner)
             return_home = ReturnHomeBehavior(figure=self.owner)
             behavior_list = [return_from_site, return_home]
@@ -7271,7 +7314,7 @@ class SapientComponent:
 
         #### Plotting ####
         if self.important:
-
+            '''
             if self.inheritance != [] and ('ambitious' in self.traits) and not self.is_plotting:
                 for title, number_in_line in self.inheritance.iteritems():
                     if number_in_line == 2:
@@ -7287,16 +7330,37 @@ class SapientComponent:
 
                         game.add_message(''.join([self.owner.fullname(), ' has scheduled ', name]), libtcod.light_blue)
 
-
-            ####### GOALS #######
             '''
-            if not self.economy_agent and self.owner not in WORLD.goal_seekers and self.sex == 1 and self.get_age() >= 18 and roll(1, 50) == 1:
-                cur_city = WORLD.tiles[self.owner.wx][self.owner.wy].site
-                target_city = random.choice([city for city in WORLD.cities if city != cur_city])
+            ####### GOALS #######
 
-                test_flag = roll(1, 4)
-                if test_flag == 1:
-                    self.add_goal(priority=1, goal_type='travel', target=(target_city.x, target_city.y))
+            if not self.economy_agent \
+                    and self.owner not in WORLD.goal_seekers \
+                    and self.owner.creature.sex == 1 \
+                    and self.get_age() >= 18 \
+                    and not self.army \
+                    and not self.is_captive() \
+                    and roll(1, 50) == 1:
+
+
+                moving = self.check_for_move_city()
+
+                if not moving:
+                    self.check_for_liesure_travel()
+
+
+               # test_flag = roll(1, 4)
+               # if test_flag == 1:
+
+                '''
+                    #cur_city = WORLD.tiles[self.owner.wx][self.owner.wy].site # Glitched - but shouldn't be. For some reason not everyone gets .wx/.wy coords
+                #    if self.current_city is not None:
+                #        cur_city = self.current_city
+                #        target_city = random.choice([city for city in WORLD.cities if city != cur_city])
+                #    else:
+                #        target_city = random.choice(WORLD.cities)
+
+
+                 #   self.add_goal(priority=1, goal_type='travel', target=(target_city.x, target_city.y))
 
                 elif test_flag == 2:
                     # Move to a figure's location
@@ -7310,7 +7374,53 @@ class SapientComponent:
                     # Capture a person
                     target = random.choice([figure for figure in WORLD.all_figures if figure != self.owner and figure.sapient.captor == None])
                     self.add_goal(priority=1, goal_type='capture person', target=target, target_prison_bldg=self.house)
-            '''
+                '''
+
+    def check_for_move_city(self):
+        if self.profession is None and roll(1, 1000) >= 950:
+            target_city = random.choice([city for city in WORLD.cities if city != self.current_citizenship])
+
+            reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
+
+            self.change_citizenship(new_city=target_city, new_house=None)
+
+            self.add_goal(priority=1, goal_type='travel', target=(target_city.x, target_city.y), reason=reason)
+            # Return whether the goal was fired or not
+            return 1
+
+        return 0
+
+
+    def check_for_liesure_travel(self):
+        if self.profession in (None, 'Adventurer') and roll(1, 1000) >= 500:
+
+            # Pick a spot to travel to
+            found_spot = False
+            while not found_spot:
+                xdist = roll(5, 15) * random.choice((-1, 1))
+                ydist = roll(5, 15) * random.choice((-1, 1))
+                # If we can path there, it's OK
+                if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
+                    found_spot = True
+
+            # Pick a reason
+            activity = random.choice(('exploring', 'hunting'))
+
+            reasons = {
+                       'exploring':['wanted to explore', 'wanted to see more of the world'],
+                       'hunting':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world']
+                       }
+
+            reason = random.choice(reasons[activity])
+            num_days = roll(3, 8)
+
+            self.add_goal(priority=1, goal_type='travel', target=(self.owner.wx + xdist, self.owner.wy + ydist), reason=reason)
+            self.add_goal(priority=1, goal_type='wait', num_days=num_days, activity=activity, reason=reason)
+
+            return 1
+
+        return 0
+
 
     def die(self):
         figure = self.owner
@@ -7333,20 +7443,22 @@ class SapientComponent:
 						break
 			'''
             ## Keep track of location
-            color = libtcod.red
             location = figure.sapient.current_city.name
             ## Remove from the city's list of current figures
             figure.sapient.current_city.dispatch_figure(figure)
         else:
-            color = libtcod.dark_red
-            location = 'the wilderness!!!'
+            location = 'the wilderness'
 
         # Notify world!
-        game.add_message(''.join([figure.fulltitle(), ' has died in ', location]), color)
+        game.add_message('{0} has died in {1}!'.format(figure.fulltitle(), location), libtcod.red)
 
         # Remo
         if figure.sapient.current_citizenship:
-            figure.sapient.current_citizenship.citizens.remove(figure)
+            if figure in figure.sapient.current_citizenship.citizens:
+                figure.sapient.current_citizenship.citizens.remove(figure)
+            else:
+                game.add_message('Something wrong: {0} not in {1}\'s list of citizens'.format(figure.fulltitle(), figure.sapient.current_citizenship.name), libtcod.light_red)
+                print('Something wrong: {0} not in {1}\'s list of citizens'.format(figure.fulltitle(), figure.sapient.current_citizenship.name))
 
         # Remove from the list of all figures, and the important ones if we're important
         WORLD.all_figures.remove(figure)
@@ -7359,9 +7471,9 @@ class SapientComponent:
             self.faction.remove_member(figure)
 
         successor = None
-        # The title passes on
-        if self.title:
-            self.title.standard_succession()
+        # The faction lead passes on, if we lead a faction
+        if self.is_faction_leader:
+            self.is_faction_leader.standard_succession()
 
         # Only check profession if we didn't have a title, so profession associated with title doesn't get weird
         elif self.profession:
@@ -7370,17 +7482,17 @@ class SapientComponent:
             self.profession.give_profession_to(successor)
 
         ## If we were set to inherit anything, that gets updated now
-        for title, position in self.inheritance.iteritems():
-            heirs = title.get_heirs(3) # Should ignore us now since we're dead
+        #  File "E:\Dropbox\Code\Iron Testament\it.py", line 8650, in year_tick
+        #    if figure.sapient.get_age() > 70:
+        #    File "E:\Dropbox\Code\Iron Testament\it.py", line 7485, in die
+        #    RuntimeError: dictionary changed size during iteration
+        for faction, position in self.inheritance.iteritems():
+            heirs = faction.get_heirs(3) # Should ignore us now since we're dead
             # If our position was 1st in line, let the world know who is now first in line
             if position == 1 and heirs != []:
-                game.add_message(''.join(
-                    ['After the death of ', figure.fullname(), ', ', heirs[0].fullname(), ' is now the heir of ',
-                     title.site.name]), libtcod.light_blue)
+                game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.faction_name), libtcod.light_blue)
             elif position == 1:
-                game.add_message(''.join(
-                    ['After the death of ', figure.fullname(), ', ', 'No heirs to ', title.site.name, ' remain!']),
-                        libtcod.light_blue)
+                game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.faction_name), libtcod.light_blue)
 
 
         # Remove self from any armies we might be in
@@ -7511,8 +7623,8 @@ class SapientComponent:
 
         child.sapient.generation = self.spouse.sapient.generation + 1
 
-        if self.spouse.sapient.title:
-            self.spouse.sapient.title.get_heirs(3)
+        #if self.spouse.sapient.title:
+        #    self.spouse.sapient.title.get_heirs(3)
             #game.add_message(''.join([child.fullname(), ' was born to ', self.owner.fullname(), ' and ', self.spouse.fullname(), ' in ', self.current_citizenship.name]), libtcod.light_blue )
 
     def set_opinions(self):
@@ -7683,13 +7795,13 @@ class Creature:
         ## TODO - more elegant way to become aware of all factions
         ## !! currently doesn't know about any factions other than ourselves and enemies
         self.dijmap_desires =     {
-                                   self.owner.sapient.faction.name:0,
+                                   self.owner.sapient.faction.faction_name:0,
                                    'map_center':0
                                   }
 
 
         for faction in self.owner.sapient.enemy_factions:
-            self.dijmap_desires[faction.name] = 0
+            self.dijmap_desires[faction.faction_name] = 0
 
 
     def handle_tick(self):
@@ -7705,60 +7817,6 @@ class Creature:
             blood_amt = .1
             #M.tiles[self.owner.x][self.owner.y].color = libtcod.color_lerp(M.tiles[self.owner.x][self.owner.y].color, libtcod.darker_red, blood_amt)
             M.tiles[self.owner.x][self.owner.y].set_color(color=libtcod.color_lerp(M.tiles[self.owner.x][self.owner.y].color, libtcod.darker_red, blood_amt) )
-
-
-    def cause_to_bleed(self, damage, sharpness):
-        #self.bleeding = min(damage*sharpness, self.max_blood)
-        self.bleeding = min(sharpness-1, self.max_blood)
-
-    def bleed(self):
-        ''' Taking damage can cause us to bleed, this function handles that '''
-        self.blood = max(self.blood - self.bleeding, 0)
-        # Clot
-        self.bleeding = max(self.bleeding - self.clotting, 0)
-
-        # Do we die?
-        if self.blood < 2 and self.status == 'alive':
-            self.pass_out(reason='loss of blood')
-        elif self.blood < 1:
-            self.map_death(reason='blood loss')
-
-
-    def increment_pain(self, damage, sharpness):
-        self.pain = min(self.pain + damage, self.get_max_pain() )
-
-        if sharpness > 1:
-            self.cause_to_bleed(damage, sharpness)
-
-        self.handle_pain_effects(damage, sharpness)
-
-    def get_pain(self):
-        return self.pain
-
-    def get_max_pain(self):
-        return 1 + int(self.catts['Fortitude']/10)
-
-    def get_pain_ratio(self):
-        return self.get_pain() / self.get_max_pain()
-
-    def handle_pain_effects(self, damage, sharpness):
-        pain_ratio = self.get_pain_ratio()
-
-        # Potentially pass out
-        if pain_ratio > .95 and self.status == 'alive':
-            self.pass_out(reason='pain')
-
-        if self.status == 'alive' and self.owner.sapient:
-            self.owner.sapient.verbalize_pain(damage, sharpness, pain_ratio)
-
-
-    def pass_out(self, reason):
-        self.set_status('unconscious')
-        self.set_stance('Prone')
-
-        self.owner.set_display_color(self.owner.pass_out_color)
-
-        self.owner.sapient.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
 
 
     def set_status(self, status):
@@ -7922,16 +7980,72 @@ class Creature:
             # Use the poorly-written physics module to compute damage
             targeted_layer.apply_force(other_obj_comp=attacking_object_component, total_force=force)
 
+    def cause_to_bleed(self, damage, sharpness):
+        #self.bleeding = min(damage*sharpness, self.max_blood)
+        self.bleeding = min(sharpness-1, self.max_blood)
+
+    def bleed(self):
+        ''' Taking damage can cause us to bleed, this function handles that '''
+        self.blood = max(self.blood - self.bleeding, 0)
+        # Clot
+        self.bleeding = max(self.bleeding - self.clotting, 0)
+
+        # Do we die?
+        if self.blood < 2 and self.status == 'alive':
+            self.pass_out(reason='loss of blood')
+        elif self.blood < 1:
+            self.map_death(reason='blood loss')
+
+
+    def increment_pain(self, damage, sharpness):
+        self.pain = min(self.pain + damage, self.get_max_pain() )
+
+        if sharpness > 1:
+            self.cause_to_bleed(damage, sharpness)
+
+        self.handle_pain_effects(damage, sharpness)
+
+    def get_pain(self):
+        return self.pain
+
+    def get_max_pain(self):
+        return 1 + int(self.catts['Fortitude']/10)
+
+    def get_pain_ratio(self):
+        return self.get_pain() / self.get_max_pain()
+
+    def handle_pain_effects(self, damage, sharpness):
+        pain_ratio = self.get_pain_ratio()
+
+        # Potentially pass out
+        if pain_ratio > .95 and self.status == 'alive':
+            self.pass_out(reason='pain')
+
+        if self.status == 'alive' and self.owner.sapient:
+            self.owner.sapient.verbalize_pain(damage, sharpness, pain_ratio)
+
+
+    def pass_out(self, reason):
+        self.set_status('unconscious')
+        self.set_stance('Prone')
+
+        # Drop any things we have
+        for component in self.get_graspers():
+            if component.grasped_item is not None:
+                # Drop the object (and release hold on it)
+                self.owner.drop_object(own_component=component, obj=component.grasped_item)
+
+        self.owner.set_display_color(self.owner.pass_out_color)
+        self.owner.sapient.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
 
 
     def map_death(self, reason):
         ''' Die ! '''
-
         creature_obj = self.owner
         self.set_status('dead')
 
         # Drop any things we have
-        for component in creature_obj.components:
+        for component in self.get_graspers():
             if component.grasped_item is not None:
                 # Drop the object (and release hold on it)
                 creature_obj.drop_object(own_component=component, obj=component.grasped_item)
@@ -7953,7 +8067,6 @@ class Creature:
         creature_obj.ai = None
         libtcod.map_set_properties(M.fov_map, creature_obj.x, creature_obj.y, True, True)
         creature_obj.name = 'Corpse of {0}'.format(creature_obj.fulltitle())
-
 
 
 class DijmapSapient:
@@ -8154,11 +8267,11 @@ class DijmapSapient:
             self.unset_target()
 
             for faction in actor.sapient.enemy_factions:
-                actor.creature.dijmap_desires[faction.name] = 2
+                actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
             for faction in actor.sapient.enemy_factions:
-                actor.creature.dijmap_desires[faction.name] = -4
+                actor.creature.dijmap_desires[faction.faction_name] = -4
 
             actor.creature.dijmap_desires['map_center'] = -2
 
@@ -8756,7 +8869,7 @@ class Culture:
 
 
 
-    def create_being(self, sex, born, char, dynasty, important, faction, wx=None, wy=None, armed=0, race=None):
+    def create_being(self, sex, born, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0):
         ''' Create a human, using info loaded from xml in the physics module '''
 
         # If race=None then we'll need to pick a random race from this culture
@@ -8778,7 +8891,7 @@ class Culture:
 
         sapient_comp = SapientComponent(firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
-        human = assemble_object(object_blueprint=info, creature=creature_component, sapient=sapient_comp, ai=DijmapSapient(), force_material=None)
+        human = assemble_object(object_blueprint=info, creature=creature_component, sapient=sapient_comp, ai=DijmapSapient(), force_material=None, wx=wx, wy=wy)
         faction.add_member(human)
 
         if dynasty is not None:
@@ -8789,7 +8902,7 @@ class Culture:
         else:                       wname = random.choice(self.weapons)
 
         if armed:
-            weapon = assemble_object(object_blueprint=phys.object_dict[wname], creature=None, sapient=None, ai=None, force_material=material)
+            weapon = assemble_object(object_blueprint=phys.object_dict[wname], creature=None, sapient=None, ai=None, force_material=material, wx=wx, wy=wy)
             human.initial_give_object_to_hold(weapon)
 
         ################################
@@ -8799,10 +8912,18 @@ class Culture:
         shirt.set_current_owner(human)
         shirt.set_current_holder(human)
 
+        # This function will get anytime there needs to be people generated. They don't always need
+        # to be saved in the world - thus, we won't worry too much about them if we don't need to
+        if save_being:
+            WORLD.all_figures.append(human)
+            if important:
+                WORLD.important_figures.append(human)
+
+
         return human
 
 
-def assemble_object(object_blueprint, creature, sapient, ai, force_material):
+def assemble_object(object_blueprint, creature, sapient, ai, force_material, wx, wy):
     ''' Build an object from the blueprint dictionary '''
     ## TODO - Currently only force_material works...
 
@@ -8825,7 +8946,9 @@ def assemble_object(object_blueprint, creature, sapient, ai, force_material):
                     creature = creature,
                     sapient = sapient,
                     ai = ai,
-                    weapon = object_blueprint['weapon_component']
+                    weapon = object_blueprint['weapon_component'],
+                    wx = wx,
+                    wy = wy
                     )
     return obj
 
@@ -9502,7 +9625,7 @@ class Game:
 
         playerciv = WORLD.cities[0]
         #create object representing the player
-        player = playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1)
+        player = playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1, wx=playerciv.x, wy=playerciv.y)
         player.ai = None
 
         player_party = WORLD.create_army(x=playerciv.x, y=playerciv.y, char='@', name=player.fullname() + '\'s party',
@@ -9550,16 +9673,13 @@ class Game:
 
 
         ########### Factions ################
-        title = Title(name='King', category='noble', succession='dynasty')
-        faction1 = Faction(name='Player faction', color=random.choice(civ_colors), leader_title=title)
-
-        title2 = Title(name='King', category='noble', succession='dynasty')
-        faction2 = Faction(name='Enemy faction', color=random.choice(civ_colors), leader_title=title2)
+        faction1 = Faction(leader_prefix='King', faction_name='Player faction', color=random.choice(civ_colors), succession='dynasty')
+        faction2 = Faction(leader_prefix='King', faction_name='Enemy faction', color=random.choice(civ_colors), succession='dynasty')
         # Set them as enemies (function will do so reciprocally)
         faction1.set_enemy_faction(faction=faction2)
 
         ### Make the player ###
-        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1)
+        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1, wx=1, wy=1)
         player.char = '@'
         player.ai = None
 
@@ -9613,7 +9733,7 @@ class Game:
                       description='A pack', creature=None, sapient=None, ai=None, weapon=None, wearable=1, x=None, y=None)
 
         player.put_on_clothing(clothing=pack)
-
+        player.sapient.epithet = "the Wise"
         ## Deer?
         #info = phys.creature_dict['deer']
         #creature_component = Creature(creature_type='deer', sex=1)
@@ -10761,15 +10881,15 @@ def show_civs(world):
         ## Show government type - left panel
         root_con.draw_box(1, 28, 8, SCREEN_HEIGHT - 2, PANEL_FRONT) # Around relations
         # Check for title holder
-        if city.faction.leader_title.holder:
-            title_info = ' '.join([city.faction.leader_title.name, city.faction.get_leader().fullname(), 'age', str(city.faction.get_leader().sapient.get_age())])
+        if city.faction.leader:
+            title_info = ' '.join([city.faction.leader_prefix, city.faction.get_leader().fullname(), 'age', str(city.faction.get_leader().sapient.get_age())])
         else:
             title_info = 'No holder'
         libtcod.console_print(0, 2, 11, title_info)
         libtcod.console_print(0, 2, 12, 'Dynastic heirs:')
 
         y = 13
-        for heir in city.faction.leader_title.heirs:
+        for heir in city.faction.heirs:
             libtcod.console_print(0, 2, y, heir.fullname() + ', age ' + str(heir.sapient.get_age()))
             y += 1
 
