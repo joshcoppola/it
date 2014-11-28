@@ -80,8 +80,6 @@ TREE_CHARS = {0:(307, 308), 1:(311, 312), 2:(313, 314), 3:(309, 310) }
 TREE_STUMP_CHARS = {0:315, 1:317, 2:318, 3:316 }
 
 ## colors ##
-#PANEL_BACK = libtcod.Color(28, 24, 20)
-#PANEL_FRONT = libtcod.Color(88, 80, 64)
 PANEL_BACK = libtcod.Color(18, 15, 15)
 PANEL_FRONT = libtcod.Color(138, 115, 95)
 
@@ -197,8 +195,6 @@ TAVERN_OBJECTS = ('Belly', 'Smile', 'Kettle', 'Stout', 'Host', 'House', 'Cave', 
                   'Triumph', 'Folly', 'Flask', 'Cask', 'Casket', 'Delight', 'Lair', 'Mug', 'Nest', 'Keg',
                   'Bride', 'Flagon', 'Eyes', 'Brew', 'Fancy', 'Barrel', 'Wisdom', 'Jewel', 'Potion',
                   'Stew', 'Stein', 'Goblet', 'Tankard', 'Tumbler', 'Pitcher', 'Gizzard')
-
-CITY_TITLE_NAMES = ('Kingdom of ', 'City of ')
 
 
 QUESTION_RESPONSES = {
@@ -506,28 +502,6 @@ player_party = None
 M = None
 time_cycle = None
 camera = None
-
-'''
-def clr(*colors):
-    #'' less verbose way to color a substring of text ''
-    #tup = tuple((libtcod.COLCTRL_FORE_RGB, color.r, color.g, color.b, libtcod.COLCTRL_STOP) for color in colors)
-    t = []
-    for color in colors:
-        t.extend([libtcod.COLCTRL_FORE_RGB, color.r, color.g, color.b, libtcod.COLCTRL_STOP])
-    return tuple(t)
-
-def clr1(c1):
-    return (libtcod.COLCTRL_FORE_RGB, c1.r, c1.g, c1.b, libtcod.COLCTRL_STOP)
-
-def clr2(c1, c2):
-    return (libtcod.COLCTRL_FORE_RGB, c1.r, c1.g, c1.b, libtcod.COLCTRL_STOP,
-            libtcod.COLCTRL_FORE_RGB, c2.r, c2.g, c2.b, libtcod.COLCTRL_STOP)
-
-def clr3(c1, c2, c3):
-    return (libtcod.COLCTRL_FORE_RGB, c1.r, c1.g, c1.b, libtcod.COLCTRL_STOP,
-            libtcod.COLCTRL_FORE_RGB, c2.r, c2.g, c2.b, libtcod.COLCTRL_STOP,
-            libtcod.COLCTRL_FORE_RGB, c3.r, c3.g, c3.b, libtcod.COLCTRL_STOP)
-'''
 
 
 def get_distance_to(x, y, target_x, target_y):
@@ -1380,7 +1354,7 @@ class Wmap:
                 # Configuration can choose a certain "padding" of a certain cell type for the map edge
                 if (cfg['map_pad'] < x < wborder) and (cfg['map_pad'] < y < hborder):
                     # If it meets the padding criteria, seed the cells
-                    if self.tiles[x][y].height > 100 and (roll(1, 1000) <= cfg['initial_blocks_mov_chance'] or self.tiles[x][y].height > cfg['blocks_mov_height']) \
+                    if self.tiles[x][y].height > WATER_HEIGHT and (roll(1, 1000) <= cfg['initial_blocks_mov_chance'] or self.tiles[x][y].height > cfg['blocks_mov_height']) \
                         and self.tiles[x][y].zone in (None, 'wilderness') and self.tiles[x][y].surface == 'ground':
 
                         self.tiles[x][y].blocks_vis = 1
@@ -1936,7 +1910,7 @@ class World:
                 self.tiles[x][y].height = int(round(libtcod.heightmap_get_value(hm, x, y))) + raise_terr
                 self.tiles[x][y].height = min(self.tiles[x][y].height, 255)
 
-                if not 5 < x < self.width - 5 and self.tiles[x][y].height >= 100:
+                if not 5 < x < self.width - 5 and self.tiles[x][y].height >= WATER_HEIGHT:
                     self.tiles[x][y].height = 99
                     #######################################
                 if self.tiles[x][y].height > 200:
@@ -1984,9 +1958,9 @@ class World:
             for x in xrange(self.width):
                 self.tiles[x][y].rainfall = rainfall
 
-                if self.tiles[x][y].height <= 100:
+                if self.tiles[x][y].height <= WATER_HEIGHT:
                     rainfall += 1
-                elif self.tiles[x][y].height <= 190:
+                elif self.tiles[x][y].height <= MOUNTAIN_HEIGHT:
                     rainfall -= 1
                 else:
                     rainfall = 0
@@ -1995,9 +1969,9 @@ class World:
             #for x in xrange(self.width):
             #    self.tiles[self.width-x][y].rainfall = rainfall
             #
-            #    if self.tiles[self.width-x][y].height <= 100:
+            #    if self.tiles[self.width-x][y].height <= WATER_HEIGHT:
             #        rainfall += 1
-            #    elif self.tiles[self.width-x][y].height <= 190:
+            #    elif self.tiles[self.width-x][y].height <= MOUNTAIN_HEIGHT:
             #        rainfall -= 1
             #    else:
             #        rainfall = 0
@@ -2051,7 +2025,7 @@ class World:
                 new_x, new_y = x, y
                 found_lower_height = True
                 i = 0
-                while self.tiles[new_x][new_y].height >= 100:
+                while self.tiles[new_x][new_y].height >= WATER_HEIGHT:
                     i += 1
                     if i >= 100:
                         print 'river loop exceeded 100 iterations'
@@ -2100,7 +2074,7 @@ class World:
                     riv_cur.append((new_x, new_y))
                     ### Rivers cut through terrain if needed, and also make the areas around them more moist
                     # Try to lower the tile's height if it's higher than the previous tile, but don't go lower than 100
-                    self.tiles[new_x][new_y].height = min(self.tiles[new_x][new_y].height, max(self.tiles[cur_x][cur_y].height - 1, 100))
+                    self.tiles[new_x][new_y].height = min(self.tiles[new_x][new_y].height, max(self.tiles[cur_x][cur_y].height - 1, WATER_HEIGHT))
                     directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
                     for rx, ry in directions:
                         self.tiles[rx][ry].moist = self.tiles[rx][ry].moist / 2
@@ -2384,7 +2358,7 @@ class World:
                             self.tiles[x][y].char_color = self.tiles[x][y].color - libtcod.Color(12, 12, 12)
 
                 ################## OUT OF PLACE CAVE GEN CODE ###############
-                if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > 180 and roll(1, 100) <= 20:
+                if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
                     cave = Site(world=self, site_type='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
                     self.tiles[x][y].caves.append(cave)
                     self.tiles[x][y].char = 'C'
@@ -2424,240 +2398,6 @@ class World:
 						if self.tiles[nx][ny].region == self.tiles[x][y].region:
 							self.tiles[x][y].color = libtcod.color_lerp(self.tiles[x][y].color, self.tiles[nx][ny].color, smooth_coef)
 				'''
-                #print(str(len(startlocs)))
-                #print(str(len(ideal_locs)))
-
-                #for x in range(WORLD_WIDTH):
-                #    for y in range(WORLD_HEIGHT):
-                #        if 100 < WORLD.tiles[x][y].height and roll(1, 20) == 1:
-                #            cave = Site(x, y, 'C', 'Cave', libtcod.Color(roll(150, 200), roll(150, 200), roll(150,200)), 1, roll(1, 2))
-                #            sites.append(cave)
-
-    '''
-    def set_resource_and_biome_info_OLD(self):
-        # Finally, use the scant climate info generated to add biome and color information ''
-        for y in xrange(self.height):
-            for x in xrange(self.width):
-                sc = int(self.tiles[x][y].height) - 1
-                mmod = int(round(40 - self.tiles[x][y].moist) / 1.4) - 25
-                a = 3
-                #mthresh = 1.04
-                ## Ocean
-                if self.tiles[x][y].height < WATER_HEIGHT:
-                    self.tiles[x][y].region = 'ocean'
-                    self.tiles[x][y].blocks_mov = True
-                    if self.tiles[x][y].height < 75:
-                        self.tiles[x][y].color = libtcod.Color(7, 13, int(round(sc * 2)) + 10)
-                    else:
-                        self.tiles[x][y].color = libtcod.Color(20, 60, int(round(sc * 2)) + 15)
-
-                elif self.tiles[x][y].height > 190:
-                    self.tiles[x][y].blocks_mov = True
-                    self.tiles[x][y].blocks_vis = True
-                    self.tiles[x][y].region = 'mountain'
-                    #WORLD.tiles[x][y].color = libtcod.Color(117+roll(-a,a), 130+roll(-a,a), 104+roll(-a,a))
-                    #WORLD.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 40+roll(-a,a), 34+roll(-a,a))
-                    #WORLD.tiles[x][y].color = libtcod.Color(118+roll(-a,a), 90+roll(-a,a), 80+roll(-a,a))
-
-                    ############################ Latest backup #######################################
-                    #self.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 45+roll(-a,a), 34+roll(-a,a))
-                    #self.tiles[x][y].char_color = libtcod.Color(33+roll(-a,a), 30+roll(-a,a), 24+roll(-a,a))
-
-                    c = int(round((self.tiles[x][y].height - 200) / 2))
-                    d = -int(round(c / 2))
-                    self.tiles[x][y].color = libtcod.Color(d + 43 + roll(-a, a), d + 50 + roll(-a, a),
-                                                          d + 34 + roll(-a, a))
-                    if self.tiles[x][y].height > 235:
-                        self.tiles[x][y].char_color = libtcod.grey
-                    else:
-                        self.tiles[x][y].char_color = libtcod.Color(c + 38 + roll(-a, a), c + 25 + roll(-a, a),
-                                                                   c + 21 + roll(-a, a))
-                    self.tiles[x][y].char = chr(036)
-
-                ## Tundra
-                elif self.tiles[x][y].temp < 18 and not ( 25 < y < self.height-25):
-                    self.tiles[x][y].region = 'tundra'
-                    self.tiles[x][y].color = libtcod.Color(190 + roll(-a - 2, a + 2), 188 + roll(-a - 2, a + 2),
-                                                          189 + roll(-a - 2, a + 2))
-
-                elif self.tiles[x][y].temp < 23 and self.tiles[x][y].moist < 22 and not ( 30 < y < self.height-30):
-                    self.tiles[x][y].region = 'taiga'
-                    self.tiles[x][y].color = libtcod.Color(127 + roll(-a, a), 116 + roll(-a, a), 115 + roll(-a, a))
-
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(23 + roll(-a, a), 58 + mmod + roll(-a, a),
-                                                                   9 + roll(-a, a))
-                        if roll(1, 2) == 1:
-                            self.tiles[x][y].char = chr(5)
-                        else:
-                            self.tiles[x][y].char = '^'
-
-                elif self.tiles[x][y].temp < 30 and self.tiles[x][y].moist < 18:
-                    self.tiles[x][y].region = 'temperate forest'
-                    self.tiles[x][y].color = libtcod.Color(53 + roll(-a, a), 75 + mmod + roll(-a, a), 32 + roll(-a, a))
-
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(25 + roll(-a, a), 55 + mmod + roll(-a, a), 20 + roll(-a, a))
-                        if roll(1, 2) == 1:
-                            self.tiles[x][y].char = chr(5)
-                        else:
-                            self.tiles[x][y].char = chr(6)
-
-                elif self.tiles[x][y].temp < 35:
-                    self.tiles[x][y].region = 'temperate steppe'
-                    self.tiles[x][y].color = libtcod.Color(65 + roll(-a, a), 97 + mmod + roll(-a, a), 41 + roll(-a, a))
-
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = self.tiles[x][y].color * .85
-                        self.tiles[x][y].char = chr(176)
-
-                elif self.tiles[x][y].temp > 47 and self.tiles[x][y].moist < 18:
-                    self.tiles[x][y].region = 'rain forest'
-                    self.tiles[x][y].color = libtcod.Color(40 + roll(-a, a), 60 + mmod + roll(-a, a), 18 + roll(-a, a))
-
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(16 + roll(-a, a), 40 + roll(-a - 5, a + 5),
-                                                                   5 + roll(-a, a))
-                        if roll(1, 2) == 1:
-                            self.tiles[x][y].char = chr(6)
-                        else:
-                            self.tiles[x][y].char = '*'
-
-                elif self.tiles[x][y].temp >= 35 and self.tiles[x][y].moist < 18:
-                    self.tiles[x][y].region = 'tree savanna'
-                    self.tiles[x][y].color = libtcod.Color(50 + roll(-a, a), 85 + mmod + roll(-a, a), 25 + roll(-a, a))
-
-                    if not self.tiles[x][y].has_feature('river'):
-                        if roll(1, 5) > 1:
-                            self.tiles[x][y].char_color = self.tiles[x][y].color * .85
-                            self.tiles[x][y].char = chr(176)
-                        else:
-                            self.tiles[x][y].char_color = self.tiles[x][y].color * .75
-                            self.tiles[x][y].char = '*'
-
-                elif self.tiles[x][y].temp >= 35 and self.tiles[x][y].moist < 34:
-                    self.tiles[x][y].region = 'grass savanna'
-                    self.tiles[x][y].color = libtcod.Color(91 + roll(-a, a), 110 + mmod + roll(-a, a), 51 + roll(-a, a))
-
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = self.tiles[x][y].color * .80
-                        self.tiles[x][y].char = chr(176)
-
-                elif self.tiles[x][y].temp <= 44:
-                    self.tiles[x][y].region = 'dry steppe'
-                    self.tiles[x][y].color = libtcod.Color(99 + roll(-a, a), 90 + roll(-a, a + 1), 59 + roll(-a, a + 1))
-
-                elif self.tiles[x][y].temp > 44 and self.tiles[x][y].moist < 48:
-                    self.tiles[x][y].region = 'semi-arid desert'
-                    self.tiles[x][y].color = libtcod.Color(178 + roll(-a - 1, a + 2), 140 + roll(-a - 1, a + 2),
-                                                          101 + roll(-a - 1, a + 2))
-
-                elif self.tiles[x][y].temp > 44:
-                    self.tiles[x][y].region = 'arid desert'
-                    self.tiles[x][y].color = libtcod.Color(212 + roll(-a - 1, a + 1), 185 + roll(-a - 1, a + 1),
-                                                          142 + roll(-a - 1, a + 1))
-
-                # Hopefully shouldn't come to this
-                else:
-                    self.tiles[x][y].region = 'none'
-                    self.tiles[x][y].color = libtcod.red
-
-
-                #### New code - add resources
-                for resource in econ.RESOURCES:
-                    for biome, chance in resource.app_chances.iteritems():
-                        if biome == self.tiles[x][y].region or (biome == 'river' and self.tiles[x][y].has_feature('river')):
-                            if roll(1, 1200) < chance:
-                                self.tiles[x][y].res[resource.name] = resource.app_amt
-
-                                # Hack in the ideal locs and start locs
-                                if resource.name == 'food':
-                                    self.ideal_locs.append((x, y))
-                                if self.tiles[x][y].temp >= 20:
-                                    self.startlocs.append((x, y))
-
-
-        # Need to calculate pathfinding
-        self.initialize_fov()
-
-
-        ## Try to shade the map
-        max_alpha = .9
-        for y in xrange(2, WORLD_HEIGHT-2):
-            for x in xrange(2, WORLD_WIDTH-2):
-                if self.tiles[x][y].region != 'ocean' and self.tiles[x+1][y].region != 'ocean':
-                    hdif = self.tiles[x][y].height / self.tiles[x+1][y].height
-
-                    if hdif <= 1:
-                        alpha = max(hdif, max_alpha)
-                        self.tiles[x][y].color = libtcod.color_lerp(libtcod.lightest_sepia, self.tiles[x][y].color, alpha )
-                        if not self.tiles[x][y].has_feature('river'):
-                            self.tiles[x][y].char_color = libtcod.color_lerp(libtcod.white, self.tiles[x][y].char_color, alpha )
-                    elif hdif > 1:
-                        alpha = max(2 - hdif, max_alpha)
-                        self.tiles[x][y].color = libtcod.color_lerp(libtcod.darkest_sepia, self.tiles[x][y].color, alpha)
-                        if not self.tiles[x][y].has_feature('river'):
-                            self.tiles[x][y].char_color = libtcod.color_lerp(libtcod.darkest_sepia, self.tiles[x][y].char_color, alpha)
-
-                    # Experimental badly placed code to add a "hill" character to hilly map spots
-                    if alpha == max_alpha and not(self.tiles[x][y].region in ('mountain', 'temperate forest', 'rain forest') ) \
-                                                 and not self.tiles[x][y].has_feature('river'):
-
-                        self.tiles[x][y].char = chr(252)
-                        if self.tiles[x][y].region in ('semi-arid desert', 'arid desert', 'dry steppe'):
-                            self.tiles[x][y].char_color = self.tiles[x][y].color - libtcod.Color(12, 12, 12)
-
-                ################## OUT OF PLACE CAVE GEN CODE ###############
-                if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > 180 and roll(1, 100) <= 20:
-                    cave = Site(world=self, site_type='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, culture=None, faction=None)
-                    self.tiles[x][y].caves.append(cave)
-                    self.tiles[x][y].char = 'C'
-
-
-
-        exclude_smooth = ['ocean']
-        # Smooth the colors of the world
-        for y in xrange(2, self.height - 2):
-            for x in xrange(2, self.width - 2):
-                if not self.tiles[x][y].region in exclude_smooth:
-                    neighbors = ((x - 1, y - 1), (x - 1, y), (x, y - 1), (x + 1, y), (x, y + 1), (x + 1, y + 1), (x + 1, y - 1), (x - 1, y + 1))
-                    #colors = [WORLD.tiles[nx][ny].color for (nx, ny) in neighbors]
-                    if not self.tiles[x][y].region == 'mountain':
-                        smooth_coef = .25
-                    else:
-                        smooth_coef = .1
-
-                    #border_ocean = 0
-                    used_regions = ['ocean'] #Ensures color_lerp doesn't try to interpolate with almost all of the neighbors
-                    for nx, ny in neighbors:
-                        if self.tiles[nx][ny].region != self.tiles[x][y].region and self.tiles[nx][ny].region not in used_regions:
-                            used_regions.append(self.tiles[ny][ny].region)
-                            self.tiles[x][y].color = libtcod.color_lerp(self.tiles[x][y].color, self.tiles[nx][ny].color, smooth_coef)
-                        #if self.tiles[nx][ny].region == 'ocean':
-                        #    border_ocean = 1
-                    ## Give a little bit of definition to coast tiles
-                    #if border_ocean:
-                    #    self.tiles[x][y].color = libtcod.color_lerp(self.tiles[x][y].color, libtcod.Color(212, 185, 142), .1)
-
-                # ''
-                # Smooth oceans too
-                else:
-                    smooth_coef = .1
-                    neighbors = [(x-1, y-1), (x-1, y), (x, y-1), (x+1, y), (x, y+1), (x+1, y+1), (x+1, y-1), (x-1,y+1)]
-                    for nx, ny in neighbors:
-                        if self.tiles[nx][ny].region == self.tiles[x][y].region:
-                            self.tiles[x][y].color = libtcod.color_lerp(self.tiles[x][y].color, self.tiles[nx][ny].color, smooth_coef)
-                # ''
-                #print(str(len(startlocs)))
-                #print(str(len(ideal_locs)))
-
-                #for x in range(WORLD_WIDTH):
-                #    for y in range(WORLD_HEIGHT):
-                #        if 100 < WORLD.tiles[x][y].height and roll(1, 20) == 1:
-                #            cave = Site(x, y, 'C', 'Cave', libtcod.Color(roll(150, 200), roll(150, 200), roll(150,200)), 1, roll(1, 2))
-                #            sites.append(cave)
-        '''
-
 
 
     def gen_history(self, years):
@@ -2838,7 +2578,7 @@ class World:
         unavailable_resource_types = ['initial_dummy_value']
         while unavailable_resource_types:
             x, y = random.choice(self.ideal_locs)
-            if self.is_valid_site(x, y, None):
+            if self.is_valid_site(x, y, None, MIN_SITE_DIST):
                 # Check for economy
                 nearby_resources, nearby_resource_locations = self.find_nearby_resources(x=x, y=y, distance=MAX_ECONOMY_DISTANCE)
                 ## Use nearby resource info to determine whether we can sustain an economy
@@ -3086,6 +2826,20 @@ class World:
 
         ## Now setup the economy since we have all import/export info
         for city in created_cities:
+            mine_added = 0
+            # This doesn't necessaryily have to be done here, but we should add farms around the city
+            for x in xrange(city.x-5, city.x+6):
+                for y in xrange(city.y-5, city.y+6):
+                    # Try to add a mine somewhere near the city
+                    if not mine_added and MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city):
+                        self.add_mine(x, y, city)
+                        mine_added = 1
+
+                    # Add farms around the city
+                    if get_distance_to(city.x, city.y, x, y) < 2.5 and self.is_valid_site(x, y, city):
+                        self.add_farm(x, y, city)
+
+            ### v original real readon for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
             # Use the data to actually add agents to the city
         for city in created_cities:
@@ -3103,7 +2857,7 @@ class World:
 
         # For now, just add some ruins in some unused possible city slots
         for x, y in self.ideal_locs:
-            if self.is_valid_site(x, y):
+            if self.is_valid_site(x, y, None, MIN_SITE_DIST):
                 self.add_ruins(x, y)
 
 
@@ -3111,9 +2865,10 @@ class World:
         self.add_bandits(city_list=networked_cities, lnum=0, hnum=2, radius=10)
 
 
+
         # Some timing and debug info
-        game.add_message('Civs created in %.2f seconds' %(time.time() - begin))
-        game.add_message('%i dynasties so far...' %len(self.dynasties), libtcod.grey)
+        #game.add_message('Civs created in %.2f seconds' %(time.time() - begin))
+        #game.add_message('%i dynasties so far...' %len(self.dynasties), libtcod.grey)
 
         render_handler.render_all()
 
@@ -3315,12 +3070,13 @@ class World:
         map_con.blit()
 
 
-    def is_valid_site(self, x, y, civ=None, min_dist=MIN_SITE_DIST):
+    def is_valid_site(self, x, y, civ=None, min_dist=None):
         # Checks if site is a valid spot to build a city
         # Can't build if too close to another city, and if the territory alread belongs to someone else
-        for site in self.sites:
-            if site.distance(x, y) < min_dist:
-                return False
+        if min_dist is not None:
+            for site in self.sites:
+                if site.distance(x, y) < min_dist:
+                    return False
 
         return not (self.tiles[x][y].blocks_mov) and (not self.tiles[x][y].site) and (self.tiles[x][y].territory is None or self.tiles[x][y].territory == civ)
 
@@ -3511,11 +3267,35 @@ class World:
 
         return city
 
+
+    def add_mine(self, x, y, city):
+        name = '{0} mine'.format(city.name)
+
+        mine = self.tiles[x][y].add_minor_site(world=self, site_type='mine', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+        mine.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+
+        self.tiles[x][y].char = "#"
+        self.tiles[x][y].char_color = city.faction.color
+
+        return mine
+
+    def add_farm(self, x, y, city):
+        name = '{0} farm'.format(city.name)
+        #farm = Site(world=self, site_type='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+
+        farm = self.tiles[x][y].add_minor_site(world=self, site_type='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+        farm.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+
+        self.tiles[x][y].char = "#"
+        self.tiles[x][y].char_color = city.faction.color
+
+        return farm
+
     def add_ruins(self, cx, cy):
         # Make ruins
         site_name = self.tiles[cx][cy].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
-        ruins = Site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        #ruins = Site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
 
         #self.tiles[cx][cy].site = ruins
         #self.make_world_road(cx, cy)
@@ -3543,7 +3323,7 @@ class World:
             # Set the headquarters and update the title to the building last created.
             building.add_garrison(army)
 
-        return ruins
+        return ruin_site
 
 
     def add_cave(self, cx, cy, name):
@@ -4475,7 +4255,7 @@ class Building:
         M.make_door(x=door_coords[0], y=door_coords[1], floor_type='dirt')
         '''
         bx, by = building_center[0], building_center[1]
-        for i, row in enumerate(building_templates.test):
+        for i, row in enumerate(building_templates.buildings[self.template]):
             for j, tile in enumerate(row):
                 x, y = bx+j, by+i
                 self.physical_property.append((x, y))
@@ -8855,7 +8635,7 @@ class Culture:
         for x, y in self.territory:
             #if len(WORLD.tiles[x][y].res.keys()) > 0:
             for resource in WORLD.tiles[x][y].res.keys():
-                if resource not in self.access_res and WORLD.is_valid_site(x, y, None): #and 10 < x < WORLD_WIDTH - 10 and 10 < y < WORLD_HEIGHT - 10:
+                if resource not in self.access_res and WORLD.is_valid_site(x, y, None, MIN_SITE_DIST): #and 10 < x < WORLD_WIDTH - 10 and 10 < y < WORLD_HEIGHT - 10:
                     self.access_res.append(resource)
                     self.add_village(x, y)
                     break
@@ -9697,7 +9477,7 @@ class Game:
         WORLD.tiles[1][1].armies.extend([player_party, enemy_army])
 
         hideout_site = WORLD.tiles[1][1].add_minor_site(world=WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
-        hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+        hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
         hideout_building.add_garrison(enemy_army)
         #WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
         #WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
