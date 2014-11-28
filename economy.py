@@ -974,9 +974,12 @@ class Merchant(object):
                 if self.current_location == self.buy_economy: 	 destination = self.sell_economy.owner
                 elif self.current_location == self.sell_economy: destination = self.buy_economy.owner
                 #print self.attached_to.sapient.caravan.name, 'heading to', destination.name
-                if self.attached_to.sapient.army:
-                    self.current_location.owner.departing_merchants.append((self.attached_to.sapient.army, destination))
-                    self.current_location = None
+                # ORIGINAL: pre army rewrite 11/28/2014
+                #if self.attached_to.sapient.army:
+                #    self.current_location.owner.departing_merchants.append((self.attached_to.sapient.army, destination))
+                #    self.current_location = None
+                self.current_location.owner.departing_merchants.append((self.attached_to, destination))
+                self.current_location = None
 
             else:
                 if self.current_location == self.buy_economy:    self.current_location = self.sell_economy
