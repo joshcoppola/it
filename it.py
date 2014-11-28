@@ -1183,10 +1183,10 @@ class Wmap:
             if self.is_val_xy((sx, sy)):
                 self.tiles[sx][sy].set_shadow(amount=.5)
 
-        for xx in xrange(sx-1, sx+2):
-            for yy in xrange(sy-1, sy+2):
+        for xx in xrange(sx-4, sx+5):
+            for yy in xrange(sy-4, sy+5):
                 if self.is_val_xy((xx, yy)):
-                    amount = random.choice((.4, .45, .5, .55))
+                    amount = random.choice((0, .05, .1, .15))
                     self.tiles[xx][yy].set_shadow(amount=amount)
         '''
 
@@ -1598,6 +1598,8 @@ class World:
         self.hideouts = []
         self.factions = []
 
+        self.site_index = {}
+
         self.import_xml_info()
         #### load phys info ####
         phys.main()
@@ -1612,6 +1614,12 @@ class World:
 
     def remove_famous_object(self, obj):
         self.famous_objects.remove(obj)
+
+    def add_to_site_index(self, site):
+        if site.site_type not in self.site_index.keys():
+            self.site_index[site.site_type] = [site]
+        else:
+            self.site_index[site.site_type].append(site)
 
     def generate(self):
         #### Setup actual world ####
@@ -2408,14 +2416,12 @@ class World:
         self.run_history(years)
 
         ## Add a "start playing" button if there isn't already one
-        add_button = True
         for button in panel2.wmap_buttons:
             if button.text == 'Start Playing':
-                add_button = False
                 break
-        if add_button:
+        else:
             panel2.wmap_buttons.append(gui.Button(gui_panel=panel2, func=game.new_game, args=[],
-                                                  text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                    text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
 
     def gen_sentient_races(self):
@@ -2992,12 +2998,12 @@ class World:
 
     def run_history(self, weeks):
         ## Some history...
-        begin = time.time()
-
+        #begin = time.time()
         for i in xrange(weeks * 7):
             time_cycle.day_tick(1)
-
-        game.add_message('History run in %.2f seconds' %(time.time() - begin))
+        #game.add_message('History run in %.2f seconds' %(time.time() - begin))
+        # List the count of site types
+        game.add_message(', '.join(['{0} {1}s'.format(len(self.site_index[site_type]), site_type) for site_type in self.site_index.keys()]))
 
 
     def initialize_fov(self):
@@ -3270,30 +3276,23 @@ class World:
 
     def add_mine(self, x, y, city):
         name = '{0} mine'.format(city.name)
-
         mine = self.tiles[x][y].add_minor_site(world=self, site_type='mine', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
         mine.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-
-        self.tiles[x][y].char = "#"
-        self.tiles[x][y].char_color = city.faction.color
-
+        #self.tiles[x][y].char = "#"
+        #self.tiles[x][y].char_color = city.faction.color
         return mine
 
     def add_farm(self, x, y, city):
         name = '{0} farm'.format(city.name)
-        #farm = Site(world=self, site_type='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
-
         farm = self.tiles[x][y].add_minor_site(world=self, site_type='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
         farm.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-
-        self.tiles[x][y].char = "#"
-        self.tiles[x][y].char_color = city.faction.color
-
+        #self.tiles[x][y].char = "#"
+        #self.tiles[x][y].char_color = city.faction.color
         return farm
 
-    def add_ruins(self, cx, cy):
+    def add_ruins(self, x, y):
         # Make ruins
-        site_name = self.tiles[cx][cy].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
+        site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
         #ruins = Site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
 
@@ -3301,25 +3300,24 @@ class World:
         #self.make_world_road(cx, cy)
         #self.sites.append(ruins)
 
-        ruin_site = self.tiles[cx][cy].add_minor_site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
-        self.tiles[cx][cy].char = 259
-        self.tiles[cx][cy].char_color = libtcod.black
+        ruin_site = self.tiles[x][y].add_minor_site(world=self, site_type='ruins', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        self.tiles[x][y].char = 259
+        self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
             building = ruin_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
 
-
-        if roll(0, 1):
+        # Move some unintelligent creatures in if it's near cities
+        if get_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
             race_name = random.choice(self.brutish_races)
             name = '{0} raiders'.format(race_name)
-            #title = Title(profession_name='Chief', category='noble', title_name='{0}s of {1}'.format(race_name, site_name), succession='strongman')
             faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman')
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
-            leader = culture.create_being(sex=1, born=0, char='u', dynasty=None, important=0, faction=faction, wx=cx, wy=cy, armed=1, save_being=1)
+            leader = culture.create_being(sex=1, born=0, char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1)
             faction.set_leader(leader)
             #leader.sapient.change_citizenship(new_city=None, new_house=building)
 
-            army = self.create_army(x=cx, y=cy, char='u', name=name, color=libtcod.black, speed=1, goods={}, figures=[leader], units={'Swordsmen':10}, faction=faction, culture=culture, ai=None)
+            army = self.create_army(x=x, y=y, char='u', name=name, color=libtcod.black, speed=1, goods={'food':1}, figures=[leader], units={'Swordsmen':10}, faction=faction, culture=culture, ai=None)
             # Set the headquarters and update the title to the building last created.
             building.add_garrison(army)
 
@@ -3369,7 +3367,7 @@ class World:
         leader.wx, leader.wy = wx, wy
         #hideout_site.receive_figure(leader)
 
-        bandits = self.create_army(x=wx, y=wy, char='B', name='Bandit band', color=libtcod.black, speed=3, goods={}, figures=[leader], units={'Swordsmen':10}, faction=bandit_faction, culture=closest_city.culture, ai=None)
+        bandits = self.create_army(x=wx, y=wy, char='B', name='Bandit band', color=libtcod.black, speed=3, goods={'food':1}, figures=[leader], units={'Swordsmen':10}, faction=bandit_faction, culture=closest_city.culture, ai=None)
         hideout_building.add_garrison(bandits)
 
         ## Prisoner
@@ -3493,7 +3491,10 @@ class Site:
         # major figures who are citizens
         self.citizens = []
 
-        self.history = []
+
+        # Manage the world's dict of site types
+        self.world.add_to_site_index(self)
+
         # For resources
         self.native_res = {}
 
@@ -4454,7 +4455,7 @@ class Faction:
 
 
     def standard_succession(self):
-        ''' Title will pass to the firstborn son of the current holder.
+        ''' Leadership will pass to the firstborn son of the current holder.
         If none, it will pass to the oldest member of the dynasty'''
         if self.heirs != []:
             heir = self.heirs.pop(0)
