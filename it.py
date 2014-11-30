@@ -3730,7 +3730,6 @@ class City(Site):
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
         human = self.create_inhabitant(sex=1, born=time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
-        #human.set_world_brain(BasicMerchant())
         human.set_world_brain(BasicWorldBrain())
 
         for other in WORLD.tiles[self.x][self.y].entities:
@@ -7815,25 +7814,6 @@ class BasicWorldBrain:
     def take_turn(self):
         if self.goals:
             self.handle_goal_behavior()
-
-
-class BasicMerchant:
-    def __init__(self):
-        self.destination = None
-        self.path = None
-        self.next_tick = 0
-        self.goals = []
-
-    def set_destination(self, origin, destination):
-        self.destination = destination
-        self.path = origin.path_to[destination][:]
-
-    def take_turn(self):
-        if get_distance_to(self.owner.wx, self.owner.wy, self.destination.x, self.destination.y) > 0:
-            self.owner.w_move_along_path(path=self.path)
-
-        elif self.owner not in self.destination.caravans:
-            self.destination.receive_caravan(self.owner)
 
 
 ######################## Code from Paradox Inversion on libtcod forums ###################################
