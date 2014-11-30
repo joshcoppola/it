@@ -3730,7 +3730,8 @@ class City(Site):
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
         human = self.create_inhabitant(sex=1, born=time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
-        human.set_world_brain(BasicMerchant())
+        #human.set_world_brain(BasicMerchant())
+        human.set_world_brain(BasicWorldBrain())
 
         for other in WORLD.tiles[self.x][self.y].entities:
             if other != human:
@@ -3796,7 +3797,8 @@ class City(Site):
             # WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
             caravan_leader.world_brain.next_tick = time_cycle.next_day()
             # Tell the ai where to go
-            caravan_leader.world_brain.set_destination(origin=self, destination=destination)
+            #caravan_leader.world_brain.set_destination(origin=self, destination=destination)
+            caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
 
         self.departing_merchants = []
 
@@ -4591,6 +4593,7 @@ class Object:
         # x and y coords in overworld map
         self.wx = wx
         self.wy = wy
+        self.world_last_dir = (0, 0)
 
         # Will be set to an interact_obj class instance if used
         self.interactable = 0
@@ -4663,7 +4666,7 @@ class Object:
         self.current_building = building
 
         building.add_housed_object(obj=self)
-        self.x, self.y = building.site.x, building.site.y
+        self.wx, self.wy = building.site.x, building.site.y
 
     def set_current_holder(self, figure):
         ''' Moves it from a building to a person, preserving the owner '''
@@ -6133,10 +6136,11 @@ class Plot:
 class Goal:
     ''' This is the container for behaviors. It controls
     when each behavior becomes active (serially) '''
-    def __init__(self, name, behavior_list, priority):
+    def __init__(self, name, behavior_list, priority, reason):
         self.name = name
         self.behavior_list = behavior_list
         self.priority = priority
+        self.reason = reason
 
     def take_goal_action(self):
         ''' Picks the behavior which is currently active and executes it'''
@@ -6163,12 +6167,11 @@ class Goal:
 
 class WaitBehavior:
     ''' Used anytime a figure wants to wait somewhere and do some activity '''
-    def __init__(self, figure, num_days, activity, reason):
+    def __init__(self, figure, num_days, activity):
         self.figure = figure
         self.num_days = num_days
         self.num_days_left = num_days
         self.activity = activity
-        self.reason = reason
 
         self.is_active = 0
 
@@ -6185,13 +6188,11 @@ class WaitBehavior:
 class MovLocBehavior:
     ''' Specific behavior component for moving to an area.
     Will use road paths if moving from city to city '''
-    def __init__(self, coords, figure, reason=None):
+    def __init__(self, coords, figure):
         self.x = coords[0]
         self.y = coords[1]
         # The object
         self.figure = figure
-        self.reason = reason
-
         self.is_active = 0
 
     def initialize_behavior(self):
@@ -6249,6 +6250,23 @@ class MovTargBehavior:
         if x != None:
             self.figure.w_move_to(x, y)
 
+class UnloadGoodsBehavior:
+    def __init__(self, target_city, figure):
+        self.target_city = target_city
+        self.figure = figure
+        self.is_active = 0
+
+    def initialize_behavior(self):
+        pass
+
+    def is_completed(self):
+        return self.figure in self.target_city.caravans
+
+    def take_behavior_action(self):
+        if self.figure not in self.target_city.caravans:
+            self.target_city.receive_caravan(self.figure)
+        else:
+            game.add_message('{0} tried to unload caravan goods and was already in {1}.caravans'.format(self.figure.fulltitle(), self.target_city.name), libtcod.red)
 
 class KillTargBehavior:
     ''' Behavior for moving to something that's not a city (a historical figure, perhaps)'''
@@ -6765,125 +6783,6 @@ class SapientComponent:
             self.events[(year, month, day)] = [event]
 
 
-    def live_life(self):
-        age = self.get_age()
-        # Pick a spouse and get married immediately
-        if self.spouse == None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
-            if roll(1, 48) >= 48:
-                self.pick_spouse()
-
-        # Have kids! Currenly limiting to 2 for non-important, 5 for important (will need to be fixed/more clear later)
-        # Check female characters, and for now, a random chance they can have kids
-        if self.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(self.children) <= (self.important * 3) + 2:
-            if roll(1, 20) == 20:
-                self.have_child()
-
-
-        #### Plotting ####
-        if self.important:
-            '''
-            if self.inheritance != [] and ('ambitious' in self.traits) and not self.is_plotting:
-                for title, number_in_line in self.inheritance.iteritems():
-                    if number_in_line == 2:
-                        target = title.heirs[0]
-                        name = 'Meeting to discuss ' + target.fullname()
-
-                        meet_city = self.current_citizenship
-                        new_meeting = Meeting(name=name, leader=self.owner,
-                                          invitees=[random.choice(meet_city.citizens)], days_ahead=20, world_coords=(meet_city.x, meet_city.y),
-                                          place=random.choice(meet_city.buildings), reason=('plot', 'kill', target), secret=1, importance=0)
-
-                        self.is_plotting = 1
-
-                        game.add_message(''.join([self.owner.fullname(), ' has scheduled ', name]), libtcod.light_blue)
-
-            '''
-            ####### GOALS #######
-
-            if not self.economy_agent \
-                    and self.owner.creature.sex == 1 \
-                    and self.get_age() >= 18 \
-                    and not self.is_commander() \
-                    and not self.is_captive() \
-                    and roll(1, 50) == 1:
-
-                moving = self.check_for_move_city()
-
-                if not moving:
-                    self.check_for_liesure_travel()
-
-
-               # test_flag = roll(1, 4)
-               # if test_flag == 1:
-
-                '''
-                    #cur_city = WORLD.tiles[self.owner.wx][self.owner.wy].site # Glitched - but shouldn't be. For some reason not everyone gets .wx/.wy coords
-                #    if self.current_city is not None:
-                #        cur_city = self.current_city
-                #        target_city = random.choice([city for city in WORLD.cities if city != cur_city])
-                #    else:
-                #        target_city = random.choice(WORLD.cities)
-
-
-                 #   self.add_goal(priority=1, goal_type='travel', target=(target_city.x, target_city.y))
-
-                elif test_flag == 2:
-                    # Move to a figure's location
-                    self.add_goal(priority=1, goal_type='travel to person', target=random.choice([figure for figure in WORLD.all_figures if figure != self.owner]))
-
-                elif test_flag == 3:
-                    # Kill a man
-                    self.add_goal(priority=1, goal_type='kill person', target=random.choice([figure for figure in WORLD.all_figures if figure != self.owner]))
-
-                elif test_flag == 4:
-                    # Capture a person
-                    target = random.choice([figure for figure in WORLD.all_figures if figure != self.owner and figure.sapient.captor == None])
-                    self.add_goal(priority=1, goal_type='capture person', target=target, target_prison_bldg=self.house)
-                '''
-
-    def check_for_move_city(self):
-        if self.profession is None and roll(1, 1000) >= 950:
-            target_city = random.choice([city for city in WORLD.cities if city != self.current_citizenship])
-            reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
-
-            self.change_citizenship(new_city=target_city, new_house=None)
-            self.owner.world_brain.add_goal(priority=1, goal_type='travel', target=(target_city.x, target_city.y), reason=reason)
-            # Return whether the goal was fired or not
-            return 1
-        return 0
-
-
-    def check_for_liesure_travel(self):
-        if (self.profession is None or self.profession == 'Adventurer') and roll(1, 1000) >= 500:
-
-            # Pick a spot to travel to
-            found_spot = False
-            while not found_spot:
-                xdist = roll(5, 15) * random.choice((-1, 1))
-                ydist = roll(5, 15) * random.choice((-1, 1))
-                # If we can path there, it's OK
-                if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
-                    found_spot = True
-
-            # Pick a reason
-            activity = random.choice(('exploring', 'hunting'))
-
-            reasons = {
-                       'exploring':['wanted to explore', 'wanted to see more of the world'],
-                       'hunting':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world']
-                       }
-
-            reason = random.choice(reasons[activity])
-            num_days = roll(3, 8)
-
-            self.owner.world_brain.add_goal(priority=1, goal_type='travel', target=(self.owner.wx + xdist, self.owner.wy + ydist), reason=reason)
-            self.owner.world_brain.add_goal(priority=1, goal_type='wait', num_days=num_days, activity=activity, reason=reason)
-
-            return 1
-
-        return 0
-
-
     def die(self):
         figure = self.owner
         figure.creature.status = 'dead'
@@ -6980,42 +6879,6 @@ class SapientComponent:
     def take_spouse(self, spouse):
         self.spouse = spouse
         spouse.sapient.spouse = self.owner
-
-    def pick_spouse(self):
-        # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
-        if WORLD.tiles[self.owner.wx][self.owner.wy].site:
-            potential_spouses = [figure for figure in WORLD.tiles[self.owner.wx][self.owner.wy].entities
-                                 if figure.creature.sex != self.owner.creature.sex
-                                 and figure.creature.creature_type == self.owner.creature.creature_type
-                                 and figure.sapient.dynasty != self.dynasty
-                                 and MIN_MARRIAGE_AGE < figure.sapient.get_age() < MAX_MARRIAGE_AGE]
-
-            if len(potential_spouses) == 0 and self.current_citizenship:
-                # Make a person out of thin air to marry
-                sex = abs(self.owner.creature.sex-1)
-                s_born = time_cycle.years_ago(self.get_age()-5, self.get_age()+5)
-                potential_spouses = [self.current_citizenship.create_inhabitant(sex=sex, born=s_born, char='o', dynasty=None, race=self.owner.creature.creature_type, important=self.important, house=self.house)]
-            elif self.current_citizenship is None:
-                game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
-                return
-
-            spouse = random.choice(potential_spouses)
-            self.take_spouse(spouse=spouse)
-            ## Notify world
-            game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', self.current_citizenship.name]) )
-            # Update last names
-            if self.owner.creature.sex == 1:    spouse.sapient.lastname = self.lastname
-            else:                               self.lastname = spouse.sapient.lastname
-
-            ## Move in
-            if spouse.sapient.current_citizenship != self.current_citizenship:
-                game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.sapient.current_citizenship.name, self.current_citizenship.name ), libtcod.dark_red)
-                spouse.sapient.change_citizenship(new_city=self.current_citizenship, new_house=self.house)
-            # Make sure the spouse meets them
-            if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
-                spouse.world_brain.add_goal(priority=1, goal_type='travel', target=(self.owner.wx, self.owner.wy), reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()))
-
-            return spouse
 
     def have_child(self):
 
@@ -7740,7 +7603,7 @@ class BasicWorldBrain:
         self.goals = []
 
 
-    def add_goal(self, priority, goal_type, **kwargs):
+    def add_goal(self, priority, goal_type, reason, **kwargs):
         ' Terribly written general handler for any goal type \
         messy implementation with **kwargs for now...'
 
@@ -7753,7 +7616,7 @@ class BasicWorldBrain:
                 target_location = '{0}, {1}'.format(self.owner.wx, self.owner.wy)
 
             goal_name = 'wait at {0} for {1} days'.format(target_location, kwargs['num_days'])
-            wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity'], reason=kwargs['reason'])
+            wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity'])
             behavior_list = [wait]
 
         elif goal_type == 'travel':
@@ -7763,7 +7626,7 @@ class BasicWorldBrain:
             else:
                 target_location = '{0}, {1}'.format(target_tuple[0], target_tuple[1])
             goal_name = 'travel to {0}'.format(target_location)
-            goto_site = MovLocBehavior(coords=target_tuple, figure=self.owner, reason=kwargs['reason'])
+            goto_site = MovLocBehavior(coords=target_tuple, figure=self.owner)
             behavior_list = [goto_site]
         # also phased out
         elif goal_type == 'travel to person':
@@ -7793,14 +7656,21 @@ class BasicWorldBrain:
 
             behavior_list = [goto_target, capture_target, goto_target_location, imprison_target]
 
+        elif goal_type == 'move_trade_goods_to_city':
+            target_city = kwargs['target_city']
+            goal_name = 'move goods to to {0}'.format(target_city.name)
+            goto_site = MovLocBehavior(coords=(target_city.x, target_city.y), figure=self.owner)
+            unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
+            behavior_list = [goto_site, unload_goods]
+
         ## Tell the world what you're doing
         game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
 
         # Add the goal to the list. Automatically add a goal to return home after the goal is complete
         if len(self.goals) >= 2 and self.goals[-1].name == 'Return Home':
-            self.goals.insert(-1, Goal(name=goal_name, behavior_list=behavior_list, priority=priority))
+            self.goals.insert(-1, Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
         else:
-            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority))
+            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
 
         if self.owner not in WORLD.travelers:
             WORLD.travelers.append(self.owner)
@@ -7812,7 +7682,7 @@ class BasicWorldBrain:
             return_from_site = MovLocBehavior(coords=(home_city.x, home_city.y), figure=self.owner)
             behavior_list = [return_from_site]
 
-            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority))
+            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason=reason))
             if self.owner not in WORLD.travelers:
                 print self.owner.fullnamte(), 'tried to return home, was not in list of travelers'
 
@@ -7827,6 +7697,115 @@ class BasicWorldBrain:
 
             if len(self.goals) == 0:
                 WORLD.travelers.remove(self.owner)
+
+
+    def monthly_life_check(self):
+        sapient = self.owner.sapient
+        age = sapient.get_age()
+        # Pick a spouse and get married immediately
+        if sapient.spouse == None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
+            if roll(1, 48) >= 48:
+                self.pick_spouse()
+
+        # Have kids! Currenly limiting to 2 for non-important, 5 for important (will need to be fixed/more clear later)
+        # Check female characters, and for now, a random chance they can have kids
+        if sapient.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(sapient.children) <= (sapient.important * 3) + 2:
+            if roll(1, 20) == 20:
+                sapient.have_child()
+
+        ####### GOALS #######
+
+        if not sapient.economy_agent \
+                and self.owner.creature.sex == 1 \
+                and age >= 18 \
+                and not sapient.is_commander() \
+                and not sapient.is_captive() \
+                and roll(1, 50) == 1:
+
+            moving = self.check_for_move_city()
+
+            if not moving:
+                self.check_for_liesure_travel()
+
+    def pick_spouse(self):
+        sapient = self.owner.sapient
+        # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
+        if WORLD.tiles[self.owner.wx][self.owner.wy].site:
+            potential_spouses = [figure for figure in WORLD.tiles[self.owner.wx][self.owner.wy].entities
+                                 if figure.creature.sex != self.owner.creature.sex
+                                 and figure.creature.creature_type == self.owner.creature.creature_type
+                                 and figure.sapient.dynasty != sapient.dynasty
+                                 and MIN_MARRIAGE_AGE < figure.sapient.get_age() < MAX_MARRIAGE_AGE]
+
+            if len(potential_spouses) == 0 and sapient.current_citizenship:
+                # Make a person out of thin air to marry
+                sex = abs(self.owner.creature.sex-1)
+                s_born = time_cycle.years_ago(sapient.get_age()-5, sapient.get_age()+5)
+                potential_spouses = [sapient.current_citizenship.create_inhabitant(sex=sex, born=s_born, char='o', dynasty=None, race=self.owner.creature.creature_type, important=sapient.important, house=sapient.house)]
+            elif sapient.current_citizenship is None:
+                game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
+                return
+
+            spouse = random.choice(potential_spouses)
+            sapient.take_spouse(spouse=spouse)
+            ## Notify world
+            game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', sapient.current_citizenship.name]) )
+            # Update last names
+            if self.owner.creature.sex == 1:    spouse.sapient.lastname = sapient.lastname
+            else:                               sapient.lastname = spouse.sapient.lastname
+
+            ## Move in
+            if spouse.sapient.current_citizenship != sapient.current_citizenship:
+                game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.sapient.current_citizenship.name, sapient.current_citizenship.name ), libtcod.dark_red)
+                spouse.sapient.change_citizenship(new_city=sapient.current_citizenship, new_house=sapient.house)
+            # Make sure the spouse meets them
+            if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
+                spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), target=(self.owner.wx, self.owner.wy))
+
+            return spouse
+
+    def check_for_move_city(self):
+        sapient = self.owner.sapient
+        if sapient.profession is None and roll(1, 1000) >= 950:
+            target_city = random.choice([city for city in WORLD.cities if city != sapient.current_citizenship])
+            reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
+
+            sapient.change_citizenship(new_city=target_city, new_house=None)
+            self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_city.x, target_city.y))
+            # Return whether the goal was fired or not
+            return 1
+        return 0
+
+
+    def check_for_liesure_travel(self):
+        sapient = self.owner.sapient
+        if (sapient.profession is None or sapient.profession == 'Adventurer') and roll(1, 1000) >= 500:
+            # Pick a spot to travel to
+            found_spot = False
+            while not found_spot:
+                xdist = roll(5, 15) * random.choice((-1, 1))
+                ydist = roll(5, 15) * random.choice((-1, 1))
+                # If we can path there, it's OK
+                if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
+                    found_spot = True
+
+            # Pick a reason
+            activity = random.choice(('exploring', 'hunting'))
+
+            reasons = {
+                       'exploring':['wanted to explore', 'wanted to see more of the world'],
+                       'hunting':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world']
+                       }
+
+            reason = random.choice(reasons[activity])
+            num_days = roll(3, 8)
+
+            self.add_goal(priority=1, goal_type='travel', reason=reason, target=(self.owner.wx + xdist, self.owner.wy + ydist))
+            self.add_goal(priority=1, goal_type='wait', reason=reason, num_days=num_days, activity=activity)
+            return 1
+
+        return 0
+
 
 
     def set_destination(self, origin, destination):
@@ -8082,7 +8061,7 @@ class TimeCycle(object):
         for figure in WORLD.all_figures[:]:
             ## TODO - make sure this check works out all the time
             if figure.sapient.is_available_to_act():
-                figure.sapient.live_life()
+                figure.world_brain.monthly_life_check()
 
         for plot in WORLD.plots[:]:
             if plot.check_for_fire():
@@ -9913,7 +9892,7 @@ class CityMap:
 
         taverns = [building for building in self.city_class.buildings if building.b_type == 'Tavern']
         #for figure in self.city_class.figures:
-        for entity in WORLD.tiles[self.city_class.x][self.city_class.wy].entities:
+        for entity in WORLD.tiles[self.city_class.x][self.city_class.y].entities:
             if entity not in placed_figures:
                 tavern = random.choice(taverns)
                 tavern.place_within(obj=entity)
