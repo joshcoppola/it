@@ -502,6 +502,32 @@ M = None
 time_cycle = None
 camera = None
 
+# from http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
+int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
+
+def join_list(string_list):
+    if len(string_list) == 1:
+        return string_list[0]
+    elif len(string_list) == 2:
+        return ' and '.join(string_list)
+    else:
+        #return ', '.join([s for s in string_list]) + ', and ', string_list[-1]
+        return '{0}, and {1}'.format(', '.join([s for s in string_list]), string_list[-1])
+
+
+
+def cart2card(x1, y1, x2, y2):
+    dx = x2 - x1
+    dy = y2 - y1
+
+    distance = math.sqrt(dx ** 2 + dy ** 2)
+    #normalize it to length 1 (preserving direction), then round it and
+    #convert to integer
+    dx = int(round(dx / distance))
+    dy = int(round(dy / distance))
+
+    return COMPASS[NEIGHBORS.index((dx, dy))]
+
 
 def get_distance_to(x, y, target_x, target_y):
     #return the distance to another object
@@ -555,8 +581,10 @@ def weighted_choice(choices):
 
 class Region:
     #a Region of the map and its properties
-    def __init__(self, region, color, blocks_mov, char=' ', char_color=libtcod.black, blocks_vis=None):
+    def __init__(self, region, x, y, color, blocks_mov, char=' ', char_color=libtcod.black, blocks_vis=None):
         self.region = region
+        self.x = x
+        self.y = y
         self.color = color
         self.char = char
         self.char_color = char_color
@@ -616,6 +644,25 @@ class Region:
         self.minor_sites.append(site)
 
         return site
+
+    def get_location_description(self):
+        if self.site:
+            return self.site.name
+        elif len(self.minor_sites) and len(self.caves):
+            site_names = [site.name for site in self.minor_sites + self.caves]
+            return join_list([site_names])
+        else:
+            city, dist = WORLD.get_closest_city(self.x, self.y)
+            if 0 < dist <= 3:
+                return 'to the {0}s just to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+            elif dist <= 15:
+                return 'to the {0}s to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+            elif dist > 15:
+                return 'to the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+            elif dist > 30:
+                return 'to the {0}s far, far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+            else:
+                return 'the unknown {0}s'.format(self.region)
 
 class Tile:
     #a tile of the map and its properties
@@ -1572,7 +1619,7 @@ class World:
         # Need to first set camera
         camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
 
-        self.travelers = []
+        #self.travelers = []
         self.sites = []
         self.resources = []
         self.startlocs = []
@@ -1663,9 +1710,12 @@ class World:
 
     def draw_world_objects(self):
         # Just have all world objects represent themselves
-        for traveler in self.travelers:
-            if traveler != player:
-                traveler.w_draw()
+        for figure in WORLD.all_figures:
+            if not self.tiles[figure.wx][figure.wy].site:
+                figure.w_draw()
+        #for traveler in self.travelers:
+        #    if traveler != player:
+        #        traveler.w_draw()
 
         for site in self.sites:
             site.draw()
@@ -1797,7 +1847,7 @@ class World:
             if 0 < dist < closest_dist: #it's closer, so remember it
                 closest_city = city
                 closest_dist = dist
-        return closest_city
+        return closest_city, closest_dist
 
     def find_nearby_resources(self, x, y, distance):
         # Make a list of nearby resources at particular world coords
@@ -1837,7 +1887,7 @@ class World:
     def setup_world(self):
         #fill WORLD with dummy regions
         self.tiles = [
-            [Region(region=None, color=None, blocks_mov=False, char=' ', char_color=libtcod.black, blocks_vis=False)
+            [Region(region=None, x=x, y=y, color=None, blocks_mov=False, char=' ', char_color=libtcod.black, blocks_vis=False)
              for y in xrange(self.height)]
             for x in xrange(self.width)]
 
@@ -2742,7 +2792,7 @@ class World:
         ## Ugly ugly road code for now
         for city in created_cities:
 
-            closest_ucity = self.get_closest_city(city.x, city.y, 100)
+            closest_ucity = self.get_closest_city(city.x, city.y, 100)[0]
             if closest_ucity not in city.connected_to:
                 city.build_road_to(closest_ucity.x, closest_ucity.y)
                 city.connect_to(closest_ucity)
@@ -2833,6 +2883,7 @@ class World:
         ## Now setup the economy since we have all import/export info
         for city in created_cities:
             mine_added = 0
+            shrine_added = 0
             # This doesn't necessaryily have to be done here, but we should add farms around the city
             for x in xrange(city.x-5, city.x+6):
                 for y in xrange(city.y-5, city.y+6):
@@ -2840,10 +2891,16 @@ class World:
                     if not mine_added and MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city):
                         self.add_mine(x, y, city)
                         mine_added = 1
+                        continue
 
                     # Add farms around the city
                     if get_distance_to(city.x, city.y, x, y) < 2.5 and self.is_valid_site(x, y, city):
                         self.add_farm(x, y, city)
+                        continue
+                    # Loop should only get here if no site is added, due to the continue syntax
+                    if not shrine_added and roll(1, 100) >= 97:
+                        self.add_shrine(x, y, city)
+                        shrine_added = 1
 
             ### v original real readon for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
@@ -3260,7 +3317,6 @@ class World:
         camera.center(player.x, player.y)
         game.handle_fov_recompute()
 
-
     def make_city(self, cx, cy, char, color, name, faction):
         # Make a city
         city = City(world=self, site_type='city', x=cx, y=cy, char=char, name=name, color=color, culture=self.tiles[cx][cy].culture, faction=faction)
@@ -3272,7 +3328,6 @@ class World:
         self.cities.append(city)
 
         return city
-
 
     def add_mine(self, x, y, city):
         name = '{0} mine'.format(city.name)
@@ -3290,15 +3345,21 @@ class World:
         #self.tiles[x][y].char_color = city.faction.color
         return farm
 
+    def add_shrine(self, x, y, city):
+        name = '{0} shrine'.format(city.culture.pantheon.name)
+        shrine = self.tiles[x][y].add_minor_site(world=self, site_type='shrine', x=x, y=y, char='^', name=name, color=libtcod.black, culture=None, faction=None)
+        shrine.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+        self.tiles[x][y].char = "^"
+        self.tiles[x][y].char_color = libtcod.black
+
+        city.culture.pantheon.add_holy_site(shrine)
+
+        return shrine
+
     def add_ruins(self, x, y):
         # Make ruins
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
-        #ruins = Site(world=self, site_type='ruins', x=cx, y=cy, char=259, name=name, color=libtcod.black, culture=None, faction=None)
-
-        #self.tiles[cx][cy].site = ruins
-        #self.make_world_road(cx, cy)
-        #self.sites.append(ruins)
 
         ruin_site = self.tiles[x][y].add_minor_site(world=self, site_type='ruins', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
         self.tiles[x][y].char = 259
@@ -3307,7 +3368,7 @@ class World:
             building = ruin_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
 
         # Move some unintelligent creatures in if it's near cities
-        if get_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
+        if 0 < self.get_astar_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
             race_name = random.choice(self.brutish_races)
             name = '{0} raiders'.format(race_name)
             faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman')
@@ -3315,13 +3376,14 @@ class World:
 
             leader = culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1)
             faction.set_leader(leader)
-            #leader.sapient.change_citizenship(new_city=None, new_house=building)
 
-            #leader.create_army(char='u', name=name, goods={'food':1}, figures=[], units={'Swordsmen':5}, culture=culture)
             sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
             self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
             #building.add_garrison(army)
+            if roll(1, 10) >= 2:
+                closest_city = self.get_closest_city(x, y)[0]
+                closest_city.culture.pantheon.add_holy_site(ruin_site)
 
         return ruin_site
 
@@ -3336,7 +3398,7 @@ class World:
     def create_and_move_bandits_to_site(self, wx, wy, hideout_site):
         ''' Creates a group of bandits to move to an uninhabited site '''
 
-        closest_city = self.get_closest_city(wx, wy)
+        closest_city = self.get_closest_city(wx, wy)[0]
         if closest_city is None:
             closest_city = random.choice(self.cities)
             print 'Bandits could not find closest city'
@@ -3485,7 +3547,7 @@ class Site:
 
         # Manage the world's dict of site types
         self.world.add_to_site_index(self)
-
+        self.is_holy_site_to = []
         # For resources
         self.native_res = {}
 
@@ -3507,7 +3569,7 @@ class Site:
 
         # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our hometown)
         if self.culture is None:
-            city = WORLD.get_closest_city(x=self.x, y=self.y, max_range=1000)
+            city = WORLD.get_closest_city(x=self.x, y=self.y, max_range=1000)[0]
             culture = city.culture
             hometown = city
         else:
@@ -3701,19 +3763,16 @@ class City(Site):
                             city.add_export(self, good_class.name)
 
 
-
     def build_road_to(self, x, y, color=libtcod.darkest_sepia):
         road_path = libtcod.path_compute(WORLD.rook_path_map, self.x, self.y, x, y)
 
         x, y = self.x, self.y
         old_x, old_y = None, None
         while x != None:
-
             # Update the road path map to include this road
             libtcod.map_set_properties(WORLD.road_fov_map, x, y, 1, 1)
 
             if old_x:
-
                 road_count = 0
                 for xx, yy in ( (old_x + 1, old_y), (old_x - 1, old_y), (old_x, old_y + 1), (old_x, old_y - 1) ):
                     if WORLD.tiles[xx][yy].has_feature('road'):
@@ -3722,10 +3781,7 @@ class City(Site):
                 if road_count <= 3 :
                     WORLD.make_world_road(old_x, old_y)
             old_x, old_y = x, y
-
             x, y = libtcod.path_walk(WORLD.rook_path_map, True)
-
-
 
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
@@ -3754,29 +3810,10 @@ class City(Site):
 
         ## Now add the caravan to a list
         caravan_goods = Counter(merchant.inventory)
-        units = {'Light Cavalry': 20}
-        #caravan = self.create_caravan(caravan_name=self.name + ' caravan', units=units, figures=[human], char='M',
-        #                              goods=caravan_goods, city=self, location=location, destination=location)
-
-        #human.create_army(char='M', name=self.name + ' caravan', goods=caravan_goods, figures=[], units=units, culture=self.culture)
-        sentients = {self.culture:{random.choice(self.culture.races):{'Light Cavalry':20}}}
+        sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':20}}}
         WORLD.create_population(char='M', name=self.name + ' caravan', faction=self.faction, creatures={}, sentients=sentients, goods=caravan_goods, wx=self.x, wy=self.y, commander=human)
 
         self.caravans.append(human)
-
-        # TODO - make caravans play by the same rules as regular armies
-        # caravan.auto_enter_cites = 0
-
-    '''
-    def create_caravan(self, caravan_name, units, figures, char, goods, city, location, destination):
-        caravan = Army(x=location.x, y=location.y, char=char, name=caravan_name, color=city.color,
-                       speed=2, goods=goods,
-                       figures=figures, units=units, faction=city.faction, culture=self.culture, ai=BasicMerchant(destination))
-
-        caravan.owner = city
-        location.caravans.append(caravan)
-        return caravan
-    '''
 
     def dispatch_caravans(self):
         market = self.get_building('Market')
@@ -3792,7 +3829,7 @@ class City(Site):
             if caravan_leader in self.caravans:
                 self.caravans.remove(caravan_leader)
             # Add back to civ, world, and region armies
-            WORLD.travelers.append(caravan_leader)
+            #WORLD.travelers.append(caravan_leader)
             # WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
             caravan_leader.world_brain.next_tick = time_cycle.next_day()
             # Tell the ai where to go
@@ -3815,7 +3852,7 @@ class City(Site):
                         figure.sapient.economy_agent.traded_item, 2)
 
         #WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
-        WORLD.travelers.remove(caravan_leader)
+        #WORLD.travelers.remove(caravan_leader)
 
         self.caravans.append(caravan_leader)
 
@@ -4296,6 +4333,8 @@ class Faction:
         self.color = color
 
         self.leader = None
+        # Eventually will be more precide? Just a way to keep track of when the current leader became leader
+        self.leader_change_year = time_cycle.current_year
         # So far:
         # 'dynasty' for a city type faction
         # 'strongman' for bandit factions
@@ -4356,6 +4395,8 @@ class Faction:
         # Now install new leader
         self.leader = leader
         self.leader.sapient.set_as_faction_leader(self)
+        # Keep track of when leader became leader
+        self.leader_change_year = time_cycle.current_year
 
     def get_leader(self):
         return self.leader
@@ -4403,6 +4444,7 @@ class Faction:
             heir = self.heirs.pop(0)
             # Now that they're in the new position, remove them from the list of heirs
             self.unset_heir(heir)
+            self.set_leader(heir)
             game.add_message('{0} has is now {1} of {2}'.format(heir.fullname(), self.leader_prefix, self.faction_name))
             # Re-calculate succession
             self.get_heirs(3)
@@ -5231,15 +5273,6 @@ class Object:
 
     #### End moving world-coords style ########
 
-    '''
-    # TODO - unify this with AI code, rather than being its own thing
-    def follow(self, target, follow_distance):
-        if self.distance_to(target) >= follow_distance:
-            self.set_astar_target(target.x, target.y)
-            self.move_with_stored_astar_path(path=self.cached_astar_path)
-            #self.move_to(target.x, target.y) # Old astar code
-    '''
-
     def draw(self):
         #only show if it's visible to the player
         if libtcod.map_is_in_fov(M.fov_map, self.x, self.y):
@@ -5960,14 +5993,14 @@ class Population:
 
         for culture in self.sentients.keys():
             for race in self.sentients[culture].keys():
-                for profession in self.sentients[culture][race].keys():
-                    for i in xrange(self.sentients[culture][race][profession]):
+                for profession_name in self.sentients[culture][race].keys():
+                    for i in xrange(self.sentients[culture][race][profession_name]):
                         born = roll(time_cycle.current_year - 45, time_cycle.current_year - 20)
                         human = culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1)
                         # TODO - this should be improved
                         human.sapient.commander = self.commander
 
-                        profession = Profession(name=profession, category='commoner')
+                        profession = Profession(name=profession_name, category='commoner')
                         profession.give_profession_to(figure=human)
 
                         #if self.origin_city:
@@ -6205,8 +6238,6 @@ class MovLocBehavior:
         current_site = WORLD.tiles[self.figure.wx][self.figure.wy].site
         if target_site is not None and target_site in WORLD.cities:
             targeting_city = 1
-            self.name = 'move to ' + target_site.name
-
         if targeting_city and (current_site is not None and current_site in WORLD.cities):
             # Pathfinding bit
             self.figure.world_brain.path = current_site.path_to[target_site][:]
@@ -6215,7 +6246,8 @@ class MovLocBehavior:
             # Default - use libtcod's A* to create a path to destination
             path = libtcod.path_compute(p=WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.x, dy=self.y)
             self.figure.world_brain.path = libtcod_path_to_list(path_map=WORLD.path_map)
-            self.name = 'move to ' + str(self.x) + ', ' + str(self.y)
+
+        self.name = 'move to {0}.'.format(WORLD.tiles[self.x][self.y].get_location_description())
 
     def is_completed(self):
         return (self.figure.wx, self.figure.wy) == (self.x, self.y)
@@ -6355,7 +6387,7 @@ class SapientComponent:
 
         self.faction = None
         # Sort of ugly, but a sapient needs to know if they are a faction leader
-        self.is_faction_leader = None
+        self.is_faction_leader = 0
 
         #self.army = None
         self.commander = None
@@ -6438,7 +6470,24 @@ class SapientComponent:
 
 
     def is_commander(self):
-        return self.commanded_figures and self.commanded_populations
+        return len(self.commanded_figures) or len(self.commanded_populations)
+
+    def get_total_number_of_commanded_beings(self):
+        ''' Returns the number of beings under tis character's command'''
+        if self.is_commander():
+            number_of_figures = len(self.commanded_figures)
+            total_number = number_of_figures + 1 #(add 1, which is ourself)
+            # Dig down into the population breakdown to get the total number
+            for population in self.commanded_populations:
+                for culture in population.sentients.keys():
+                    for race in population.sentients[culture].keys():
+                        for profession_name in population.sentients[culture][race].keys():
+                            total_number += population.sentients[culture][race][profession_name]
+        # If we're not a commander, return 0, meaning no men under our command
+        else:
+            total_number = 0
+
+        return total_number
 
     def add_commanded_figure(self, figure):
         figure.sapient.commander = self.owner
@@ -6513,14 +6562,11 @@ class SapientComponent:
                     self.say('I currently do not hold any citizenship.')
 
             elif question_type == 'goals':
-                goals = []
-                if len(self.goals):
-                    for goal in self.goals:
-                        goals.append(goal)
-
-                        self.say('I currently am %s.' )
+                if len(self.owner.world_brain.goals):
+                    for goal in self.owner.world_brain.goals:
+                        self.say('I currently am {0}.'.format(goal.name) )
                 else:
-                    self.say('I have no goals currently.')
+                    self.say('I don\'t really have any goals at the moment.')
 
         ## Shouldn't break the mold here... but answer_type is different
         if question_type == 'recruit':
@@ -6825,6 +6871,7 @@ class SapientComponent:
             # If our position was 1st in line, let the world know who is now first in line
             if position == 1 and heirs != []:
                 game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.faction_name), libtcod.light_blue)
+
             elif position == 1:
                 game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.faction_name), libtcod.light_blue)
 
@@ -7609,22 +7656,15 @@ class BasicWorldBrain:
         # To be phased out at some point
         if goal_type == 'wait':
             # Name the location
-            if WORLD.tiles[self.owner.wx][self.owner.wy].site:
-                target_location = WORLD.tiles[self.owner.wx][self.owner.wy].site.name
-            else:
-                target_location = '{0}, {1}'.format(self.owner.wx, self.owner.wy)
-
-            goal_name = 'wait at {0} for {1} days'.format(target_location, kwargs['num_days'])
+            target = kwargs['target']
+            location = WORLD.tiles[target[0]][target[1]].get_location_description()
+            goal_name = 'wait at {0} for {1} days'.format(location, kwargs['num_days'])
             wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity'])
             behavior_list = [wait]
 
         elif goal_type == 'travel':
             target_tuple = kwargs['target']
-            if WORLD.tiles[target_tuple[0]][target_tuple[1]].site:
-                target_location = WORLD.tiles[target_tuple[0]][target_tuple[1]].site.name
-            else:
-                target_location = '{0}, {1}'.format(target_tuple[0], target_tuple[1])
-            goal_name = 'travel to {0}'.format(target_location)
+            goal_name = 'travel to {0}'.format(WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
             goto_site = MovLocBehavior(coords=target_tuple, figure=self.owner)
             behavior_list = [goto_site]
         # also phased out
@@ -7663,7 +7703,8 @@ class BasicWorldBrain:
             behavior_list = [goto_site, unload_goods]
 
         ## Tell the world what you're doing
-        game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
+        if goal_type != 'move_trade_goods_to_city':
+            game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
 
         # Add the goal to the list. Automatically add a goal to return home after the goal is complete
         if len(self.goals) >= 2 and self.goals[-1].name == 'Return Home':
@@ -7671,8 +7712,8 @@ class BasicWorldBrain:
         else:
             self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
 
-        if self.owner not in WORLD.travelers:
-            WORLD.travelers.append(self.owner)
+        #if self.owner not in WORLD.travelers:
+        #    WORLD.travelers.append(self.owner)
 
         # Auto return home
         if self.goals[-1].name != 'Return Home' and self.owner.sapient.current_citizenship:
@@ -7682,8 +7723,8 @@ class BasicWorldBrain:
             behavior_list = [return_from_site]
 
             self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason=reason))
-            if self.owner not in WORLD.travelers:
-                print self.owner.fullnamte(), 'tried to return home, was not in list of travelers'
+            #if self.owner not in WORLD.travelers:
+            #    print self.owner.fullnamte(), 'tried to return home, was not in list of travelers'
 
     def handle_goal_behavior(self):
         ''' Key function which takes each goal a step at a time
@@ -7694,8 +7735,8 @@ class BasicWorldBrain:
         if current_goal.is_completed():
             self.goals.remove(current_goal)
 
-            if len(self.goals) == 0:
-                WORLD.travelers.remove(self.owner)
+            #if len(self.goals) == 0:
+            #    WORLD.travelers.remove(self.owner)
 
 
     def monthly_life_check(self):
@@ -7748,14 +7789,14 @@ class BasicWorldBrain:
             spouse = random.choice(potential_spouses)
             sapient.take_spouse(spouse=spouse)
             ## Notify world
-            game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', sapient.current_citizenship.name]) )
+            # game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', sapient.current_citizenship.name]) )
             # Update last names
             if self.owner.creature.sex == 1:    spouse.sapient.lastname = sapient.lastname
             else:                               sapient.lastname = spouse.sapient.lastname
 
             ## Move in
             if spouse.sapient.current_citizenship != sapient.current_citizenship:
-                game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.sapient.current_citizenship.name, sapient.current_citizenship.name ), libtcod.dark_red)
+                #game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.sapient.current_citizenship.name, sapient.current_citizenship.name ), libtcod.dark_red)
                 spouse.sapient.change_citizenship(new_city=sapient.current_citizenship, new_house=sapient.house)
             # Make sure the spouse meets them
             if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
@@ -7779,28 +7820,32 @@ class BasicWorldBrain:
     def check_for_liesure_travel(self):
         sapient = self.owner.sapient
         if (sapient.profession is None or sapient.profession == 'Adventurer') and roll(1, 1000) >= 500:
-            # Pick a spot to travel to
-            found_spot = False
-            while not found_spot:
-                xdist = roll(5, 15) * random.choice((-1, 1))
-                ydist = roll(5, 15) * random.choice((-1, 1))
-                # If we can path there, it's OK
-                if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
-                    found_spot = True
 
-            # Pick a reason
-            activity = random.choice(('exploring', 'hunting'))
+            # More interesting alternative - visiting a holy site
+            if roll(0, 1) and len(sapient.culture.pantheon.holy_sites):
+                holy_site = random.choice(sapient.culture.pantheon.holy_sites)
+                target_x, target_y = holy_site.x, holy_site.y
+                activity = 'meditating'
+                reason = 'wanted to visit this holy site.'
+            # Otherwise, pick a random spot to travel to
+            else:
+                found_spot = False
+                while not found_spot:
+                    xdist = roll(5, 15) * random.choice((-1, 1))
+                    ydist = roll(5, 15) * random.choice((-1, 1))
+                    # If we can path there, it's OK
+                    if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
+                        found_spot = True
+                # Pick a reason
+                activity = random.choice(('exploring', 'hunting'))
+                reasons = {'exploring':['wanted to explore', 'wanted to see more of the world'],
+                           'hunting':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world']}
+                reason = random.choice(reasons[activity])
+                target_x, target_y = (self.owner.wx + xdist, self.owner.wy + ydist)
 
-            reasons = {
-                       'exploring':['wanted to explore', 'wanted to see more of the world'],
-                       'hunting':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world']
-                       }
-
-            reason = random.choice(reasons[activity])
             num_days = roll(3, 8)
-
-            self.add_goal(priority=1, goal_type='travel', reason=reason, target=(self.owner.wx + xdist, self.owner.wy + ydist))
-            self.add_goal(priority=1, goal_type='wait', reason=reason, num_days=num_days, activity=activity)
+            self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
+            self.add_goal(priority=1, goal_type='wait', reason=reason, target=(target_x, target_y), num_days=num_days, activity=activity)
             return 1
 
         return 0
@@ -8010,12 +8055,17 @@ class TimeCycle(object):
             self.check_day()
             self.handle_events()
 
-            for traveler in reversed(WORLD.travelers):
-                if traveler.world_brain and traveler.sapient.is_available_to_act() and traveler.world_brain.next_tick == self.current_day:
-                    traveler.world_brain.next_tick = self.next_day()
-                    traveler.world_brain.take_turn()
-                    #M.fov_recompute = True
-                    #############################################
+            for figure in reversed(WORLD.all_figures):
+                if figure.world_brain and figure.sapient.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
+                    #figure.world_brain.next_tick = self.next_day()
+                    figure.world_brain.take_turn()
+
+#             for traveler in reversed(WORLD.travelers):
+#                 if traveler.world_brain and traveler.sapient.is_available_to_act() and traveler.world_brain.next_tick == self.current_day:
+#                     traveler.world_brain.next_tick = self.next_day()
+#                     traveler.world_brain.take_turn()
+#                     #M.fov_recompute = True
+#                     #############################################
 
     def week_tick(self):
         # Cheaply defined to get civs working per-day
@@ -8415,66 +8465,57 @@ def get_info_under_mouse():
         color = PANEL_FRONT
         xc, yc = camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
-            #info.append((WORLD.tiles[x][y].region.capitalize() + ', (h=' + str(WORLD.tiles[x][y].height) + '; wD=' + str(WORLD.tiles[x][y].wdist) + ')', WORLD.tiles[x][y].color*1.5))
             info.append((WORLD.tiles[x][y].region.capitalize(), libtcod.color_lerp(color, WORLD.tiles[x][y].color, .5)))
             ###### Cultures ########
             if WORLD.tiles[x][y].culture is not None:
-                info.append(('Culture:  ' + WORLD.tiles[x][y].culture.name,
-                             libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
-                info.append(('Language: ' + WORLD.tiles[x][y].culture.language.name,
-                             libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
+                info.append(('Culture:  ' + WORLD.tiles[x][y].culture.name, libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
+                info.append(('Language: ' + WORLD.tiles[x][y].culture.language.name, libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
             else:
                 info.append(('No civilized creatures inhabit this region', color))
-                ###### Territory #######
+            ###### Territory #######
             if WORLD.tiles[x][y].territory is not None:
-                info.append(('Territory: ' + WORLD.tiles[x][y].territory.name,
-                             libtcod.color_lerp(color, WORLD.tiles[x][y].territory.color, .3)))
+                info.append(('Territory: ' + WORLD.tiles[x][y].territory.name, libtcod.color_lerp(color, WORLD.tiles[x][y].territory.color, .3)))
             else:
                 info.append(('No state\'s borders claim this region', color))
-                ####### Sites ##########
-            info.append((' ', color))
-            # Sites
-            if WORLD.tiles[x][y].site is not None:
-                site = WORLD.tiles[x][y].site
-
-                info.append(('{0} ({1})'.format(site.name.capitalize(), site.site_type), color))
-                if site.site_type == 'city':
-                    info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
-                    #for caravan in site.caravans:
-                    #    info.append((caravan.name, color))
-
-            ## FEATURES
-            for feature in WORLD.tiles[x][y].features + WORLD.tiles[x][y].caves + WORLD.tiles[x][y].minor_sites:
-                info.append((feature.get_name(), color))
-                ###
-                #if feature.site_type == 'river':
-                #    for c in feature.connected_dirs:
-                #        info.append(('%i, %i' %(c[0], c[1]), color))
-                ###
             info.append((' ', color))
 
             # Resources
             for resource, amount in WORLD.tiles[x][y].res.iteritems():
                 info.append(('{0} ({1})'.format(resource.capitalize(), amount), color))
             info.append((' ', color))
-            # Armies
-            for entity in WORLD.tiles[x][y].entities:
-                info.append(('* {0} *'.format(entity.name), libtcod.white))
-                #acolor = libtcod.color_lerp(army.color, PANEL_FRONT, .5)
-                #info.append(('* {0} *'.format(army.name), acolor))
 
-                ## TODO - add caravan goals so I no longer need this workaround
-                #if len(army.get_leader().sapient.goals):
-                #    info.append((army.get_leader().sapient.goals[0].name, acolor))
-                #for figure in army.figures:
-                #    info.append(('-{0}'.format(figure.fulltitle()), acolor))
-                #for troop, amount in army.units.iteritems():
-                #    info.append(('{0} ({1})'.format(troop, amount), acolor))
-                #for item, amount in army.goods.iteritems():
-                #    info.append(('{0} ({1})'.format(item, amount), acolor))
-                #info.append((' ', acolor))
-            for population in WORLD.tiles[x][y].populations:
-                info.append(('{0}'.format(population.name), libtcod.white))
+            ## FEATURES
+            for feature in WORLD.tiles[x][y].features + WORLD.tiles[x][y].caves:
+                info.append((feature.get_name(), color))
+            for site in WORLD.tiles[x][y].minor_sites:
+                info.append((site.name, color))
+                if site.is_holy_site_to:
+                    for pantheon in site.is_holy_site_to:
+                        info.append((' - This is considered a holy site to the {0}.'.format(pantheon.name), color ))
+            info.append((' ', color))
+
+            # Sites
+            site = WORLD.tiles[x][y].site
+            if site:
+                info.append(('{0} ({1})'.format(site.name.capitalize(), site.site_type), color))
+                if site.site_type == 'city':
+                    info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
+                    num_figures = len([f for f in WORLD.tiles[x][y].entities if (f.sapient.is_commander() or not f.sapient.commander)])
+                    info.append(('{0} figures or parties here'.format(num_figures), color))
+            else:
+                # Entities
+                for entity in WORLD.tiles[x][y].entities:
+                    # Commanders of parties or armies
+                    if entity.sapient and entity.sapient.is_commander():
+                        info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.sapient.get_total_number_of_commanded_beings()), entity.sapient.faction.color))
+                    # Individual travellers
+                    elif entity.sapient and not entity.sapient.commander:
+                        info.append(('{0}'.format(entity.fulltitle()), entity.sapient.faction.color))
+                    info.append((' ', color))
+                # Only show uncommanded populations
+                for population in WORLD.tiles[x][y].populations:
+                    if not population.commander:
+                        info.append(('{0}'.format(population.name), population.faction.color))
 
             info.append((' ', color))
 
@@ -8556,14 +8597,15 @@ class RenderHandler:
             # Current date and time info
             libtcod.console_print(panel2.con, 2, 2, time_cycle.get_current_date())
             if game.map_scale == 'world':
-                libtcod.console_print(panel2.con, 2, 3, 'Year %i, %i pop, %i imp' %(time_cycle.current_year, len(WORLD.all_figures), len(WORLD.important_figures)))
+                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + time_cycle.current_year - player.sapient.faction.leader_change_year), player.sapient.faction.leader.fullname() ))
+                libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(time_cycle.current_year, len(WORLD.all_figures), len(WORLD.important_figures)))
 
             ##### PANEL 4 - ECONOMY STUFF
             if player.sapient.economy_agent is not None:
                 libtcod.console_set_default_foreground(panel4.con, PANEL_FRONT)
 
                 agent = player.sapient.economy_agent
-                y = 4
+                y = 5
                 libtcod.console_print(panel4.con, 2, y, agent.name + ' (' + agent.economy.owner.name + ')')
                 y +=  1
                 libtcod.console_print(panel4.con, 2, y, str(agent.gold) + ' gold')
@@ -8665,7 +8707,7 @@ class RenderHandler:
             if game.map_scale == 'human':
                 battle_hover_information()
 
-        y = 4
+        y = 6
         for (line, color) in get_info_under_mouse():
             ## Quick fix to catch more text than panel height
             if y > PANEL2_HEIGHT - 4:
@@ -9036,10 +9078,9 @@ class Game:
         player = playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1, wx=playerciv.x, wy=playerciv.y)
         WORLD.tiles[player.wx][player.wy].entities.append(player)
         player.local_brain = None
+        player.world_brain = None
 
-        #player.create_army(char='@', name=player.fullname() + '\'s party', goods={'food': 200}, figures=[], units={}, culture=playerciv.culture)
         camera.center(player.wx, player.wy)
-
         self.state = 'playing'
 
 
@@ -9304,7 +9345,7 @@ class Game:
                 #try to find an attackable object there
                 target = None
                 for obj in M.tiles[x][y].objects:
-                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and obj.sapient.faction in player.sapient.faction.enemies):
+                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and obj.sapient.faction in player.sapient.faction.enemy_factions):
                         target = obj
                         break
                 #attack if target found, move otherwise
