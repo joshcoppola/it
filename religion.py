@@ -199,22 +199,28 @@ class Pantheon:
 
         self.available_spheres = spheres[:]
         self.gods = []
-        self.holy_objects = []
 
+        self.holy_objects = []
+        self.holy_sites = []
 
         self.create_celestial_gods()
+        self.set_name()
         self.create_misc_gods(num_misc_gods=num_misc_gods)
         self.update_god_relationships()
 
-
     def create_celestial_gods(self):
         # Create gods for each celestial body
-        for c_body in self.astrology.moons + self.astrology.suns:
+        for c_body in self.astrology.suns + self.astrology.moons:
             name = self.astrology.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
             name = lang.spec_cap(name)
 
             self.gods.append(God(name=name, sphere=c_body.describe()) )
 
+    def set_name(self):
+        if roll(1, 2) == 1:
+            self.name = 'Pantheon of {0}'.format(self.gods[0].name)
+        else:
+            self.name = '{0}mites'.format(lang.spec_cap(self.astrology.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))))
 
     def create_misc_gods(self, num_misc_gods):
         # Create misc gods
@@ -251,7 +257,9 @@ class Pantheon:
     def add_holy_object(self, obj):
         self.holy_objects.append(obj)
 
-
+    def add_holy_site(self, site):
+        self.holy_sites.append(site)
+        site.is_holy_site_to.append(self)
 
 class CreationMyth:
     def __init__(self, creator, pantheon):
