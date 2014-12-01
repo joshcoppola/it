@@ -1297,9 +1297,11 @@ class Economy:
     def find_most_demanded_commodity(self):
         ### Find the item in highest demand
         greatest_demand_ratio = 0
-        best_commodity = None
+        # Switched this to string, so that it can display in the city screen
+        # TODO - find out why sometimes the answer is none!
+        best_commodity = 'none'
 
-        # Returns a list of valid commoties in this economy that can be used to create agents
+        # Returns a list of valid commodities in this economy that can be used to create agents
         # For instance, copper miners won't be produced in a city with no access to copper
         for commodity in self.get_valid_agent_types():
             current_ratio = self.auctions[commodity].demand/ max(self.auctions[commodity].supply, 1) # no div/0
