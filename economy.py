@@ -1,10 +1,9 @@
 
 
 from __future__ import division
-import xml.etree.ElementTree as etree
 import random
-import cProfile
-import pstats
+#import cProfile
+#import pstats
 import os
 import yaml
 '''
@@ -18,7 +17,7 @@ try:
 except:
     print 'Can\'t load matplotlib - no access to graphs'
 '''
-XML_DIRECTORY = os.path.join(os.getcwd(), 'XML')
+YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
 HIST_WINDOW_SIZE = 5 # Amount of trades auctions keep in memory to determine avg price (used by agents)
 MAX_INVENTORY_SIZE = 15 # A not-really-enforced max inventory limit
@@ -51,7 +50,7 @@ STARVATION_THRESH = 10 # # of turns before we starve
 def setup_resources():
     global RESOURCES, RESOURCE_TYPES, GOODS, GOOD_TYPES, COMMODITY_TYPES, COMMODITY_TOKENS
     global GATHERERS_BY_TOKEN, PRODUCERS_BY_TOKEN, MERCHANTS_BY_TOKEN, STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN
-
+    global AGENT_INFO
     RESOURCES = []
     GOODS = []
     ##
@@ -65,8 +64,10 @@ def setup_resources():
     GOODS_BY_RESOURCE_TOKEN = {}
 
     # Load the yaml file containing resource info
-    with open('data/resources.yml') as r:
+    with open(os.path.join(YAML_DIRECTORY, 'resources.yml')) as r:
         resource_info = yaml.load(r)
+    with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
+        AGENT_INFO = yaml.load(a)
 
     # Loop through all resources in the yaml, creating resources and their associated reactions as we go
     for rname in resource_info.keys():
@@ -76,7 +77,6 @@ def setup_resources():
         RESOURCES.append(resource)
         # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
         for reaction_type in resource_info[rname]['reactions'].keys():
-            print rname, reaction_type
             finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['input_units'], out_amt=resource_info[rname]['reactions'][reaction_type]['output_units'])
             GOODS.append(finished_good)
 
@@ -108,37 +108,6 @@ def setup_resources():
 
         if not good.category in GOODS_BY_RESOURCE_TOKEN.keys(): GOODS_BY_RESOURCE_TOKEN[good.material.name] = [good]
         else:													GOODS_BY_RESOURCE_TOKEN[good.material.name].append(good)
-
-    ################### AGENT TYPES ####################
-    # These dicts look up agent info based on the resource or good that the agent produces
-    #
-    # Consumed items are consumed each turn, regardless of whether they produce anything..
-    # Essential items are required in order to do their jobs, but are not consumed (but have a chance of breaking each turn)
-    # Preferred items are not required to do their jobs, but an agent will still try to purchase them if there are none in inventory
-    #
-    # Raw resource gatherers
-    GATHERERS_BY_TOKEN = {
-                         'food':{'name':'Food Farmer', 'consumed':[], 'essential':['tools'], 'preferred':['clothing', 'furniture', 'pottery'] },
-                         'flax':{'name':'Flax Farmer', 'consumed':[], 'essential':['tools'], 'preferred':['furniture', 'pottery'] },
-                         'copper':{'name':'Copper Miner', 'consumed':[], 'essential':['tools'], 'preferred':['clothing'] },
-                         'bronze':{'name':'Bronze Miner', 'consumed':[], 'essential':['tools'], 'preferred':['clothing'] },
-                         'iron':{'name':'Iron Miner', 'consumed':[], 'essential':['tools'], 'preferred':['clothing'] },
-                         'clay':{'name':'Clay Gatherer', 'consumed':[], 'essential':[], 'preferred':['clothing'] },
-                         #'silt':{'name':'Silt Gatherer', 'consumed':[], 'essential':[], 'preferred':['clothing'] },
-                         'wood':{'name':'Woodcutter', 'consumed':[], 'essential':['tools'], 'preferred':['clothing'] }
-                         }
-    # Good producers
-    PRODUCERS_BY_TOKEN = {
-                         'copper tools':{'name':'Copper Blacksmith', 'finished_good':'copper tools', 'consumed':['woods'], 'essential':[], 'preferred':['clothing'] },
-                         'bronze tools':{'name':'Bronze Blacksmith', 'finished_good':'bronze tools', 'consumed':['woods'], 'essential':[], 'preferred':['clothing'] },
-                         'iron tools':{'name':'Iron Blacksmith', 'finished_good':'iron tools', 'consumed':['woods'], 'essential':[], 'preferred':['clothing'] },
-                         #'silt pottery':{'name':'Silt Potter', 'finished_good':'silt pottery', 'consumed':[], 'essential':[], 'preferred':['clothing'] },
-                         'clay pottery':{'name':'Clay Potter', 'finished_good':'clay pottery', 'consumed':[], 'essential':[], 'preferred':['clothing'] },
-                         'wood furniture':{'name':'Wood Carpenter', 'finished_good':'wood furniture', 'consumed':[], 'essential':['tools'], 'preferred':['clothing', 'pottery'] },
-                         'flax clothing':{'name':'Flax Clothier', 'finished_good':'flax clothing', 'consumed':[], 'essential':['tools'], 'preferred':['pottery'] }
-                         }
-
-    MERCHANTS_BY_TOKEN = {'merchant':{'consumed':[], 'essential':[], 'preferred':[]}  }
 
 
     ## Building and profession info
@@ -782,7 +751,7 @@ class GoodProducer(Agent):
 
 
         if self.inventory.count(self.input) <= self.in_amt*2:
-           tokens_to_bid.append(self.input)
+            tokens_to_bid.append(self.input)
 
         return tokens_to_bid
 
@@ -1215,21 +1184,21 @@ class Economy:
             self.add_good_producer(commodity.name)
 
     def add_resource_gatherer(self, resource):
-        info = GATHERERS_BY_TOKEN[resource]
+        info = AGENT_INFO['gatherers'][resource]
         gatherer = ResourceGatherer(name=info['name'], economy=self, resource=resource, gather_amount=COMMODITY_TOKENS[resource].gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
         self.resource_gatherers.append(gatherer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(resource)
 
     def add_good_producer(self, good):
-        info = PRODUCERS_BY_TOKEN[good]
+        info = AGENT_INFO['producers'][good]
         producer = GoodProducer(name=info['name'], economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
         self.good_producers.append(producer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(good)
 
     def add_merchant(self, sell_economy, traded_item, attached_to=None):
-        info = MERCHANTS_BY_TOKEN['merchant']
+        info = AGENT_INFO['merchants']['merchant']
         merchant = Merchant(name=traded_item + ' merchant', buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
 
         self.buy_merchants.append(merchant)

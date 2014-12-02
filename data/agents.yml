@@ -1,0 +1,92 @@
+################### AGENT TYPES ####################
+# These dicts look up agent info based on the resource or good that the agent produces
+#
+# Consumed items are consumed each turn, regardless of whether they produce anything..
+# Essential items are required in order to do their jobs, but are not consumed (but have a chance of breaking each turn)
+# Preferred items are not required to do their jobs, but an agent will still try to purchase them if there are none in inventory
+#
+
+
+gatherers:
+    food: 
+        name: Food Farmer
+        consumed: []
+        essential: [tools]
+        preferred: [clothing, furniture, pottery]
+    flax: 
+        name: Flax Farmer
+        consumed: []
+        essential: [tools]
+        preferred: [furniture, pottery]
+    copper: 
+        name: Copper Miner
+        consumed: []
+        essential: [tools]
+        preferred: [clothing]
+    bronze: 
+        name: Bronze Miner
+        consumed: []
+        essential: [tools]
+        preferred: [clothing]
+    iron: 
+        name: Iron Miner
+        consumed: []
+        essential: [tools]
+        preferred: [clothing]
+    clay: 
+        name: Clay Gatherer
+        consumed: []
+        essential: []
+        preferred: [clothing]
+    #silt:name: Silt Gatherer consumed: [], essential: [], preferred: [clothing] },
+    wood: 
+        name: Woodcutter
+        consumed: []
+        essential: [tools]
+        preferred: [clothing]
+        
+# Good producers
+producers:
+    copper tools: 
+        name: Copper Blacksmith
+        finished_good: copper tools 
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    bronze tools: 
+        name: Bronze Blacksmith
+        finished_good: bronze tools
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    iron tools: 
+        name: Iron Blacksmith
+        finished_good: iron tools
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    #silt pottery: name: Silt Potter finished_good: silt pottery consumed: [], essential: [], preferred: [clothing] },
+    clay pottery: 
+        name: Clay Potter
+        finished_good: clay pottery
+        consumed: []
+        essential: []
+        preferred: [clothing]
+    wood furniture: 
+        name: Wood Carpenter
+        finished_good: wood furniture
+        consumed: []
+        essential: [tools]
+        preferred: [clothing, pottery]
+    flax clothing: 
+        name: Flax Clothier
+        finished_good: flax clothing
+        consumed: []
+        essential: [tools]
+        preferred: [pottery]
+
+merchants:
+    merchant: 
+        consumed: []
+        essential: []
+        preferred: []
