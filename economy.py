@@ -6,6 +6,7 @@ import random
 import cProfile
 import pstats
 import os
+import yaml
 '''
 try:
     import numpy as np
@@ -50,41 +51,36 @@ STARVATION_THRESH = 10 # # of turns before we starve
 def setup_resources():
     global RESOURCES, RESOURCE_TYPES, GOODS, GOOD_TYPES, COMMODITY_TYPES, COMMODITY_TOKENS
     global GATHERERS_BY_TOKEN, PRODUCERS_BY_TOKEN, MERCHANTS_BY_TOKEN, STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN
-    amt = 2000
 
-    ### Chances of resources appearing in each biome.
-    ore_app = {'mountain':0, 'tundra':2, 'taiga':4, 'temperate forest':5, 'temperate steppe':5, 'rain forest':2, 'tree savanna':6, 'grass savanna':8, 'dry steppe':10,
-                        'semi-arid desert':10, 'arid desert':10, 'river':0}
-    food_app = {'mountain':0, 'tundra':0, 'taiga':0, 'temperate forest':0, 'temperate steppe':5, 'rain forest':0, 'tree savanna':8, 'grass savanna':10, 'dry steppe':15,
-                        'semi-arid desert':0, 'arid desert':0, 'river':0}
-    clay_app = {'mountain':0, 'tundra':0, 'taiga':0, 'temperate forest':0, 'temperate steppe':0, 'rain forest':5, 'tree savanna':0, 'grass savanna':5, 'dry steppe':10,
-                        'semi-arid desert':10, 'arid desert':10, 'river':50}
-    silt_app = {'mountain':0, 'tundra':0, 'taiga':0, 'temperate forest':0, 'temperate steppe':0, 'rain forest':0, 'tree savanna':0, 'grass savanna':0, 'dry steppe':0,
-                        'semi-arid desert':0, 'arid desert':0, 'river':100}
-    wood_app = {'mountain':0, 'tundra':0, 'taiga':1000, 'temperate forest':1000, 'temperate steppe':0, 'rain forest':1000, 'tree savanna':1000, 'grass savanna':0, 'dry steppe':0,
-                        'semi-arid desert':0, 'arid desert':0, 'river':0}
-    flax_app = {'mountain':0, 'tundra':0, 'taiga':0, 'temperate forest':0, 'temperate steppe':5, 'rain forest':0, 'tree savanna':0, 'grass savanna':10, 'dry steppe':10,
-                        'semi-arid desert':4, 'arid desert':0, 'river':0}
-
-    ### define the actual resources. gather_amount is how many resources are gathered per round -
-    ### half go to the government and aren't used in the economy. Each round, if a random number
-    ### between 1 and 1000 is less than break_chance, a good made out of the resouce will be destroyed
-    copper = Resource(name='copper', category='ores', resource_class='strategic', gather_amount=4, break_chance=300, app_chances=ore_app, app_amt=amt)
-    bronze = Resource(name='bronze', category='ores', resource_class='strategic', gather_amount=4, break_chance=200, app_chances=ore_app, app_amt=amt)
-    iron = Resource(name='iron', category='ores', resource_class='strategic', gather_amount=4,  break_chance=100, app_chances=ore_app, app_amt=amt)
-    food = Resource(name='food', category='foods', resource_class='strategic', gather_amount=8, break_chance=1, app_chances=food_app, app_amt=amt)
-    clay = Resource(name='clay', category='clays', resource_class='strategic', gather_amount=4, break_chance=300, app_chances=clay_app, app_amt=amt)
-    #silt = Resource(name='silt', category='clays', resource_class='strategic', gather_amount=2, break_chance=300, app_chances=silt_app, app_amt=amt)
-    wood = Resource(name='wood', category='woods', resource_class='strategic', gather_amount=4, break_chance=300, app_chances=wood_app, app_amt=amt)
-    flax = Resource(name='flax', category='cloths', resource_class='strategic', gather_amount=4, break_chance=300, app_chances=flax_app, app_amt=amt)
-
-    #RESOURCES = [copper, bronze, iron, clay, silt, wood, flax, food]
-    RESOURCES = [copper, bronze, iron, clay, wood, flax, food]
+    RESOURCES = []
+    GOODS = []
+    ##
     RESOURCE_TYPES = {}
     STRATEGIC_TYPES = {}
     ##
     COMMODITY_TYPES = {}
     COMMODITY_TOKENS = {}
+    ##
+    GOOD_TYPES = {}
+    GOODS_BY_RESOURCE_TOKEN = {}
+
+    # Load the yaml file containing resource info
+    with open('data/resources.yml') as r:
+        resource_info = yaml.load(r)
+
+    # Loop through all resources in the yaml, creating resources and their associated reactions as we go
+    for rname in resource_info.keys():
+        resource= Resource(name=rname, category=resource_info[rname]['category'], resource_class=resource_info[rname]['resource_class'],
+                           gather_amount=resource_info[rname]['gather_amount'], break_chance=resource_info[rname]['break_chance'],
+                           app_chances=resource_info[rname]['app_chances'], app_amt=resource_info[rname]['app_amount'])
+        RESOURCES.append(resource)
+        # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
+        for reaction_type in resource_info[rname]['reactions'].keys():
+            print rname, reaction_type
+            finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['input_units'], out_amt=resource_info[rname]['reactions'][reaction_type]['output_units'])
+            GOODS.append(finished_good)
+
+
     ## Key = category, value = list of resources
     for resource in RESOURCES:
         COMMODITY_TOKENS[resource.name] = resource
@@ -99,19 +95,7 @@ def setup_resources():
             if not resource.resource_class in STRATEGIC_TYPES.keys(): STRATEGIC_TYPES[resource.category] = [resource]
             else:													  STRATEGIC_TYPES[resource.category].append(resource)
 
-    #### Goods made from resources. in_amt is how many resources it consumers to create the # of items specified by out_amt
-    copper_tools = FinishedGood(category='tools', material=copper, in_amt=1, out_amt=2)
-    bronze_tools = FinishedGood(category='tools', material=bronze, in_amt=1, out_amt=2)
-    iron_tools   = FinishedGood(category='tools', material=iron,   in_amt=1, out_amt=1)
-    #silt_pottery = FinishedGood(category='pottery', material=silt, in_amt=1, out_amt=1)
-    clay_pottery = FinishedGood(category='pottery', material=clay, in_amt=1, out_amt=1)
-    wood_furniture = FinishedGood(category='furniture', material=wood, in_amt=1, out_amt=1)
-    flax_clothing = FinishedGood(category='clothing', material=flax, in_amt=1, out_amt=1)
 
-    #GOODS = [copper_tools, bronze_tools, iron_tools, silt_pottery, clay_pottery, wood_furniture, flax_clothing]
-    GOODS = [copper_tools, bronze_tools, iron_tools, clay_pottery, wood_furniture, flax_clothing]
-    GOOD_TYPES = {}
-    GOODS_BY_RESOURCE_TOKEN = {}
     ## Key = category, calue = list of resources
     for good in GOODS:
         COMMODITY_TOKENS[good.name] = good
