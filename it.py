@@ -17,7 +17,7 @@ from collections import Counter
 
 import economy as econ
 import physics as phys
-from traits import TRAIT_INFO, TRAITS
+from traits import CULTURE_TRAIT_INFO, TRAIT_INFO, TRAITS, tdesc
 from dijkstra import Dijmap
 import gen_languages as lang
 import gen_creatures
@@ -2898,11 +2898,11 @@ class World:
                         self.add_farm(x, y, city)
                         continue
                     # Loop should only get here if no site is added, due to the continue syntax
-                    if not shrine_added and roll(1, 100) >= 97:
+                    if not shrine_added and self.is_valid_site(x=x, y=y, civ=city) and roll(1, 100) >= 97:
                         self.add_shrine(x, y, city)
                         shrine_added = 1
 
-            ### v original real readon for this loop - I thought it would make sense to add farms and mines before the economy stuff
+            ### v original real reason for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
             # Use the data to actually add agents to the city
         for city in created_cities:
@@ -3788,9 +3788,7 @@ class City(Site):
         human = self.create_inhabitant(sex=1, born=time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
         human.set_world_brain(BasicWorldBrain())
 
-        for other in WORLD.tiles[self.x][self.y].entities:
-            if other != human:
-                human.sapient.meet(other)
+
 
         ## Actually give profession to the person ##
         market = self.get_building('Market')
@@ -4198,12 +4196,6 @@ class Building:
             else:
                 human = self.site.create_inhabitant(sex=1, born=time_cycle.years_ago(18, 40), char='o', dynasty=None, important=0, house=None)
                 all_new_figures = [human]
-
-        ## Culture stuff, and meeting others in the city
-        for figure in all_new_figures:
-            for other in WORLD.tiles[self.site.x][self.site.y].entities:
-                if other != figure:
-                    figure.sapient.meet(other)
 
         ## Actually give profession to the person ##
         profession.give_profession_to(human)
@@ -6418,7 +6410,7 @@ class SapientComponent:
         self.house = None
         self.profession = None
 
-        self.traits = []
+        self.traits = {}
         self.skills = {'Charisma': 5, 'Command': 5, 'Management': 5, 'Piety': 5, 'Subterfuge': 5}
         self.goals = []
 
@@ -6428,33 +6420,15 @@ class SapientComponent:
         self.events = {}
         self.is_plotting = 0
 
-        ## Give the person a few traits
-        trait_num = roll(2, 3)
-        while trait_num > 0:
-            trait = random.choice(TRAITS)
-
-            usable = 1
-            for otrait in self.traits:
-                ot_ind = TRAITS.index(otrait)
-                if trait in TRAIT_INFO[ot_ind].opposed_traits or trait == otrait:
-                    usable = 0
-                    break
-            if usable:
-                self.traits.append(trait)
-                trait_num -= 1
-                t_ind = TRAITS.index(trait)
-                ## Some traits modify skills
-                for skill in TRAIT_INFO[t_ind].skill_modifiers.keys():
-                    self.modify_skill(skill, TRAIT_INFO[t_ind].skill_modifiers[skill])
-
         self.gold = 1000
         # Objects that we own
         self.possessions = set([])
         self.former_possessions = set([])
 
+        # Pick some traits
+        self.set_initial_traits()
         ## Set initial opinions - this is without having a profession
         self.set_opinions()
-
 
     def add_enemy_faction(self, faction):
         self.enemy_factions.add(faction)
@@ -6941,6 +6915,27 @@ class SapientComponent:
 
         return child
 
+    def set_initial_traits(self):
+        ## Give the person a few traits
+        trait_num = roll(3, 4)
+        while trait_num > 0:
+            trait = random.choice(TRAITS)
+
+            usable = 1
+            for otrait in self.traits:
+                if trait in TRAIT_INFO[otrait]['opposed_traits'] or trait == otrait:
+                    usable = 0
+                    break
+            if usable:
+                # "Somewhat = .5, regular = 1, "very" = 2
+                multiplier = random.choice([.5, .5, 1, 1, 1, 1, 2])
+                self.traits[trait] = multiplier
+                trait_num -= 1
+                #t_ind = TRAITS.index(trait)
+                ## Some traits modify skills
+                #for skill in TRAIT_INFO[t_ind].skill_modifiers.keys():
+                #    self.modify_skill(skill, TRAIT_INFO[t_ind].skill_modifiers[skill])
+
     def set_opinions(self):
         # Set opinions on various things according to our profession and personality
         self.opinions = {}
@@ -6956,9 +6951,9 @@ class SapientComponent:
                 reasons['profession'] = prof_opinion
 
             ## Based on personal traits ##
-            for trait in self.traits:
+            for trait, multiplier in self.traits.iteritems():
                 if trait in PERSONAL_OPINIONS[issue].keys():
-                    amount = PERSONAL_OPINIONS[issue][trait]
+                    amount = PERSONAL_OPINIONS[issue][trait] * multiplier
                     reasons[trait] = amount
                     personal_opinion += amount
 
@@ -6982,15 +6977,13 @@ class SapientComponent:
         # Needs to be greatly expanded, and able to see reasons why
         reasons = {}
 
-        for trait in self.traits:
-            for otrait in other_person.sapient.traits:
-                otrait_ind = TRAITS.index(otrait)
-
+        for trait, multiplier in self.traits.iteritems():
+            for otrait in other_person.sapient.traits.keys():
                 if trait == otrait:
-                    reasons['Both ' + trait] = 4
+                    reasons['Both ' + trait] = 4 * multiplier
                     break
-                elif trait in TRAIT_INFO[otrait_ind].opposed_traits:
-                    reasons[trait + ' vs ' + otrait] = -2
+                elif trait in TRAIT_INFO[otrait]['opposed_traits']:
+                    reasons[trait + ' vs ' + otrait] = -2 * multiplier
                     break
 
         # Things other than traits can modify this, must be stored in self.extra_relations
@@ -7861,6 +7854,22 @@ class BasicWorldBrain:
             self.handle_goal_behavior()
 
 
+    def make_decision(self, decision_name):
+        weighed_options = {}
+        for option in decisions[decision_name]:
+            weighed_options[option] = {}
+
+            if self.owner.sapient.profession and self.owner.sapient.profession.name in option['professions']:
+                weighed_options[option][self.owner.sapient.profession.name] = decisions[decision_name][option][self.owner.sapient.profession.name]
+
+            for trait in option['traits']:
+                if trait in self.owner.sapient.traits:
+                    weighed_options[option][trait] = decisions[decision_name][trait]
+
+            for misc_reason in option['misc']:
+                weighed_options[option][misc_reason] = decisions[decision_name][option][misc_reason]
+
+
 ######################## Code from Paradox Inversion on libtcod forums ###################################
 class TimeCycle(object):
     # The TimeCycle class has all information on time and current day
@@ -8251,11 +8260,26 @@ class Culture:
         self.villages = []
         self.access_res = []
 
-
+        self.culture_traits = {}
+        self.set_culture_traits()
         self.weapons = []
 
         # On initial run, it should only generate spears (and eventually bows)
         self.create_culture_weapons()
+
+    def set_culture_traits(self):
+        trait_num = roll(3, 4)
+        while trait_num > 0:
+            trait = random.choice(CULTURE_TRAIT_INFO.keys())
+
+            for otrait in self.culture_traits:
+                if trait in CULTURE_TRAIT_INFO[otrait]['opposed_traits'] or trait == otrait:
+                    break
+            else:
+                # "Somewhat = .5, regular = 1, "very" = 2
+                multiplier = random.choice([.5, .5, 1, 1, 1, 1, 2])
+                self.culture_traits[trait] = multiplier
+                trait_num -= 1
 
     def set_subsistence(self, subsistence):
         self.subsistence = subsistence
@@ -10107,9 +10131,9 @@ def show_people(world):
         y += 2
         libtcod.console_print(0, x_att_offset, y, 'Traits')
         y += 1
-        for trait in selected_person.sapient.traits:
+        for trait, m in selected_person.sapient.traits.iteritems():
             y += 1
-            libtcod.console_print(0, x_att_offset, y, trait)
+            libtcod.console_print(0, x_att_offset, y, tdesc(trait, m))
 
         ###
         color = libtcod.white
@@ -10535,8 +10559,8 @@ def show_civs(world):
                     libtcod.console_print(0, 85, ny + 3, info)
 
                     ny += 4
-                    for trait in figure.sapient.traits:
-                        libtcod.console_print(0, 85, ny + 1, trait)
+                    for trait, m in figure.sapient.traits.iteritems():
+                        libtcod.console_print(0, 85, ny + 1, tdesc(trait, m))
                         ny += 1
 
                     ny += 1
