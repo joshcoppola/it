@@ -584,7 +584,7 @@ def main():
     global shirtcomps, packcomps, doorcomps
 
     materials = generate_materials()
-    econ.setup_resources()
+    #econ.setup_resources()
 
     #### Load XML ######
     file_path = os.path.join(os.getcwd(), 'XML', 'creatures')
@@ -661,6 +661,7 @@ def main():
     packcomps = [pack_component]
 
 if __name__ == '__main__':
+    econ.setup_resources()
     main()
 
 
