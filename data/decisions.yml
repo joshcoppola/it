@@ -1,0 +1,24 @@
+decisions:
+    leisure_check:
+      - make_pilgrimmage: 
+            traits: {devout: 20, adventurous: 10, unbeliever: -20, lazy: -20}
+            professions: {high priest: 20}
+            misc: {base reluctance: -10}
+      - explore_wilds: 
+            traits: {adventurous: 30, lazy: -50}
+            professions: {}
+            misc: {base reluctance: -20}
+      - explore_ruins:
+            traits: {adventurous: 20, greedy: 20, lazy: -50}
+            professions: {}
+            misc: {base reluctance: -20}
+            
+    rogue_get_food:
+      - forage: 
+            traits: {moral: 25, honest: 10}
+            professions: {}
+            misc: {base reluctance: 20}
+      - rob_travellers: 
+            traits: {amoral: 15, dishonest: 5}
+            professions: {}
+            misc: {}

@@ -1,0 +1,83 @@
+traits:
+    greedy:
+        opposed_traits: [charitable]
+        skill_modifiers: []
+    charitable:
+        opposed_traits: [greedy]
+        skill_modifiers: []
+    devout:
+        opposed_traits: [unbeliever]
+        skill_modifiers: []
+    unbeliever:
+        opposed_traits: [devout]
+        skill_modifiers: []
+    vengeful:
+        opposed_traits: [mild-mannered]
+        skill_modifiers: []
+    mild-mannered:
+        opposed_traits: [vengeful]
+        skill_modifiers: []
+    lazy:
+        opposed_traits: [hardworking, ambitious]
+        skill_modifiers: []
+    hardworking:
+        opposed_traits: [lazy]
+        skill_modifiers: []
+    moral:
+        opposed_traits: [dishonest, amoral]
+        skill_modifiers: []
+    amoral:
+        opposed_traits: [moral, honest]
+        skill_modifiers: []
+    dishonest:
+        opposed_traits: [honest, moral]
+        skill_modifiers: []
+    ambitious:
+        opposed_traits: [lazy]
+        skill_modifiers: []
+    adventurous:
+        opposed_traits: [lazy]
+        skill_modifiers: []
+    brave:
+        opposed_traits: [cowardly]
+        skill_modifiers: []
+    cowardly:
+        opposed_traits: [brave]
+        skill_modifiers: []
+    fiscally liberal:
+        opposed_traits: [fiscally conservative]
+        skill_modifiers: []
+    fiscally conservative:
+        opposed_traits: [fiscally liberal]
+        skill_modifiers: []
+    socially liberal:
+        opposed_traits: [socially conservative]
+        skill_modifiers: []
+    socially conservative:
+        opposed_traits: [socially liberal]
+        skill_modifiers: []
+        
+        
+        
+        
+culture_traits:
+    individualist:
+        opposed_traits: [collectivist]
+    collectivist:
+        opposed_traits: [individualist]
+    traditional:
+        opposed_traits: [liberal]
+    liberal:
+        opposed_traits: [traditional]
+    tolerant:
+        opposed_traits: [harsh]
+    harsh:
+        opposed_traits: [tolerant]
+    xenophobic:
+        opposed_traits: []
+    superstitious:
+        opposed_traits: []
+    ritualistic:
+        opposed_traits: []
+    organized:
+        opposed_traits: []

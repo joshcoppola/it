@@ -1,0 +1,183 @@
+
+copper:
+    category: ores
+    resource_class: strategic
+    gather_amount: 4
+    break_chance: 300
+    reactions:
+        tools:
+            input_units: 1
+            output_units: 2
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 2
+        temperate forest: 5
+        temperate steppe: 5
+        rain forest: 2
+        tree savanna: 6
+        grass savanna: 8
+        dry steppe: 10
+        semi-arid desert: 10
+        arid desert: 10
+        river: 0
+bronze:
+    category: ores
+    resource_class: strategic
+    gather_amount: 4
+    break_chance: 200
+    reactions:
+        tools:
+            input_units: 1
+            output_units: 2
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 2
+        temperate forest: 5
+        temperate steppe: 5
+        rain forest: 2
+        tree savanna: 6
+        grass savanna: 8
+        dry steppe: 10
+        semi-arid desert: 10
+        arid desert: 10
+        river: 0
+iron:
+    category: ores
+    resource_class: strategic
+    gather_amount: 4
+    break_chance: 100
+    reactions:
+        tools:
+            input_units: 1
+            output_units: 1
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 2
+        temperate forest: 5
+        temperate steppe: 5
+        rain forest: 2
+        tree savanna: 6
+        grass savanna: 8
+        dry steppe: 10
+        semi-arid desert: 10
+        arid desert: 10
+        river: 0
+clay:
+    category: clays
+    resource_class: strategic
+    gather_amount: 4
+    break_chance: 300
+    reactions:
+        pottery:
+            input_units: 1
+            output_units: 1
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 0
+        temperate forest: 0
+        temperate steppe: 0
+        rain forest: 5
+        tree savanna: 0
+        grass savanna: 5
+        dry steppe: 10
+        semi-arid desert: 10
+        arid desert: 10
+        river: 50
+# silt:
+    # category: clays
+    # resource_class: strategic
+    # gather_amount: 2
+    # break_chance: 300
+    # reactions:
+        # pottery:
+            # input_units: 1
+            # output_units: 1
+    # app_amount: 2000
+    # app_chances:
+        # mountain: 0
+        # tundra: 0
+        # taiga: 0
+        # temperate forest: 0
+        # temperate steppe: 0
+        # rain forest: 0
+        # tree savanna: 0
+        # grass savanna: 0
+        # dry steppe: 0
+        # semi-arid desert: 0
+        # arid desert: 0
+        # river: 100
+wood:
+    category: woods
+    resource_class: strategic
+    gather_amount: 4
+    break_chance: 300
+    reactions:
+        furniture:
+            input_units: 1
+            output_units: 1
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 1000
+        temperate forest: 1000
+        temperate steppe: 1000
+        rain forest: 1000
+        tree savanna: 1000
+        grass savanna: 0
+        dry steppe: 0
+        semi-arid desert: 0
+        arid desert: 0
+        river: 0
+flax:
+    category: cloths
+    resource_class: strategic
+    gather_amount: 4
+    break_chance: 300
+    reactions:
+        clothing:
+            input_units: 1
+            output_units: 1
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 0
+        temperate forest: 0
+        temperate steppe: 5
+        rain forest: 0
+        tree savanna: 0
+        grass savanna: 10
+        dry steppe: 10
+        semi-arid desert: 4
+        arid desert: 0
+        river: 0
+food:
+    category: foods
+    resource_class: strategic
+    gather_amount: 8
+    break_chance: 1
+    reactions: {}
+    
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 0
+        temperate forest: 0
+        temperate steppe: 5
+        rain forest: 0
+        tree savanna: 8
+        grass savanna: 10
+        dry steppe: 15
+        semi-arid desert: 0
+        arid desert: 0
+        river: 0
