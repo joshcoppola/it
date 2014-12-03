@@ -15,7 +15,7 @@ import os
 import copy
 from collections import Counter
 
-import economy as econ
+import economy
 import physics as phys
 from traits import CULTURE_TRAIT_INFO, TRAIT_INFO, TRAITS, tdesc
 from dijkstra import Dijmap
@@ -1616,9 +1616,6 @@ class World:
         game.world_map_display_type = 'normal'
         game.map_scale = 'world'
 
-        # Need to first set camera
-        camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
-
         #self.travelers = []
         self.sites = []
         self.resources = []
@@ -1634,7 +1631,6 @@ class World:
         ### TODO - move this around; have it use the actual language of the first city
         self.moons, self.suns = religion.create_astronomy()
 
-
         # Set up other important lists
         self.sentient_races = []
         self.brutish_races = []
@@ -1647,14 +1643,13 @@ class World:
 
         self.site_index = {}
 
-        self.import_xml_info()
+        economy.setup_resources()
         #### load phys info ####
         phys.main()
         # Need to set up time cycle
         time_cycle = TimeCycle()
 
         #self.generate()
-
 
     def add_famous_object(self, obj):
         self.famous_objects.add(obj)
@@ -1680,7 +1675,6 @@ class World:
         ## Now, loop through map and check each land tile for its distance to water
         render_handler.progressbar_screen('Generating World Map', 'setting moisture', 3, steps)
         self.calculate_water_dist()
-
 
         ##### EXPERIMENTOIAENH ######
         #self.calculate_rainfall()
@@ -1722,15 +1716,6 @@ class World:
 
         if player is not None:
             player.w_draw()
-
-    def import_xml_info(self):
-        #### Import resource xml from economy
-        #econ.import_resource_xml()
-        #econ.import_misc_mats_xml()
-        #econ.import_goods_xml()
-        #econ.import_agent_xml()
-        #econ.create_all_the_items()
-        econ.setup_resources()
 
     #####################################
     def get_astar_distance_to(self, x, y, target_x, target_y):
@@ -2372,7 +2357,7 @@ class World:
 
 
                 #### New code - add resources
-                for resource in econ.RESOURCES:
+                for resource in economy.RESOURCES:
                     for biome, chance in resource.app_chances.iteritems():
                         if biome == self.tiles[x][y].region or (biome == 'river' and self.tiles[x][y].has_feature('river')):
                             if roll(1, 1200) < chance:
@@ -2638,7 +2623,7 @@ class World:
                 # Check for economy
                 nearby_resources, nearby_resource_locations = self.find_nearby_resources(x=x, y=y, distance=MAX_ECONOMY_DISTANCE)
                 ## Use nearby resource info to determine whether we can sustain an economy
-                unavailable_resource_types = econ.check_strategic_resources(nearby_resources)
+                unavailable_resource_types = economy.check_strategic_resources(nearby_resources)
 
         # Seed with initial x, y value
         city_sites = [(x, y)]
@@ -3646,7 +3631,7 @@ class City(Site):
         self.warehouses = {}
         self.warehouse_types = {}
         self.unique_warehouses = []
-        for commodity_type, token_list in econ.COMMODITY_TYPES.iteritems():
+        for commodity_type, token_list in economy.COMMODITY_TYPES.iteritems():
             warehouse = Warehouse(name=commodity_type + ' warehouse', city=self, type_of_commodity=commodity_type,
                                   total_capacity=500)
 
@@ -3704,18 +3689,18 @@ class City(Site):
 
     def prepare_native_economy(self):
         # Add economy to city
-        self.econ = econ.Economy(native_resources=self.native_res.keys(), local_taxes=2, owner=self)
+        self.econ = economy.Economy(native_resources=self.native_res.keys(), local_taxes=2, owner=self)
 
         self.resource_slots = {}
-        for resource_type, amount in econ.CITY_RESOURCE_SLOTS.iteritems():
-            for resource_class in econ.RESOURCE_TYPES[resource_type]:
+        for resource_type, amount in economy.CITY_RESOURCE_SLOTS.iteritems():
+            for resource_class in economy.RESOURCE_TYPES[resource_type]:
                 if resource_class.name in self.native_res.keys():
                     self.resource_slots[resource_class.name] = amount
 
         self.industry_slots = {}
-        good_tokens_we_can_produce = econ.list_goods_from_strategic(self.native_res.keys())
-        for good_type, amount in econ.CITY_INDUSTRY_SLOTS.iteritems():
-            for good_class in econ.GOOD_TYPES[good_type]:
+        good_tokens_we_can_produce = economy.list_goods_from_strategic(self.native_res.keys())
+        for good_type, amount in economy.CITY_INDUSTRY_SLOTS.iteritems():
+            for good_class in economy.GOOD_TYPES[good_type]:
                 if good_class.name in good_tokens_we_can_produce:
                     self.industry_slots[good_class.name] = amount
 
@@ -3735,30 +3720,30 @@ class City(Site):
 
             for item in import_list:
                 ## It's coming up with good in the import list...
-                if item in econ.GOODS_BY_RESOURCE_TOKEN.keys():
+                if item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
                     ## Add merchants to the other city, who sell stuff in this city
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     ## Add extra resource gatherers in the other city
                     city.econ.add_resource_gatherer(item)
-                    city.econ.add_resource_gatherer(item)
-                    city.econ.add_resource_gatherer(item)
-                    city.econ.add_resource_gatherer(item)
+                    #city.econ.add_resource_gatherer(item)
+                    #city.econ.add_resource_gatherer(item)
+                    #city.econ.add_resource_gatherer(item)
 
                     ## Add some specialists who can now make use of the imported goods
-                    good_tokens_this_resource_can_produce = econ.list_goods_from_strategic([item])
+                    good_tokens_this_resource_can_produce = economy.list_goods_from_strategic([item])
                     for good in good_tokens_this_resource_can_produce:
                         self.econ.add_good_producer(good)
                         self.econ.add_good_producer(good)
                         #self.econ.add_good_producer(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
-                    if item in econ.GOODS_BY_RESOURCE_TOKEN.keys():
-                        for good_class in econ.GOODS_BY_RESOURCE_TOKEN[item]:
+                    if item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
+                        for good_class in economy.GOODS_BY_RESOURCE_TOKEN[item]:
                             city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                             city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                            city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                            city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                            #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                            #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                             self.add_import(city, good_class.name)
                             city.add_export(self, good_class.name)
 
@@ -3845,7 +3830,7 @@ class City(Site):
                 market.add_worker(figure)
 
                 ## cheap trick for now - add a little of the resource to the city stockpile
-                if figure.sapient.economy_agent.traded_item in econ.GOODS_BY_RESOURCE_TOKEN.keys():
+                if figure.sapient.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
                     self.warehouses[figure.sapient.economy_agent.traded_item].add(
                         figure.sapient.economy_agent.traded_item, 2)
 
@@ -4046,7 +4031,7 @@ class Warehouse:
         self.out_history = [0, 0, 0, 0, 0]
 
         self.stockpile = {}
-        for token in econ.COMMODITY_TYPES[type_of_commodity]:
+        for token in economy.COMMODITY_TYPES[type_of_commodity]:
             self.stockpile[token.name] = 0
 
     def add(self, commodity, amount):
@@ -9084,7 +9069,9 @@ class Game:
 
 
     def create_new_world_and_begin_game(self):
-        global WORLD
+        global WORLD, camera
+        # Need to first set camera
+        camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
         # Gen world
         WORLD = None # Clear in case previous world was generated
         WORLD = World(WORLD_WIDTH, WORLD_HEIGHT)
@@ -9098,9 +9085,9 @@ class Game:
         self.switch_map_scale(map_scale='world')
 
         playerciv = WORLD.cities[0]
-        #create object representing the player
         player = playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1, wx=playerciv.x, wy=playerciv.y)
         WORLD.tiles[player.wx][player.wy].entities.append(player)
+        player.color = libtcod.cyan
         player.local_brain = None
         player.world_brain = None
 
@@ -9127,6 +9114,9 @@ class Game:
         ''' A quick and dirty battle testing arena, more or less. Will need a massive overhaul
             at some point, if it even stays in '''
         global time_cycle, camera, player, M, WORLD
+
+        # Need to first set camera
+        camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
 
         t1 = time.time()
         ##################### Create a dummy world just for the quick battle

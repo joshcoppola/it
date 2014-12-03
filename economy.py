@@ -49,8 +49,8 @@ def setup_resources():
     global RESOURCES, RESOURCE_TYPES, GOODS, GOOD_TYPES, COMMODITY_TYPES, COMMODITY_TOKENS
     global STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN, AGENT_INFO
 
-    CITY_RESOURCE_SLOTS = {'foods':6, 'cloths':6, 'clays':6, 'ores':4, 'woods':4}
-    CITY_INDUSTRY_SLOTS = {'tools':3, 'clothing':5, 'pottery':5, 'furniture':3}
+    CITY_RESOURCE_SLOTS = {'foods':4, 'cloths':4, 'clays':2, 'ores':4, 'woods':4}
+    CITY_INDUSTRY_SLOTS = {'tools':4, 'clothing':5, 'pottery':5, 'furniture':3}
 
     RESOURCES = []
     GOODS = []
@@ -470,7 +470,7 @@ class ResourceGatherer(Agent):
             self.gather_resources()
         else:
             self.gather_resources(required_items=False)
-            print '{0} couldn\'t effectively gather resources due to lack of {1} (had {2}).'.format(self.name, ', '.join(critical_items), ', '.join(self.inventory))
+            #print '{0} couldn\'t effectively gather resources due to lack of {1}; (had {2}).'.format(self.name, ', '.join(critical_items), ', '.join(self.inventory))
 
     def handle_bidding(self):
         if self.future_bids == {}:
@@ -709,8 +709,8 @@ class GoodProducer(Agent):
         critical_items, other_items = self.check_for_needed_items()
         if critical_items == [] and has_required_input and (self.inventory_size - len(self.inventory) > 0):
             self.produce_items()
-        elif not (self.inventory_size - len(self.inventory) > 0):
-            print '{0} stopped producing goods due to too much inventory'.format(self.name)
+        #elif not (self.inventory_size - len(self.inventory) > 0):
+            #print '{0} stopped producing goods due to too much inventory'.format(self.name)
         #else:
         #	print self.name, '- not producing because: critical items-', critical_items, 'required_input', has_required_input, 'inventory:', self.inventory
 

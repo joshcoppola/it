@@ -3,7 +3,7 @@ copper:
     category: ores
     resource_class: strategic
     gather_amount: 4
-    break_chance: 300
+    break_chance: 225
     reactions:
         tools:
             input_units: 1
@@ -26,7 +26,7 @@ bronze:
     category: ores
     resource_class: strategic
     gather_amount: 4
-    break_chance: 200
+    break_chance: 150
     reactions:
         tools:
             input_units: 1
@@ -49,7 +49,7 @@ iron:
     category: ores
     resource_class: strategic
     gather_amount: 4
-    break_chance: 100
+    break_chance: 75
     reactions:
         tools:
             input_units: 1
