@@ -1103,18 +1103,18 @@ class Wmap:
 
         for entity in WORLD.tiles[self.wx][self.wy].entities:
             figure_start = world_last_dir_to_rect[entity.world_last_dir]
-            M.add_object_to_map(x=roll(figure_start.x1, figure_start.x2), y=roll(figure_start.y1, figure_start.y2), obj=entity)
+            # Find a non-blocked tile
+            while 1:
+                x = roll(figure_start.x1, figure_start.x2)
+                y=roll(figure_start.y1, figure_start.y2)
+                if M.is_val_xy(coords=(x, y)) and not M.tiles[x][y].tile_blocks_mov():
+                    break
+            # Add the entity to the map
+            M.add_object_to_map(x=x, y=y, obj=entity)
 
         for population in WORLD.tiles[self.wx][self.wy].populations:
             population_start = world_last_dir_to_rect[population.world_last_dir]
             population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[])
-
-        # Deal with garrisons
-        #for site in WORLD.tiles[self.wx][self.wy].minor_sites:
-        #    for building in site.buildings:
-        #        for army in building.garrison:
-        #            px, py = random.choice(building.physical_property)
-        #            army.add_to_map(startrect=None, startbuilding=building, patrol_locations=[(px, py)])
 
         ## DIJMAPS
         self.cache_factions_for_dmap()
@@ -7015,7 +7015,6 @@ class SapientComponent:
 
 
 class Creature:
-    #combat-related properties and methods (monster, player, NPC).
     def __init__(self, creature_type, sex):
         self.creature_type = creature_type
         self.sex = sex
