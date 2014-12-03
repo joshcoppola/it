@@ -1,5 +1,3 @@
-
-
 from __future__ import division
 import random
 #import cProfile
@@ -49,8 +47,11 @@ STARVATION_THRESH = 10 # # of turns before we starve
 
 def setup_resources():
     global RESOURCES, RESOURCE_TYPES, GOODS, GOOD_TYPES, COMMODITY_TYPES, COMMODITY_TOKENS
-    global GATHERERS_BY_TOKEN, PRODUCERS_BY_TOKEN, MERCHANTS_BY_TOKEN, STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN
-    global AGENT_INFO
+    global STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN, AGENT_INFO
+
+    CITY_RESOURCE_SLOTS = {'foods':6, 'cloths':6, 'clays':6, 'ores':4, 'woods':4}
+    CITY_INDUSTRY_SLOTS = {'tools':3, 'clothing':5, 'pottery':5, 'furniture':3}
+
     RESOURCES = []
     GOODS = []
     ##
@@ -89,14 +90,14 @@ def setup_resources():
         else:                                  		RESOURCE_TYPES[resource.category].append(resource)
 
         if not resource.category in COMMODITY_TYPES.keys(): COMMODITY_TYPES[resource.category] = [resource]
-        else:															COMMODITY_TYPES[resource.category].append(resource)
+        else:												COMMODITY_TYPES[resource.category].append(resource)
 
         if resource.resource_class == 'strategic':
             if not resource.resource_class in STRATEGIC_TYPES.keys(): STRATEGIC_TYPES[resource.category] = [resource]
             else:													  STRATEGIC_TYPES[resource.category].append(resource)
 
 
-    ## Key = category, calue = list of resources
+    ## Key = category, value = list of resources
     for good in GOODS:
         COMMODITY_TOKENS[good.name] = good
 
@@ -108,18 +109,6 @@ def setup_resources():
 
         if not good.category in GOODS_BY_RESOURCE_TOKEN.keys(): GOODS_BY_RESOURCE_TOKEN[good.material.name] = [good]
         else:													GOODS_BY_RESOURCE_TOKEN[good.material.name].append(good)
-
-
-    ## Building and profession info
-    prof_info = {
-    'Blacksmith':{'name':'Foundry', 'professions':{'name':'Blacksmith', 'category':'commoner'}, 'tax_status':'commoner'},
-    'Potter':{'name':'Kiln', 'professions':{'name':'Potter', 'category':'commoner'}, 'tax_status':'commoner'},
-    'Carpenter':{'name':'Carpenter Workshop', 'professions':{'name':'Carpenter', 'category':'commoner'}, 'tax_status':'commoner'},
-    'Clothier':{'name':'Clothier Workshop', 'professions':{'name':'Clothier', 'category':'commoner'}, 'tax_status':'commoner'}
-    }
-
-    CITY_RESOURCE_SLOTS = {'foods':6, 'cloths':6, 'clays':6, 'ores':4, 'woods':4}
-    CITY_INDUSTRY_SLOTS = {'tools':3, 'clothing':5, 'pottery':5, 'furniture':3}
 
 
 def economy_test_run():
@@ -196,6 +185,7 @@ class Resource(object):
         self.break_chance = break_chance
         self.app_chances = app_chances
         self.app_amt = app_amt
+
 
 class FinishedGood(object):
     def __init__(self, category, material, in_amt, out_amt):
@@ -398,11 +388,10 @@ class ResourceGatherer(Agent):
         self.attached_to = None
 
         self.gold = 1000
-        self.inventory = ['food']
+        self.inventory = ['food', 'iron tools']
         self.inventory_size = 20
         for i in xrange(gather_amount):
             self.inventory.append(resource)
-
 
         self.sell_item = self.resource
         self.prod_adj_amt = self.gather_amount
@@ -479,6 +468,9 @@ class ResourceGatherer(Agent):
         critical_items, other_items = self.check_for_needed_items()
         if critical_items == []:
             self.gather_resources()
+        else:
+            self.gather_resources(required_items=False)
+            print '{0} couldn\'t effectively gather resources due to lack of {1} (had {2}).'.format(self.name, ', '.join(critical_items), ', '.join(self.inventory))
 
     def handle_bidding(self):
         if self.future_bids == {}:
@@ -521,10 +513,12 @@ class ResourceGatherer(Agent):
 
         return tokens_to_bid
 
-    def gather_resources(self):
+    def gather_resources(self, required_items=True):
         # Gather resources, consume items, and account for breaking stuff
         amount = max(self.inventory_size - len(self.inventory), 0)
-        if amount > 0:
+        consume_and_update = False
+
+        if amount > 0 and required_items:
             # Add the resource to our own inventory. The government takes half our production for now
             for i in xrange(min(int(self.gather_amount/2), amount)):
                 self.inventory.append(self.resource)
@@ -533,6 +527,15 @@ class ResourceGatherer(Agent):
                 self.economy.owner.warehouses[self.resource].add(self.resource, int(self.gather_amount/2))
                 self.economy.auctions[self.resource].warehouse_contribution += int(self.gather_amount/2)
 
+            self.last_turn.append('Gathered ' + str(min(self.gather_amount, amount)) + ' ' + str(self.resource))
+            consume_and_update = True
+
+        elif amount > 0 and not required_items:
+            self.inventory.append(self.resource)
+            self.last_turn.append('Only gathered 1 ' + str(self.resource) + ' due to not having required items')
+            consume_and_update = True
+
+        if consume_and_update:
             # Consume any consumables (food is seperate), and then check for other things breaking
             for type_of_item in self.consumed:
                 for token_of_item in self.economy.available_types[type_of_item]:
@@ -545,8 +548,6 @@ class ResourceGatherer(Agent):
                     if token_of_item in self.inventory and roll(1, 1000) <= COMMODITY_TOKENS[token_of_item].break_chance:
                         self.inventory.remove(token_of_item)
                         break
-
-            self.last_turn.append('Gathered ' + str(min(self.gather_amount, amount)) + ' ' + str(self.resource))
         #else:
         #	print self.name, '- inventory too large to gather resources:', self.inventory
 
@@ -708,6 +709,8 @@ class GoodProducer(Agent):
         critical_items, other_items = self.check_for_needed_items()
         if critical_items == [] and has_required_input and (self.inventory_size - len(self.inventory) > 0):
             self.produce_items()
+        elif not (self.inventory_size - len(self.inventory) > 0):
+            print '{0} stopped producing goods due to too much inventory'.format(self.name)
         #else:
         #	print self.name, '- not producing because: critical items-', critical_items, 'required_input', has_required_input, 'inventory:', self.inventory
 
