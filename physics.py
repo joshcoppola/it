@@ -3,9 +3,12 @@ import xml.etree.ElementTree as etree
 import os
 import economy as econ
 import copy
+import yaml
 
 from random import randint as roll
 import libtcodpy as libtcod
+
+YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
 #BASE_LAYER_RESISTANCE = 100
 BASE_LAYER_RESISTANCE = 10
@@ -558,33 +561,18 @@ def cache_basic_weapon_types():
 
     return basic_weapon_types
 
-
-def generate_materials():
-    global materials
-
-    materials = {
-                 'iron':Material(name='iron', rgb_color=(67, 75, 77), density=8000, hardness=5, brittleness=.3),
-                 'bronze':Material(name='bronze', rgb_color=(205, 127, 50), density=8500, hardness=3, brittleness=.2),
-                 'copper':Material(name='copper', rgb_color=(184, 115, 51), density=8900, hardness=2, brittleness=.2),
-
-                 'bone':Material(name='bone', rgb_color=(227, 218, 201), density=1000, hardness=3, brittleness=.5),
-                 'flesh':Material(name='flesh', rgb_color=(195, 149, 130), density=900, hardness=1, brittleness=0),
-                 'wood':Material(name='wood', rgb_color=(68, 38, 20), density=1000, hardness=5, brittleness=.6),
-
-                 'cloth':Material(name='cloth', rgb_color=(210, 180, 140), density=200, hardness=1, brittleness=0),
-
-                 'clay':Material(name='clay', rgb_color=(126, 60, 45), density=1500, hardness=1, brittleness=.5)
-                 }
-
-    return materials
-
-
 def main():
     global creature_dict, object_dict, blueprint_dict, wgenerator, basic_weapon_types
-    global shirtcomps, packcomps, doorcomps
+    global shirtcomps, packcomps, doorcomps, materials
+    # Grab yaml file and convert it to a dictionary
+    with open(os.path.join(YAML_DIRECTORY, 'materials.yml')) as m:
+        loaded_materials = yaml.load(m)
 
-    materials = generate_materials()
-    #econ.setup_resources()
+    materials = {}
+    for material_name in loaded_materials.keys():
+        materials[material_name] = Material(name=material_name, rgb_color=loaded_materials[material_name]['rgb_color'],
+                                       density=loaded_materials[material_name]['density'], hardness=loaded_materials[material_name]['hardness'],
+                                       brittleness=loaded_materials[material_name]['brittleness'])
 
     #### Load XML ######
     file_path = os.path.join(os.getcwd(), 'XML', 'creatures')
