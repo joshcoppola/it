@@ -1107,7 +1107,7 @@ class Wmap:
             while 1:
                 x = roll(figure_start.x1, figure_start.x2)
                 y=roll(figure_start.y1, figure_start.y2)
-                if M.is_val_xy(coords=(x, y)) and not M.tiles[x][y].tile_blocks_mov():
+                if M.is_val_xy(coords=(x, y)) and not M.tile_blocks_mov(x, y):
                     break
             # Add the entity to the map
             M.add_object_to_map(x=x, y=y, obj=entity)
@@ -3359,7 +3359,7 @@ class World:
             faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman')
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
-            leader = culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1)
+            leader = culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
             sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
@@ -3408,12 +3408,17 @@ class World:
         # Create a bandit leader from nearby city
         leader = closest_city.create_inhabitant(sex=1, born=time_cycle.years_ago(18, 35), char='o', dynasty=None, important=1, house=None)
         bandit_faction.set_leader(leader)
+        # Set profession, weirdly enough
+        profession = Profession(name='Bandit', category='bandit')
+        profession.give_profession_to(figure=leader)
+        profession.set_building(building=hideout_building)
+
         # Give him the house
         leader.sapient.change_citizenship(new_city=None, new_house=hideout_building)
         # Have him actually go there
         leader.w_teleport(wx, wy)
 
-        sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
+        sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Bandit':10}}}
         self.create_population(char='u', name='Bandit band', faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
@@ -3421,7 +3426,6 @@ class World:
         #bandits.add_captive(figure=prisoner)
         ############
 
-        #self.hideouts.append(hideout_site)
         return leader, hideout_building
 
 
@@ -5295,8 +5299,10 @@ class Object:
             return self.name
 
     def fulltitle(self):
-        if self.sapient and self.creature: # and self.creature.status != 'dead':
+        if self.sapient and self.creature.intelligence_level == 3:
             return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.creature_type), self.sapient.get_profession())
+        if self.sapient and self.creature.intelligence_level == 2:
+            return '{0}, {1} savage'.format(self.fullname(), lang.spec_cap(self.creature.creature_type))
         else:
             return self.name
 
@@ -7015,9 +7021,10 @@ class SapientComponent:
 
 
 class Creature:
-    def __init__(self, creature_type, sex):
+    def __init__(self, creature_type, sex, intelligence_level):
         self.creature_type = creature_type
         self.sex = sex
+        self.intelligence_level = intelligence_level
 
         self.next_tick = 1
         self.turns_since_move = 0
@@ -7633,11 +7640,16 @@ class BasicWorldBrain:
         # To be phased out at some point
         if goal_type == 'wait':
             # Name the location
+            behavior_list = []
             target = kwargs['target']
             location = WORLD.tiles[target[0]][target[1]].get_location_description()
-            goal_name = 'wait at {0} for {1} days'.format(location, kwargs['num_days'])
-            wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity'])
-            behavior_list = [wait]
+            if (self.owner.wx, self.owner.wy) != target:
+                goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
+                behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
+            else:
+                goal_name = '{0} at {1} for {2} days'.format(kwargs['activity_verb'], location, kwargs['num_days'])
+            wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity_verb'])
+            behavior_list.append(wait)
 
         elif goal_type == 'travel':
             target_tuple = kwargs['target']
@@ -7719,30 +7731,41 @@ class BasicWorldBrain:
     def monthly_life_check(self):
         sapient = self.owner.sapient
         age = sapient.get_age()
-        # Pick a spouse and get married immediately
-        if sapient.spouse == None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
-            if roll(1, 48) >= 48:
-                self.pick_spouse()
 
-        # Have kids! Currenly limiting to 2 for non-important, 5 for important (will need to be fixed/more clear later)
-        # Check female characters, and for now, a random chance they can have kids
-        if sapient.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(sapient.children) <= (sapient.important * 3) + 2:
-            if roll(1, 20) == 20:
-                sapient.have_child()
+        if self.owner.creature.intelligence_level == 3:
+            # Pick a spouse and get married immediately
+            if sapient.spouse == None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
+                if roll(1, 48) >= 48:
+                    self.pick_spouse()
 
-        ####### GOALS #######
+            # Have kids! Currenly limiting to 2 for non-important, 5 for important (will need to be fixed/more clear later)
+            # Check female characters, and for now, a random chance they can have kids
+            if sapient.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(sapient.children) <= (sapient.important * 3) + 2:
+                if roll(1, 20) == 20:
+                    sapient.have_child()
 
-        if not sapient.economy_agent \
-                and self.owner.creature.sex == 1 \
-                and age >= 18 \
-                and not sapient.is_commander() \
-                and not sapient.is_captive() \
-                and roll(1, 50) == 1:
+            ####### GOALS #######
 
-            moving = self.check_for_move_city()
+            if not sapient.economy_agent \
+                    and self.owner.creature.sex == 1 \
+                    and age >= 18 \
+                    and not sapient.is_commander() \
+                    and not sapient.is_captive() \
+                    and roll(1, 50) == 1:
 
-            if not moving:
-                self.check_for_liesure_travel()
+                moving = self.check_for_move_city()
+
+                if not moving:
+                    self.check_for_liesure_travel()
+
+        elif self.owner.creature.intelligence_level == 2:
+            num = roll(1, 100)
+
+            if num < 10:
+                city = WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
+                if city:
+                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', target=(city.x, city.y), travel_verb='travelling', activity_verb='pillage', num_days=1)
+                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', target=(self.owner.wx, self.owner.wy), travel_verb='returning', activity_verb='rebase', num_days=1)
 
     def pick_spouse(self):
         sapient = self.owner.sapient
@@ -7802,7 +7825,8 @@ class BasicWorldBrain:
             if roll(0, 1) and len(sapient.culture.pantheon.holy_sites):
                 holy_site = random.choice(sapient.culture.pantheon.holy_sites)
                 target_x, target_y = holy_site.x, holy_site.y
-                activity = 'meditating'
+                travel_verb = 'go on a pilgrimmage to'
+                activity = 'meditate'
                 reason = 'wanted to visit this holy site.'
             # Otherwise, pick a random spot to travel to
             else:
@@ -7814,15 +7838,16 @@ class BasicWorldBrain:
                     if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
                         found_spot = True
                 # Pick a reason
-                activity = random.choice(('exploring', 'hunting'))
-                reasons = {'exploring':['wanted to explore', 'wanted to see more of the world'],
-                           'hunting':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world']}
+                travel_verb = 'travel'
+                activity = random.choice(('explore', 'hunt'))
+                reasons = {'explore':['wanted to explore', 'wanted to see more of the world'],
+                           'hunt':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world', 'love the thrill of the chase']}
                 reason = random.choice(reasons[activity])
                 target_x, target_y = (self.owner.wx + xdist, self.owner.wy + ydist)
 
             num_days = roll(3, 8)
-            self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
-            self.add_goal(priority=1, goal_type='wait', reason=reason, target=(target_x, target_y), num_days=num_days, activity=activity)
+            #self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
+            self.add_goal(priority=1, goal_type='wait', reason=reason, target=(target_x, target_y), num_days=num_days, activity_verb=activity, travel_verb=travel_verb)
             return 1
 
         return 0
@@ -8331,14 +8356,14 @@ class Culture:
 
 
 
-    def create_being(self, sex, born, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0):
+    def create_being(self, sex, born, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3):
         ''' Create a human, using info loaded from xml in the physics module '''
         # If race=None then we'll need to pick a random race from this culture
         if not race:
             race = random.choice(self.races)
 
         # The creature component
-        creature_component = Creature(creature_type=race, sex=sex)
+        creature_component = Creature(creature_type=race, sex=sex, intelligence_level=intelligence_level)
 
         # Look up the creature (imported as a dict with a million nested dicts
         info = phys.creature_dict[race]
@@ -10542,8 +10567,9 @@ def show_civs(world):
 
                     if figure.sapient.current_citizenship == city:
                         info = 'Currently lives here'
-                    #else:
-                    #    info = 'Staying at ' + figure.sapient.current_lodging.get_name()
+                    else:
+                    #    info = 'Staying at ' + random.choice(city.get_building_type('Tavern')).get_name()
+                        info = 'Currently visiting'
 
                     libtcod.console_print(0, 85, ny + 3, info)
 
