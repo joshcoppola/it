@@ -648,9 +648,9 @@ class Region:
     def get_location_description(self):
         if self.site:
             return self.site.name
-        elif len(self.minor_sites) and len(self.caves):
+        elif len(self.minor_sites) or len(self.caves):
             site_names = [site.name for site in self.minor_sites + self.caves]
-            return join_list([site_names])
+            return join_list(site_names)
         else:
             city, dist = WORLD.get_closest_city(self.x, self.y)
             if 0 < dist <= 3:
@@ -7797,8 +7797,8 @@ class BasicWorldBrain:
                 if city:
                     self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
 
-                    return_targ = (self.owner.wx, self.owner.wy)
-                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
+                    self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
+                    #self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
 
     def pick_spouse(self):
         sapient = self.owner.sapient
