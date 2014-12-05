@@ -6154,6 +6154,8 @@ class Goal:
     def __init__(self, name, behavior_list, priority, reason):
         self.name = name
         self.behavior_list = behavior_list
+        for behavior in self.behavior_list:
+            behavior.goal = self
         self.priority = priority
         self.reason = reason
 
@@ -6163,7 +6165,6 @@ class Goal:
 
         if not behavior.is_active and not behavior.is_completed():
             behavior.initialize_behavior()
-            behavior.is_active= 1
 
         # TODO - improve flow. Currently checks if it's complete before and
         # after taking the behavior action - the first time is to catch if
@@ -6182,16 +6183,34 @@ class Goal:
 
 class WaitBehavior:
     ''' Used anytime a figure wants to wait somewhere and do some activity '''
-    def __init__(self, figure, num_days, activity):
+    def __init__(self, figure, location, num_days, travel_verb, activity_verb):
+        self.goal = None # will be set when added to a Goal
         self.figure = figure
+        self.location= location
         self.num_days = num_days
         self.num_days_left = num_days
-        self.activity = activity
+        self.travel_verb = travel_verb
+        self.activity_verb = activity_verb
 
         self.is_active = 0
 
+    def get_name(self):
+        if (self.figure.wx, self.figure.wy) != self.location:
+            goal_name = '{0} to {1} to {2} for {3} days'.format(self.travel_verb, WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.activity_verb, self.num_days)
+        else:
+            goal_name = '{0} in {1} for {2} days'.format(self.activity_verb, WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.num_days)
+
+        return goal_name
+
     def initialize_behavior(self):
-        pass
+        # If we're not in the location, travel there
+        if (self.figure.wx, self.figure.wy) != self.location:
+            self.goal.behavior_list.insert(0, MovLocBehavior(location=self.location, figure=self.figure, travel_verb=self.travel_verb))
+            self.goal.behavior_list[0].initialize_behavior()
+
+            game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
+        else:
+            self.is_active = 1
 
     def is_completed(self):
         return self.num_days_left == 0
@@ -6203,15 +6222,23 @@ class WaitBehavior:
 class MovLocBehavior:
     ''' Specific behavior component for moving to an area.
     Will use road paths if moving from city to city '''
-    def __init__(self, coords, figure):
-        self.x = coords[0]
-        self.y = coords[1]
+    def __init__(self, location, figure, travel_verb='travel'):
+        self.x = location[0]
+        self.y = location[1]
         # The object
         self.figure = figure
+        self.travel_verb = travel_verb
         self.is_active = 0
+
+
+    def get_name(self):
+        goal_name = '{0} to {1}'.format(self.travel_verb, WORLD.tiles[self.x][self.y].get_location_description())
+        return goal_name
 
     def initialize_behavior(self):
         ''' Will be run as soon as this behavior is activated '''
+        self.is_active= 1
+
         if (self.figure.wx, self.figure.wy) == (self.x, self.y):
             game.add_message(self.figure.fulltitle() + ' tried moving to ' + str(self.x) + ', ' + str(self.y) + ' but was already there')
 
@@ -6230,7 +6257,8 @@ class MovLocBehavior:
             path = libtcod.path_compute(p=WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.x, dy=self.y)
             self.figure.world_brain.path = libtcod_path_to_list(path_map=WORLD.path_map)
 
-        self.name = 'move to {0}.'.format(WORLD.tiles[self.x][self.y].get_location_description())
+        #self.name = 'move to {0}.'.format(WORLD.tiles[self.x][self.y].get_location_description())
+        #game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
 
     def is_completed(self):
         return (self.figure.wx, self.figure.wy) == (self.x, self.y)
@@ -6250,6 +6278,7 @@ class MovTargBehavior:
 
     def initialize_behavior(self):
         ''' Will be run as soon as this behavior is activated '''
+        self.is_active= 1
         if (self.figure.wx, self.figure.wy) == (self.target.x, self.target.y):
             game.add_message(self.figure.fulltitle() + ' tried moving to ' + self.target.fulltitle() + ' but was already there')
 
@@ -6271,7 +6300,7 @@ class UnloadGoodsBehavior:
         self.is_active = 0
 
     def initialize_behavior(self):
-        pass
+        self.is_active= 1
 
     def is_completed(self):
         return self.figure in self.target_city.caravans
@@ -6292,7 +6321,7 @@ class KillTargBehavior:
         self.is_active = 0
 
     def initialize_behavior(self):
-        pass
+        self.is_active= 1
 
     def is_completed(self):
         return self.target.creature.status == 'dead'
@@ -6312,7 +6341,7 @@ class CaptureTargBehavior:
         self.is_active = 0
 
     def initialize_behavior(self):
-        pass
+        self.is_active= 1
 
     def is_completed(self):
         return self.target in self.figure.sapient.captives
@@ -6331,7 +6360,7 @@ class ImprisonTargBehavior:
         self.is_active = 0
 
     def initialize_behavior(self):
-        pass
+        self.is_active= 1
 
     def is_completed(self):
         if self.target in self.building.captives:
@@ -7641,20 +7670,20 @@ class BasicWorldBrain:
         if goal_type == 'wait':
             # Name the location
             behavior_list = []
-            target = kwargs['target']
-            location = WORLD.tiles[target[0]][target[1]].get_location_description()
-            if (self.owner.wx, self.owner.wy) != target:
-                goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
-                behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
-            else:
-                goal_name = '{0} at {1} for {2} days'.format(kwargs['activity_verb'], location, kwargs['num_days'])
-            wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity_verb'])
+            #target = kwargs['target']
+            #location = WORLD.tiles[target[0]][target[1]].get_location_description()
+            #if (self.owner.wx, self.owner.wy) != target or len(self.goals): # Problematic that this is calculated when the goal is added rather than when fired.
+            #    goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
+            #    behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
+            #else:
+            #    goal_name = '{0} at {1} for {2} days'.format(kwargs['activity_verb'], location, kwargs['num_days'])
+            #wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity_verb'])
+            wait = WaitBehavior(figure=self.owner, location=kwargs['location'], num_days=kwargs['num_days'], travel_verb=kwargs['travel_verb'], activity_verb=kwargs['activity_verb'])
             behavior_list.append(wait)
 
         elif goal_type == 'travel':
-            target_tuple = kwargs['target']
-            goal_name = 'travel to {0}'.format(WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
-            goto_site = MovLocBehavior(coords=target_tuple, figure=self.owner)
+            #goal_name = 'travel to {0}'.format(WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
+            goto_site = MovLocBehavior(location=kwargs['location'], figure=self.owner, travel_verb='travel')
             behavior_list = [goto_site]
         # also phased out
         elif goal_type == 'travel to person':
@@ -7679,7 +7708,7 @@ class BasicWorldBrain:
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             capture_target = CaptureTargBehavior(target=target_figure, figure=self.owner)
             #for after capture
-            goto_target_location = MovLocBehavior(coords=(target_prison_site.x, target_prison_site.y), figure=self.owner)
+            goto_target_location = MovLocBehavior(location=(target_prison_site.x, target_prison_site.y), figure=self.owner)
             imprison_target = ImprisonTargBehavior(target=target_figure, figure=self.owner, building=target_prison_bldg)
 
             behavior_list = [goto_target, capture_target, goto_target_location, imprison_target]
@@ -7687,19 +7716,19 @@ class BasicWorldBrain:
         elif goal_type == 'move_trade_goods_to_city':
             target_city = kwargs['target_city']
             goal_name = 'move goods to to {0}'.format(target_city.name)
-            goto_site = MovLocBehavior(coords=(target_city.x, target_city.y), figure=self.owner)
+            goto_site = MovLocBehavior(location=(target_city.x, target_city.y), figure=self.owner)
             unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
             behavior_list = [goto_site, unload_goods]
 
         ## Tell the world what you're doing
-        if goal_type != 'move_trade_goods_to_city':
-            game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
+        #if goal_type != 'move_trade_goods_to_city':
+        #    game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
 
         # Add the goal to the list. Automatically add a goal to return home after the goal is complete
         if len(self.goals) >= 2 and self.goals[-1].name == 'Return Home':
-            self.goals.insert(-1, Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
+            self.goals.insert(-1, Goal(name='goal_name', behavior_list=behavior_list, priority=priority, reason=reason))
         else:
-            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
+            self.goals.append(Goal(name='goal_name', behavior_list=behavior_list, priority=priority, reason=reason))
 
         #if self.owner not in WORLD.travelers:
         #    WORLD.travelers.append(self.owner)
@@ -7708,10 +7737,10 @@ class BasicWorldBrain:
         if self.goals[-1].name != 'Return Home' and self.owner.sapient.current_citizenship:
             home_city = self.owner.sapient.current_citizenship
             goal_name = 'Return Home'
-            return_from_site = MovLocBehavior(coords=(home_city.x, home_city.y), figure=self.owner)
+            return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return to')
             behavior_list = [return_from_site]
 
-            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason=reason))
+            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
             #if self.owner not in WORLD.travelers:
             #    print self.owner.fullnamte(), 'tried to return home, was not in list of travelers'
 
@@ -7758,14 +7787,17 @@ class BasicWorldBrain:
                 if not moving:
                     self.check_for_liesure_travel()
 
+        ## Lesser intelligent creatures
         elif self.owner.creature.intelligence_level == 2:
             num = roll(1, 100)
 
             if num < 10:
                 city = WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
                 if city:
-                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', target=(city.x, city.y), travel_verb='travelling', activity_verb='pillage', num_days=1)
-                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', target=(self.owner.wx, self.owner.wy), travel_verb='returning', activity_verb='rebase', num_days=1)
+                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
+
+                    return_targ = (self.owner.wx, self.owner.wy)
+                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
 
     def pick_spouse(self):
         sapient = self.owner.sapient
@@ -7800,7 +7832,7 @@ class BasicWorldBrain:
                 spouse.sapient.change_citizenship(new_city=sapient.current_citizenship, new_house=sapient.house)
             # Make sure the spouse meets them
             if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
-                spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), target=(self.owner.wx, self.owner.wy))
+                spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
 
             return spouse
 
@@ -7811,7 +7843,7 @@ class BasicWorldBrain:
             reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
 
             sapient.change_citizenship(new_city=target_city, new_house=None)
-            self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_city.x, target_city.y))
+            self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
             # Return whether the goal was fired or not
             return 1
         return 0
@@ -7847,7 +7879,7 @@ class BasicWorldBrain:
 
             num_days = roll(3, 8)
             #self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
-            self.add_goal(priority=1, goal_type='wait', reason=reason, target=(target_x, target_y), num_days=num_days, activity_verb=activity, travel_verb=travel_verb)
+            self.add_goal(priority=1, goal_type='wait', reason=reason, location=(target_x, target_y), num_days=num_days, activity_verb=activity, travel_verb=travel_verb)
             return 1
 
         return 0
@@ -8340,9 +8372,8 @@ class Culture:
 
     def add_villages(self):
         for x, y in self.territory:
-            #if len(WORLD.tiles[x][y].res.keys()) > 0:
             for resource in WORLD.tiles[x][y].res.keys():
-                if resource not in self.access_res and WORLD.is_valid_site(x, y, None, MIN_SITE_DIST): #and 10 < x < WORLD_WIDTH - 10 and 10 < y < WORLD_HEIGHT - 10:
+                if resource not in self.access_res and WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(WORLD.tiles[x][y].minor_sites): #and 10 < x < WORLD_WIDTH - 10 and 10 < y < WORLD_HEIGHT - 10:
                     self.access_res.append(resource)
                     self.add_village(x, y)
                     break
