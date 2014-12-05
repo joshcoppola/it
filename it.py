@@ -6151,13 +6151,15 @@ class Plot:
 class Goal:
     ''' This is the container for behaviors. It controls
     when each behavior becomes active (serially) '''
-    def __init__(self, name, behavior_list, priority, reason):
-        self.name = name
+    def __init__(self, behavior_list, priority, reason):
         self.behavior_list = behavior_list
         for behavior in self.behavior_list:
             behavior.goal = self
         self.priority = priority
         self.reason = reason
+
+    def get_name(self):
+        return self.behavior_list[0].get_name()
 
     def take_goal_action(self):
         ''' Picks the behavior which is currently active and executes it'''
@@ -6175,7 +6177,6 @@ class Goal:
         if behavior.is_completed():
             behavior.is_active= 0
             self.behavior_list.remove(behavior)
-
 
     def is_completed(self):
         return not(len(self.behavior_list))
@@ -6237,11 +6238,7 @@ class MovLocBehavior:
 
     def initialize_behavior(self):
         ''' Will be run as soon as this behavior is activated '''
-        self.is_active= 1
-
-        if (self.figure.wx, self.figure.wy) == (self.x, self.y):
-            game.add_message(self.figure.fulltitle() + ' tried moving to ' + str(self.x) + ', ' + str(self.y) + ' but was already there')
-
+        self.is_active = 1
         ## Find path
         targeting_city = 0
         target_site = WORLD.tiles[self.x][self.y].site
@@ -6557,8 +6554,18 @@ class SapientComponent:
 
             elif question_type == 'goals':
                 if len(self.owner.world_brain.goals):
-                    for goal in self.owner.world_brain.goals:
-                        self.say('I currently am {0}.'.format(goal.name) )
+                    if len(self.owner.world_brain.goals) == 1:
+                        self.say('My current goal is to {0}.'.format(self.owner.world_brain.goals[0].get_name()) )
+                    elif len(self.owner.world_brain.goals) > 1:
+                        goal_names = join_list([g.get_name() for g in self.owner.world_brain.goals[1:]])
+                        self.say('My current plan is to {0}. Later, I\'m going to {1}'.format(self.owner.world_brain.goals[0].get_name(), goal_names))
+                # IF we're travelling under someone's command
+                elif self.commander and len(self.commander.world_brain.goals):
+                    if len(self.commander.world_brain.goals) == 1:
+                        self.say('I\'m with {0}. Our current plan is to {1}.'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name()) )
+                    elif len(self.commander.world_brain.goals) > 1:
+                        goal_names = join_list([g.get_name() for g in self.commander.world_brain.goals[1:]])
+                        self.say('I\'m with {0}. Our current plan is to {1}. Later, we\'ll {2}'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name(), goal_names))
                 else:
                     self.say('I don\'t really have any goals at the moment.')
 
@@ -7688,13 +7695,13 @@ class BasicWorldBrain:
         # also phased out
         elif goal_type == 'travel to person':
             target_figure = kwargs['target']
-            goal_name = 'travel to ' + target_figure.fulltitle()
+            #goal_name = 'travel to ' + target_figure.fulltitle()
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             behavior_list = [goto_target]
 
         elif goal_type == 'kill person':
             target_figure = kwargs['target']
-            goal_name = 'kill ' + target_figure.fulltitle()
+            #goal_name = 'kill ' + target_figure.fulltitle()
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             kill_target = KillTargBehavior(target=target_figure, figure=self.owner)
 
@@ -7704,7 +7711,7 @@ class BasicWorldBrain:
             target_figure = kwargs['target']
             target_prison_bldg = kwargs['target_prison_bldg']
             target_prison_site = target_prison_bldg.site
-            goal_name = 'capture ' + target_figure.fulltitle()
+            #goal_name = 'capture ' + target_figure.fulltitle()
             goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
             capture_target = CaptureTargBehavior(target=target_figure, figure=self.owner)
             #for after capture
@@ -7715,7 +7722,7 @@ class BasicWorldBrain:
 
         elif goal_type == 'move_trade_goods_to_city':
             target_city = kwargs['target_city']
-            goal_name = 'move goods to to {0}'.format(target_city.name)
+            #goal_name = 'move goods to to {0}'.format(target_city.name)
             goto_site = MovLocBehavior(location=(target_city.x, target_city.y), figure=self.owner)
             unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
             behavior_list = [goto_site, unload_goods]
@@ -7725,24 +7732,18 @@ class BasicWorldBrain:
         #    game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
 
         # Add the goal to the list. Automatically add a goal to return home after the goal is complete
-        if len(self.goals) >= 2 and self.goals[-1].name == 'Return Home':
-            self.goals.insert(-1, Goal(name='goal_name', behavior_list=behavior_list, priority=priority, reason=reason))
+        if len(self.goals) >= 2 and self.goals[-1].reason == 'I like to be home when I can.':
+            self.goals.insert(-1, Goal(behavior_list=behavior_list, priority=priority, reason=reason))
         else:
-            self.goals.append(Goal(name='goal_name', behavior_list=behavior_list, priority=priority, reason=reason))
-
-        #if self.owner not in WORLD.travelers:
-        #    WORLD.travelers.append(self.owner)
+            self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason=reason))
 
         # Auto return home
-        if self.goals[-1].name != 'Return Home' and self.owner.sapient.current_citizenship:
+        if self.goals[-1].reason != 'I like to be home when I can.' and self.owner.sapient.current_citizenship:
             home_city = self.owner.sapient.current_citizenship
-            goal_name = 'Return Home'
-            return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return to')
+            return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return home')
             behavior_list = [return_from_site]
 
-            self.goals.append(Goal(name=goal_name, behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
-            #if self.owner not in WORLD.travelers:
-            #    print self.owner.fullnamte(), 'tried to return home, was not in list of travelers'
+            self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
 
     def handle_goal_behavior(self):
         ''' Key function which takes each goal a step at a time
