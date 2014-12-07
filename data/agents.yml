@@ -50,21 +50,21 @@ producers:
     copper tools: 
         name: Copper Blacksmith
         finished_good: copper tools 
-        consumed: []
+        consumed: [woods]
         essential: []
-        preferred: [clothing, woods]
+        preferred: [clothing]
     bronze tools: 
         name: Bronze Blacksmith
         finished_good: bronze tools
-        consumed: []
+        consumed: [woods]
         essential: []
-        preferred: [clothing, woods]
+        preferred: [clothing]
     iron tools: 
         name: Iron Blacksmith
         finished_good: iron tools
-        consumed: []
+        consumed: [woods]
         essential: []
-        preferred: [clothing, woods]
+        preferred: [clothing]
     #silt pottery: name: Silt Potter finished_good: silt pottery consumed: [], essential: [], preferred: [clothing] },
     clay pottery: 
         name: Clay Potter

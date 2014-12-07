@@ -928,14 +928,11 @@ class Merchant(object):
                 destination = self.sell_economy.owner
             elif self.current_location == self.sell_economy:
                 destination = self.buy_economy.owner
-            #print self.attached_to.sapient.caravan.name, 'heading to', destination.name
-            # ORIGINAL: pre army rewrite 11/28/2014
-            #if self.attached_to.sapient.army:
-            #    self.current_location.owner.departing_merchants.append((self.attached_to.sapient.army, destination))
-            #    self.current_location = None
+            # Add to list of departing merchants
             self.current_location.owner.departing_merchants.append((self.attached_to, destination))
             self.current_location = None
 
+        # Catch for when the script is run standalone, where it doesn't have a city it's attached to
         else:
             if self.current_location == self.buy_economy:    self.current_location = self.sell_economy
             elif self.current_location == self.sell_economy: self.current_location = self.buy_economy
