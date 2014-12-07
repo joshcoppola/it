@@ -3111,6 +3111,16 @@ class World:
 
                     else:
                         libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
+        ######################### Resources ##################################
+        elif game.world_map_display_type == 'resource':
+            for y in xrange(camera.height):
+                for x in xrange(camera.width):
+                    (wmap_x, wmap_y) = camera.cam2map(x, y)
+                    libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
+
+                    if len(self.tiles[wmap_x][wmap_y].res.keys()) and not 'wood' in self.tiles[wmap_x][wmap_y].res.keys():
+                        char = self.tiles[wmap_x][wmap_y].res.keys()[0][0].capitalize()
+                        libtcod.console_put_char_ex(map_con.con, x, y, char, libtcod.green, libtcod.black)
         ###########################################################################
 
         self.draw_world_objects()
@@ -9336,6 +9346,8 @@ class Game:
                     elif game.world_map_display_type == 'culture':
                         game.world_map_display_type = 'territory'
                     elif game.world_map_display_type == 'territory':
+                        game.world_map_display_type = 'resource'
+                    elif game.world_map_display_type == 'resource':
                         game.world_map_display_type = 'normal'
 
             if self.map_scale == 'human':
