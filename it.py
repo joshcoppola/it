@@ -3840,15 +3840,9 @@ class City(Site):
 
         # Unload the goods
         if self.econ == caravan_leader.sapient.economy_agent.sell_economy:
-            unloaded = 0
             for i in xrange(caravan_leader.sapient.economy_agent.travel_inventory.count(caravan_leader.sapient.economy_agent.traded_item)):
                 caravan_leader.sapient.economy_agent.travel_inventory.remove(caravan_leader.sapient.economy_agent.traded_item)
                 caravan_leader.sapient.economy_agent.sell_inventory.append(caravan_leader.sapient.economy_agent.traded_item)
-                unloaded = 1
-            if unloaded:
-                game.add_message('{0} unloaded {1} {2} in {3}'.format(caravan_leader.fulltitle(), i, caravan_leader.sapient.economy_agent.traded_item, self.name), libtcod.darker_green)
-            else:
-                game.add_message('{0} had no {1} to unload in {2}'.format(caravan_leader.fulltitle(), caravan_leader.sapient.economy_agent.traded_item, self.name), libtcod.darker_red)
 
         # Add workers to the market
         for figure in caravan_leader.sapient.commanded_figures + [caravan_leader]:
