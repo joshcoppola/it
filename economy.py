@@ -335,7 +335,7 @@ class Agent(object):
             self.future_sells = {}
 
 
-    def eval_trade_accepted(self, type_of_item, price):
+    def eval_trade_accepted(self, economy, type_of_item, price):
         # Then, adjust our belief in the price
         if self.perceived_values[type_of_item].uncertainty >= MIN_CERTAINTY_VALUE:
             self.perceived_values[type_of_item].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
@@ -350,7 +350,7 @@ class Agent(object):
                 max(self.perceived_values[type_of_item].center - N_DIF_ADJ, (self.economy.local_taxes) + self.perceived_values[type_of_item].uncertainty)
 
 
-    def eval_bid_rejected(self, type_of_item, price=None):
+    def eval_bid_rejected(self, economy, type_of_item, price=None):
         # What to do when we've bid on something and didn't get it
         if self.economy.auctions[type_of_item].supply:
             if price == None:
@@ -581,7 +581,7 @@ class ResourceGatherer(Agent):
 
         return production_cost
 
-    def eval_sell_rejected(self, type_of_item):
+    def eval_sell_rejected(self, economy, type_of_item):
         # What to do when we put something up for sale and nobody bought it. Only adjust if there was a demand
         if self.economy.auctions[type_of_item].demand:
             production_cost = self.check_production_cost()
@@ -815,7 +815,7 @@ class GoodProducer(Agent):
 
         return production_cost
 
-    def eval_sell_rejected(self, type_of_item):
+    def eval_sell_rejected(self, economy, type_of_item):
         # What to do when we put something up for sale and nobody bought it. Only adjust if there was a demand
         if self.economy.auctions[type_of_item].demand:
             production_cost = self.check_production_cost()
@@ -890,7 +890,7 @@ class Merchant(object):
 
     def consume_food(self):
         '''Eat and bid on foods'''
-        for token_of_item in self.current_location.available_types['foods']:
+        for token_of_item in self.buy_economy.available_types['foods']:
             if token_of_item in self.inventory:
                 ## Only consume food every ~5 turns
                 self.turns_since_food = 0
@@ -901,13 +901,13 @@ class Merchant(object):
         else:
             self.turns_since_food += 1
             if self.turns_since_food > GRANARY_THRESH * 5:
-                self.current_location.starving_agents.append(self)
+                self.buy_economy.starving_agents.append(self)
             if self.turns_since_food > STARVATION_THRESH * 5:
                 self.starve()
 
         ## Bid on food if we have less than a certain stockpile
         if self.inventory.count('food') < FOOD_BID_THRESHHOLD:
-            self.place_bid(economy=self.current_location, token_to_bid=random.choice(self.current_location.available_types['foods']))
+            self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['foods']))
 
     def starve(self):
         '''What happens when we run out of food'''
@@ -922,24 +922,23 @@ class Merchant(object):
 
     def increment_cycle(self):
         self.time_here += 1
-        if (self.current_location == self.buy_economy and len(self.inventory) > self.INVENTORY_SIZE - 2) or \
-            (self.current_location == self.sell_economy and self.inventory.count(self.traded_item) == 0):
-            self.time_here = 0
-            ## if it's part of the game, add to a list of departing merchants so they can create a caravan
-            if self.current_location.owner:
-                if self.current_location == self.buy_economy: 	 destination = self.sell_economy.owner
-                elif self.current_location == self.sell_economy: destination = self.buy_economy.owner
-                #print self.attached_to.sapient.caravan.name, 'heading to', destination.name
-                # ORIGINAL: pre army rewrite 11/28/2014
-                #if self.attached_to.sapient.army:
-                #    self.current_location.owner.departing_merchants.append((self.attached_to.sapient.army, destination))
-                #    self.current_location = None
-                self.current_location.owner.departing_merchants.append((self.attached_to, destination))
-                self.current_location = None
+        ## if it's part of the game, add to a list of departing merchants so they can create a caravan
+        if self.time_here >= 2 and self.current_location.owner:
+            if self.current_location == self.buy_economy:
+                destination = self.sell_economy.owner
+            elif self.current_location == self.sell_economy:
+                destination = self.buy_economy.owner
+            #print self.attached_to.sapient.caravan.name, 'heading to', destination.name
+            # ORIGINAL: pre army rewrite 11/28/2014
+            #if self.attached_to.sapient.army:
+            #    self.current_location.owner.departing_merchants.append((self.attached_to.sapient.army, destination))
+            #    self.current_location = None
+            self.current_location.owner.departing_merchants.append((self.attached_to, destination))
+            self.current_location = None
 
-            else:
-                if self.current_location == self.buy_economy:    self.current_location = self.sell_economy
-                elif self.current_location == self.sell_economy: self.current_location = self.buy_economy
+        else:
+            if self.current_location == self.buy_economy:    self.current_location = self.sell_economy
+            elif self.current_location == self.sell_economy: self.current_location = self.buy_economy
 
     def pay_taxes(self, economy):
         # Pay taxes. If the economy has an owner, pay the taxes to that treasury
@@ -957,10 +956,10 @@ class Merchant(object):
 
     def place_bid(self, economy, token_to_bid):
         ## Place a bid in the economy
-        if self.current_location == self.buy_economy:
+        if economy == self.buy_economy:
             est_price = self.buy_perceived_values[token_to_bid].center
             uncertainty = self.buy_perceived_values[token_to_bid].uncertainty
-        elif self.current_location == self.sell_economy:
+        elif economy == self.sell_economy:
             est_price = self.sell_perceived_values[token_to_bid].center
             uncertainty = self.sell_perceived_values[token_to_bid].uncertainty
 
@@ -997,9 +996,9 @@ class Merchant(object):
         else:
             self.last_turn.append('Tried to sell ' + sell_item + ' but inventory was empty')
 
-    def eval_trade_accepted(self, type_of_item, price):
+    def eval_trade_accepted(self, economy, type_of_item, price):
         # Then, adjust our belief in the price
-        if self.current_location == self.buy_economy:
+        if economy == self.buy_economy:
             if self.buy_perceived_values[type_of_item].uncertainty >= MIN_CERTAINTY_VALUE:
                 self.buy_perceived_values[type_of_item].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
 
@@ -1012,7 +1011,7 @@ class Merchant(object):
                 self.buy_perceived_values[type_of_item].center = \
                     max(self.buy_perceived_values[type_of_item].center - N_DIF_ADJ, (self.buy_economy.local_taxes) + self.buy_perceived_values[type_of_item].uncertainty)
 
-        elif self.current_location == self.sell_economy:
+        elif economy == self.sell_economy:
             if self.sell_perceived_values[type_of_item].uncertainty >= MIN_CERTAINTY_VALUE:
                 self.sell_perceived_values[type_of_item].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
 
@@ -1026,10 +1025,10 @@ class Merchant(object):
                     max(self.sell_perceived_values[type_of_item].center - N_DIF_ADJ, (self.sell_economy.local_taxes) + self.sell_perceived_values[type_of_item].uncertainty)
 
 
-    def eval_bid_rejected(self, type_of_item, price=None):
+    def eval_bid_rejected(self, economy, type_of_item, price=None):
         # What to do when we've bid on something and didn't get it
-        if self.current_location.auctions[type_of_item].supply:
-            if self.current_location == self.buy_economy:
+        if economy.auctions[type_of_item].supply:
+            if economy == self.buy_economy:
                 if price == None:
                     self.buy_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
                     self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
@@ -1038,7 +1037,7 @@ class Merchant(object):
                     self.buy_perceived_values[type_of_item].center = price + self.buy_perceived_values[type_of_item].uncertainty
                     self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
 
-            elif self.current_location == self.sell_economy:
+            elif economy == self.sell_economy:
                 if price == None:
                     self.sell_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
                     self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
@@ -1050,20 +1049,20 @@ class Merchant(object):
     def eval_need(self):
         # bid for food if we have < 5 units:
         if self.inventory.count('food') <= 5:
-            self.place_bid(economy=self.current_location, token_to_bid='food')
+            self.place_bid(economy=self.buy_economy, token_to_bid='food')
 
         critical_items, other_items = self.check_for_needed_items()
         for type_of_item in critical_items:
             if type_of_item != 'foods':
                 # For now, place a bid for a random item available to use of that type
-                token_of_item = random.choice(self.current_location.available_types[type_of_item])
-                self.place_bid(economy=self.current_location, token_to_bid=token_of_item.name)
+                token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
+                self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
 
         for type_of_item in other_items and self.gold >= PREFERRED_ITEM_MIN_GOLD:
             if type_of_item != 'foods':
                 # For now, place a bid for a random item available to use of that type
-                token_of_item = random.choice(self.current_location.available_types[type_of_item])
-                self.place_bid(economy=self.current_location, token_to_bid=token_of_item.name)
+                token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
+                self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
 
 
     def check_for_needed_items(self):
@@ -1085,16 +1084,16 @@ class Merchant(object):
         return production_cost
 
 
-    def eval_sell_rejected(self, type_of_item):
+    def eval_sell_rejected(self, economy, type_of_item):
         # What to do when we put something up for sale and nobody bought it
-        if self.current_location.auctions[type_of_item].demand:
+        if economy.auctions[type_of_item].demand:
             production_cost = self.check_min_sell_price()
             min_sale_price = int(round(production_cost*PROFIT_MARGIN))
-            if self.current_location == self.buy_economy:
+            if economy == self.buy_economy:
                 #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
                 self.buy_perceived_values[type_of_item].center = self.buy_perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
                 self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
-            elif self.current_location == self.sell_economy:
+            elif economy == self.sell_economy:
                 self.sell_perceived_values[type_of_item].center = self.sell_perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
                 self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
 
@@ -1293,27 +1292,27 @@ class Economy:
 
         for merchant in self.buy_merchants[:]:
             merchant.last_turn = []
-            if merchant.current_location == self:
-                if merchant.gold < 0:
-                    merchant.bankrupt()
-                    break
-                merchant.consume_food()
-                merchant.eval_need()
-                merchant.pay_taxes(self)
-                merchant.place_bid(economy=self, token_to_bid=merchant.traded_item) # <- will bid max amt we can
-                merchant.turns_alive += 1
+            #if merchant.current_location == self:
+            if merchant.gold < 0:
+                merchant.bankrupt()
+                break
+            merchant.consume_food()
+            merchant.eval_need()
+            merchant.pay_taxes(self)
+            merchant.place_bid(economy=self, token_to_bid=merchant.traded_item) # <- will bid max amt we can
+            merchant.turns_alive += 1
 
         for merchant in self.sell_merchants[:]:
-            merchant.last_turn = []
-            if merchant.current_location == self:
-                if merchant.gold < 0:
-                    merchant.bankrupt()
-                    break
-                merchant.consume_food()
-                merchant.eval_need()
-                merchant.pay_taxes(self)
-                merchant.create_sell(economy=self, sell_item=merchant.traded_item)
-                merchant.turns_alive += 1
+            #merchant.last_turn = []
+            #if merchant.current_location == self:
+            #if merchant.gold < 0:
+            #    merchant.bankrupt()
+            #    break
+            #merchant.consume_food()
+            #merchant.eval_need()
+            #merchant.pay_taxes(self)
+            merchant.create_sell(economy=self, sell_item=merchant.traded_item)
+            #merchant.turns_alive += 1
 
         # Starvation modeling - not sure if active 9/21/13
         if self.owner:
@@ -1348,11 +1347,11 @@ class Economy:
                 ## Allow the buyer to make some radical readjustments the first few turns it's alive
                 if buyer.price < seller.price and (buyer.owner.turns_alive < 10 or (commodity == 'food' and buyer.owner.turns_since_food > 2)):
                     buyer.price = int(round(seller.price * 1.5))
-                    buyer.owner.eval_bid_rejected(commodity, int(round(seller.price * 1.5)))
+                    buyer.owner.eval_bid_rejected(self, commodity, int(round(seller.price * 1.5)))
 
                 ## If the price is still lower than the seller
                 if buyer.price < seller.price:
-                    buyer.owner.eval_bid_rejected(commodity, seller.price)
+                    buyer.owner.eval_bid_rejected(self, commodity, seller.price)
                     buyer.quantity = 0
 
                 else:
@@ -1366,8 +1365,8 @@ class Economy:
                         buyer.quantity -= quantity
                         seller.quantity -= quantity
 
-                        buyer.owner.eval_trade_accepted(buyer.commodity, price)
-                        seller.owner.eval_trade_accepted(buyer.commodity, price)
+                        buyer.owner.eval_trade_accepted(self, buyer.commodity, price)
+                        seller.owner.eval_trade_accepted(self, buyer.commodity, price)
 
                         ## Update inventories and gold counts
                         for i in xrange(quantity):
@@ -1392,13 +1391,13 @@ class Economy:
             # All bidders re-evaluate prices - currently too simplistic
             if len(auction.bids) > 0:
                 for buyer in auction.bids:
-                    buyer.owner.eval_bid_rejected(buyer.commodity)
+                    buyer.owner.eval_bid_rejected(self, buyer.commodity)
                 self.auctions[commodity].bids = []
 
             # All sellers re-evaluate prices - too simplistic as well
             elif len(auction.sells) > 0:
                 for seller in auction.sells:
-                    seller.owner.eval_sell_rejected(seller.commodity)
+                    seller.owner.eval_sell_rejected(self, seller.commodity)
                 self.auctions[commodity].sells = []
 
             ## Average prices

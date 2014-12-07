@@ -3838,19 +3838,16 @@ class City(Site):
     def receive_caravan(self, caravan_leader):
         market = self.get_building('Market')
 
-        for figure in caravan_leader.sapient.commanded_figures:
+        for figure in caravan_leader.sapient.commanded_figures + [caravan_leader]:
             if figure.sapient.economy_agent:
                 figure.sapient.economy_agent.current_location = self.econ
                 market.add_worker(figure)
 
                 ## cheap trick for now - add a little of the resource to the city stockpile
                 if figure.sapient.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
-                    self.warehouses[figure.sapient.economy_agent.traded_item].add(
-                        figure.sapient.economy_agent.traded_item, 2)
-
+                    self.warehouses[figure.sapient.economy_agent.traded_item].add(figure.sapient.economy_agent.traded_item, 2)
         #WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
         #WORLD.travelers.remove(caravan_leader)
-
         self.caravans.append(caravan_leader)
 
     def increase_radius(self):
