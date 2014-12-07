@@ -242,6 +242,12 @@ class Agent(object):
         self.future_sells[item_to_change][1] = min( max(self.future_sells[item_to_change][1] + amt, 1), self.inventory.count(item_to_change) )
     ###########################################
 
+    def take_bought_item(self, item):
+        self.inventory.append(item)
+
+    def remove_sold_item(self, item):
+        self.inventory.remove(item)
+
     def pay_taxes(self):
         # Pay taxes. If the economy has an owner, pay the taxes to that treasury
         self.gold -= self.economy.local_taxes
@@ -846,15 +852,18 @@ class Merchant(object):
 
         self.gold = 10000
         self.INVENTORY_SIZE = 40
-        self.inventory = ['food', 'food', traded_item, traded_item]
+        self.buy_inventory = ['food', 'food', traded_item, traded_item]
+        self.sell_inventory = [traded_item, traded_item, traded_item, traded_item, traded_item, traded_item]
+        self.travel_inventory = [traded_item]
 
         self.last_turn = []
 
-        self.current_location = random.choice([buy_economy, sell_economy])
-        if self.current_location == self.sell_economy:
-            for i in xrange(20):
-                self.inventory.append(self.traded_item)
-        self.time_here = roll(1, 3)
+        #self.current_location = random.choice([buy_economy, sell_economy])
+        self.current_location = buy_economy
+        #if self.current_location == self.sell_economy:
+        #    for i in xrange(20):
+        #        self.inventory.append(self.traded_item)
+        self.time_here = roll(0, 3)
         self.cycle_length = 4
 
         ##### dict of what we believe the true price of an item is, for each token of an item we can possibly use
@@ -866,7 +875,7 @@ class Merchant(object):
                 if token_of_item != self.traded_item:
                     self.buy_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
                     self.sell_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
-                self.inventory.append(token_of_item.name)
+                #self.inventory.append(token_of_item.name)
 
         for token_of_item in COMMODITY_TYPES['foods']:
             if token_of_item != self.traded_item:
@@ -888,14 +897,21 @@ class Merchant(object):
         self.attached_to = figure
         self.attached_to.sapient.economy_agent = self
 
+
+    def take_bought_item(self, item):
+        self.buy_inventory.append(item)
+
+    def remove_sold_item(self, item):
+        self.sell_inventory.remove(item)
+
     def consume_food(self):
         '''Eat and bid on foods'''
         for token_of_item in self.buy_economy.available_types['foods']:
-            if token_of_item in self.inventory:
+            if token_of_item in self.buy_inventory:
                 ## Only consume food every ~5 turns
                 self.turns_since_food = 0
                 if roll(1, 5) == 1:
-                    self.inventory.remove(token_of_item)
+                    self.buy_inventory.remove(token_of_item)
                 break
 
         else:
@@ -906,7 +922,7 @@ class Merchant(object):
                 self.starve()
 
         ## Bid on food if we have less than a certain stockpile
-        if self.inventory.count('food') < FOOD_BID_THRESHHOLD:
+        if self.buy_inventory.count('food') < FOOD_BID_THRESHHOLD:
             self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['foods']))
 
     def starve(self):
@@ -922,15 +938,23 @@ class Merchant(object):
 
     def increment_cycle(self):
         self.time_here += 1
+        destination = None
         ## if it's part of the game, add to a list of departing merchants so they can create a caravan
         if self.time_here >= 2 and self.current_location.owner:
-            if self.current_location == self.buy_economy:
+            if self.current_location == self.buy_economy and self.buy_inventory.count(self.traded_item) >= 2:
                 destination = self.sell_economy.owner
+
+                for i in xrange(self.buy_inventory.count(self.traded_item)):
+                    self.buy_inventory.remove(self.traded_item)
+                    self.travel_inventory.append(self.traded_item)
+
             elif self.current_location == self.sell_economy:
                 destination = self.buy_economy.owner
-            # Add to list of departing merchants
-            self.current_location.owner.departing_merchants.append((self.attached_to, destination))
-            self.current_location = None
+
+            if destination:
+                # Add to list of departing merchants
+                self.current_location.owner.departing_merchants.append((self.attached_to, destination))
+                self.current_location = None
 
         # Catch for when the script is run standalone, where it doesn't have a city it's attached to
         else:
@@ -947,7 +971,7 @@ class Merchant(object):
     def has_token(self, type_of_item):
         # Test whether or not we have a token of an item
         for token_of_item in COMMODITY_TYPES[type_of_item]:
-            if token_of_item.name in self.inventory:
+            if token_of_item.name in self.buy_inventory:
                 return True
         return False
 
@@ -964,7 +988,7 @@ class Merchant(object):
         if bid_price > self.gold:
             bid_price = self.gold
 
-        if token_to_bid == self.traded_item: quantity = self.INVENTORY_SIZE - (len(self.inventory) + 1)
+        if token_to_bid == self.traded_item: quantity = self.INVENTORY_SIZE - (len(self.buy_inventory) + 1)
         else: 								 quantity = roll(1, 2)
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         #print self.name, 'bidding for', quantity, token_to_bid
@@ -984,7 +1008,7 @@ class Merchant(object):
         # won't go below what they paid for it
         sell_price = max(roll(est_price - uncertainty, est_price + uncertainty), min_sale_price)
 
-        quantity_to_sell = self.inventory.count(sell_item)
+        quantity_to_sell = self.sell_inventory.count(sell_item)
         #print self.name, 'selling', quantity_to_sell, sell_item
         if quantity_to_sell > 0:
             #print self.name, 'selling', quantity_to_sell, sell_item, 'for', sell_price, 'at', self.current_location.owner.name
@@ -1045,7 +1069,7 @@ class Merchant(object):
 
     def eval_need(self):
         # bid for food if we have < 5 units:
-        if self.inventory.count('food') <= 5:
+        if self.buy_inventory.count('food') <= 5:
             self.place_bid(economy=self.buy_economy, token_to_bid='food')
 
         critical_items, other_items = self.check_for_needed_items()
@@ -1073,7 +1097,7 @@ class Merchant(object):
         # These items are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
         for type_of_item in self.consumed + self.essential + self.preferred:
             for token_of_item in COMMODITY_TYPES[type_of_item]:
-                if token_of_item in self.inventory:
+                if token_of_item in self.buy_inventory:
                     production_cost += int(round(self.buy_economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
         # Take into account the taxes we pay
@@ -1316,7 +1340,8 @@ class Economy:
             for agent in self.starving_agents:
                 if self.owner.warehouses['food'] > 1:
                     self.owner.warehouses['food'].remove('food', 1)
-                    agent.inventory.append('food')
+                    agent.take_bought_item('food')
+
 
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
@@ -1367,8 +1392,8 @@ class Economy:
 
                         ## Update inventories and gold counts
                         for i in xrange(quantity):
-                            buyer.owner.inventory.append(buyer.commodity)
-                            seller.owner.inventory.remove(seller.commodity)
+                            buyer.owner.take_bought_item(buyer.commodity)
+                            seller.owner.remove_sold_item(seller.commodity)
 
                         buyer.owner.gold -= (price*quantity)
                         seller.owner.gold += (price*quantity)

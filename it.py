@@ -63,10 +63,7 @@ LIMIT_FPS = 60
 MIN_SITE_DIST = 4
 
 # There can be this much space between cities when starting an economy
-MAX_ECONOMY_DISTANCE = 15
-
-# How far out to check economies
-CHECK_ECON_DIST = 12
+MAX_ECONOMY_DISTANCE = 25
 
 ##### City map generating stuff
 MAX_BUILDING_SIZE = 15
@@ -3740,7 +3737,7 @@ class City(Site):
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     ## Add extra resource gatherers in the other city
                     city.econ.add_resource_gatherer(item)
-                    #city.econ.add_resource_gatherer(item)
+                    city.econ.add_resource_gatherer(item)
                     #city.econ.add_resource_gatherer(item)
                     #city.econ.add_resource_gatherer(item)
 
@@ -3749,7 +3746,12 @@ class City(Site):
                     for good in good_tokens_this_resource_can_produce:
                         self.econ.add_good_producer(good)
                         self.econ.add_good_producer(good)
-                        #self.econ.add_good_producer(good)
+
+                        # Other city too!
+                        city.econ.add_good_producer(good)
+                        city.econ.add_good_producer(good)
+                        city.econ.add_good_producer(good)
+                        city.econ.add_good_producer(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
                     if item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
@@ -3787,8 +3789,6 @@ class City(Site):
         human = self.create_inhabitant(sex=1, born=time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
         human.set_world_brain(BasicWorldBrain())
 
-
-
         ## Actually give profession to the person ##
         market = self.get_building('Market')
         market.add_profession(Profession(name=traded_item + ' Merchant', category='merchant'))
@@ -3806,9 +3806,9 @@ class City(Site):
             location.get_building('Market').add_worker(human)
 
         ## Now add the caravan to a list
-        caravan_goods = Counter(merchant.inventory)
+        #caravan_goods = Counter(merchant.buy_inventory)
         sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':20}}}
-        WORLD.create_population(char='M', name=self.name + ' caravan', faction=self.faction, creatures={}, sentients=sentients, goods=caravan_goods, wx=self.x, wy=self.y, commander=human)
+        WORLD.create_population(char='M', name=self.name + ' caravan', faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=self.x, wy=self.y, commander=human)
 
         self.caravans.append(human)
 
@@ -3838,6 +3838,19 @@ class City(Site):
     def receive_caravan(self, caravan_leader):
         market = self.get_building('Market')
 
+        # Unload the goods
+        if self.econ == caravan_leader.sapient.economy_agent.sell_economy:
+            unloaded = 0
+            for i in xrange(caravan_leader.sapient.economy_agent.travel_inventory.count(caravan_leader.sapient.economy_agent.traded_item)):
+                caravan_leader.sapient.economy_agent.travel_inventory.remove(caravan_leader.sapient.economy_agent.traded_item)
+                caravan_leader.sapient.economy_agent.sell_inventory.append(caravan_leader.sapient.economy_agent.traded_item)
+                unloaded = 1
+            if unloaded:
+                game.add_message('{0} unloaded {1} {2} in {3}'.format(caravan_leader.fulltitle(), i, caravan_leader.sapient.economy_agent.traded_item, self.name), libtcod.darker_green)
+            else:
+                game.add_message('{0} had no {1} to unload in {2}'.format(caravan_leader.fulltitle(), caravan_leader.sapient.economy_agent.traded_item, self.name), libtcod.darker_red)
+
+        # Add workers to the market
         for figure in caravan_leader.sapient.commanded_figures + [caravan_leader]:
             if figure.sapient.economy_agent:
                 figure.sapient.economy_agent.current_location = self.econ

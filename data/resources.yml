@@ -12,12 +12,12 @@ copper:
     app_chances:
         mountain: 0
         tundra: 0
-        taiga: 2
-        temperate forest: 5
+        taiga: 0
+        temperate forest: 0
         temperate steppe: 5
-        rain forest: 2
-        tree savanna: 6
-        grass savanna: 8
+        rain forest: 0
+        tree savanna: 3
+        grass savanna: 4
         dry steppe: 10
         semi-arid desert: 10
         arid desert: 10
@@ -35,12 +35,12 @@ bronze:
     app_chances:
         mountain: 0
         tundra: 0
-        taiga: 2
-        temperate forest: 5
+        taiga: 0
+        temperate forest: 0
         temperate steppe: 5
-        rain forest: 2
-        tree savanna: 6
-        grass savanna: 8
+        rain forest: 0
+        tree savanna: 3
+        grass savanna: 4
         dry steppe: 10
         semi-arid desert: 10
         arid desert: 10
@@ -58,12 +58,12 @@ iron:
     app_chances:
         mountain: 0
         tundra: 0
-        taiga: 2
-        temperate forest: 5
+        taiga: 0
+        temperate forest: 0
         temperate steppe: 5
-        rain forest: 2
-        tree savanna: 6
-        grass savanna: 8
+        rain forest: 0
+        tree savanna: 3
+        grass savanna: 4
         dry steppe: 10
         semi-arid desert: 10
         arid desert: 10
