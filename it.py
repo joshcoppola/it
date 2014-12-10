@@ -604,7 +604,7 @@ class Region:
         self.wdist = None
         self.moist = None
 
-        self.pathing_number = None
+        self.region_number = None
 
         self.culture = None
         self.site = None
@@ -1618,7 +1618,6 @@ class World:
         #self.travelers = []
         self.sites = []
         self.resources = []
-        self.startlocs = []
         self.ideal_locs = []
 
         self.dynasties = []
@@ -1629,6 +1628,11 @@ class World:
         self.famous_objects = set([])
         ### TODO - move this around; have it use the actual language of the first city
         self.moons, self.suns = religion.create_astronomy()
+
+        # Contiguous region set for play:
+        self.play_region  = None
+        # Tuple of all play tiles
+        self.play_tiles = None
 
         # Set up other important lists
         self.sentient_races = []
@@ -2368,13 +2372,9 @@ class World:
                                 # Hack in the ideal locs and start locs
                                 if resource.name == 'food':
                                     self.ideal_locs.append((x, y))
-                                if self.tiles[x][y].temp >= 20:
-                                    self.startlocs.append((x, y))
-
 
         # Need to calculate pathfinding
         self.initialize_fov()
-
 
         ## Try to shade the map
         max_alpha = .9
@@ -2445,20 +2445,29 @@ class World:
 				'''
 
     def divide_into_regions(self):
-        region_num = 0
+        current_region_number = 0
 
-        def do_fill(region, region_num):
-            region.pathing_number = region_num
+        biggest_region_size = 0
+        biggest_region_num = 0
+        biggest_filled_tiles = None
+
+        def do_fill(region, current_region_number):
+            region.region_number = current_region_number
 
         for x in xrange(1, self.width - 1):
             for y in xrange(1, self.height - 1):
-                if not self.tiles[x][y].blocks_mov and not self.tiles[x][y].pathing_number:
-                    region_num += 1
-                    filled_tiles = floodfill(fmap=self, x=x, y=y, do_fill=do_fill, do_fill_args=[region_num], is_border=lambda tile: tile.blocks_mov or tile.pathing_number)
+                if not self.tiles[x][y].blocks_mov and not self.tiles[x][y].region_number:
+                    current_region_number += 1
+                    filled_tiles = floodfill(fmap=self, x=x, y=y, do_fill=do_fill, do_fill_args=[current_region_number], is_border=lambda tile: tile.blocks_mov or tile.region_number)
 
-                    if len(filled_tiles) > 20:
-                        print 'region {0} created with {1} filled tiles'.format(region_num, len(filled_tiles))
 
+                    if len(filled_tiles) > biggest_region_size:
+                        biggest_region_size = len(filled_tiles)
+                        biggest_region_num = current_region_number
+                        biggest_filled_tiles = filled_tiles
+
+        self.play_region = biggest_region_num
+        self.play_tiles = tuple(biggest_filled_tiles)
 
 
     def gen_history(self, years):
@@ -2519,12 +2528,13 @@ class World:
     def gen_cultures(self):
         begin = time.time()
 
+        number_of_cultures = roll(50, 100)
         ## Place some hunter-getherer cultures
-        while len(self.startlocs) > 1:
-            # Random coords
-            cx, cy = random.choice(self.startlocs)
+        for i in xrange(number_of_cultures):
+            # Random playable coords
+            x, y = random.choice(self.play_tiles)
             # Make sure it's a legit tile and that no other culture owns it
-            if not self.tiles[cx][cy].blocks_mov and self.tiles[cx][cy].culture == None:
+            if not self.tiles[x][y].blocks_mov and self.tiles[x][y].culture == None:
                 # spawn a band
                 language = lang.Language()
                 self.languages.append(language)
@@ -2541,72 +2551,17 @@ class World:
                                 break
 
                 band = Culture(color=random.choice(civ_colors), language=language, world=self, races=races)
+                band.edge = [(x, y)]
+                self.bands.append(band)
 
-                ## Track neighbors
-                neighbor_cultures = []
+        # Now, cultures expand organically
+        expanded_bands = self.bands[:]
+        while expanded_bands:
+            for culture in reversed(expanded_bands):
+                culture_expanded = culture.expand_culture_territory()
 
-                original_region = self.tiles[cx][cy].region
-                self.tiles[cx][cy].culture = band
-                band.territory.append((cx, cy))
-
-                filled_cells = [(cx, cy)]
-                edge = [(cx, cy)]
-                expansions = roll(10, 25)
-                while edge and expansions:
-                    expansions -= 1
-                    newedge = []
-                    for (x, y) in edge:
-                        for (s, t) in get_border_tiles(x, y):
-                            if self.is_val_xy((s, t)) and not self.tiles[s][t].blocks_mov and not self.tiles[s][t].culture:
-                                ## Not very efficient but sort of helps prevent cultures from looking too "square"
-                                ## We'll always expand into our original region, but only a chance of expanding if not
-                                if roll(1, 5) >= 4 or self.tiles[s][t].region == original_region:
-                                    self.tiles[s][t].culture = band
-                                    band.territory.append((s, t))
-
-                                    filled_cells.append((s, t))
-                                    newedge.append((s, t))
-                                ## If we didn't expand, put the original tile back in so it gets another chance
-                                elif not (x, y) in newedge:
-                                    newedge.append((x, y))
-                            # If we bump into a neighbor, remember that
-                            elif self.tiles[s][t].culture and self.tiles[s][t].culture != band:
-                                neighbor_cultures.append(self.tiles[s][t].culture)
-
-                    edge = newedge
-
-                # Smaller cultures get absorbed
-                if len(filled_cells) <= 2 and len(neighbor_cultures):
-                    absorber = random.choice(neighbor_cultures)
-
-                    for (s, t) in filled_cells:
-                        self.tiles[s][t].culture = absorber
-                        absorber.territory.append((s, t))
-                        # Make sure neighbors transfer correctly
-                    for culture in neighbor_cultures:
-                        if culture not in absorber.neighbor_cultures:
-                            absorber.neighbor_cultures.append(culture)
-                            culture.neighbor_cultures.append(absorber)
-
-                # Smaller cultures with no neighbors can die out
-                elif len(filled_cells) < 10 and roll(1, 5) >= 2 and len(neighbor_cultures) == 0:
-                    for (q, r) in band.territory:
-                        self.tiles[q][r].culture = None
-
-                # Normal case - nothing happens, and we meet our neighbors
-                else:
-                    self.bands.append(band)
-
-                    for culture in neighbor_cultures:
-                        band.neighbor_cultures.append(culture)
-                        culture.neighbor_cultures.append(band)
-
-                # After growing, remove the spot from the master "while" loop
-                self.startlocs.remove((cx, cy))
-
-            else:
-                # not a good location, so delete
-                self.startlocs.remove((cx, cy))
+                if not culture_expanded:
+                    expanded_bands.remove(culture)
 
         ## Clean up ideal_locs a bit, so that cities can't start where there's no culture
         ## Reverse to avoid skipping ahead if something gets deleted
@@ -2614,7 +2569,7 @@ class World:
             if (not self.tiles[x][y].culture) or self.tiles[x][y].blocks_mov:
                 self.ideal_locs.remove((x, y))
 
-        game.add_message('Cultures created in %.2f seconds' %(time.time() - begin))
+        game.add_message('Cultures created in {0} seconds'.format(time.time() - begin))
 
         render_handler.render_all()
 
@@ -8344,6 +8299,28 @@ class Culture:
         # On initial run, it should only generate spears (and eventually bows)
         self.create_culture_weapons()
 
+        # Is a list of (x, y) coords - used at beginning, when we're expanding
+        self.edge = None
+
+    def expand_culture_territory(self):
+        ''' Once all cultures are created, they expand one turn at a time. This is the method called to expand '''
+        newedge = []
+        for (x, y) in self.edge:
+            for (s, t) in get_border_tiles(x, y):
+                if WORLD.is_val_xy((s, t)) and not WORLD.tiles[s][t].blocks_mov and not WORLD.tiles[s][t].culture:
+                    self.add_territory(s, t)
+                    newedge.append((s, t))
+
+        self.edge = newedge
+        # Have we expanded?
+        expanded = len(newedge) > 0
+        return expanded
+
+    def add_territory(self, x, y):
+        WORLD.tiles[x][y].culture = self
+        self.territory.append((x, y))
+
+
     def set_culture_traits(self):
         trait_num = roll(3, 4)
         while trait_num > 0:
@@ -8565,6 +8542,8 @@ def get_info_under_mouse():
         color = PANEL_FRONT
         xc, yc = camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
+            info.append(('DBG: Reg{0}, {1}ht'.format(WORLD.tiles[x][y].region_number, WORLD.tiles[x][y].height), libtcod.color_lerp(color, WORLD.tiles[x][y].color, .5)))
+
             info.append((WORLD.tiles[x][y].region.capitalize(), libtcod.color_lerp(color, WORLD.tiles[x][y].color, .5)))
             ###### Cultures ########
             if WORLD.tiles[x][y].culture is not None:
@@ -8573,8 +8552,8 @@ def get_info_under_mouse():
             else:
                 info.append(('No civilized creatures inhabit this region', color))
             ###### Territory #######
-            if WORLD.tiles[x][y].territory is not None:
-                info.append(('Territory: ' + WORLD.tiles[x][y].territory.name, libtcod.color_lerp(color, WORLD.tiles[x][y].territory.color, .3)))
+            if WORLD.tiles[x][y].territory:
+                info.append(('Territory of {0}'.format(WORLD.tiles[x][y].territory.name), libtcod.color_lerp(color, WORLD.tiles[x][y].territory.color, .3)))
             else:
                 info.append(('No state\'s borders claim this region', color))
             info.append((' ', color))
