@@ -516,7 +516,7 @@ def join_list(string_list):
         return ' and '.join(string_list)
     else:
         #return ', '.join([s for s in string_list]) + ', and ', string_list[-1]
-        return '{0}, and {1}'.format(', '.join([s for s in string_list]), string_list[-1])
+        return '{0}, and {1}'.format(', '.join([s for s in string_list[:-1]]), string_list[-1])
 
 
 def centroid(data):
@@ -2594,7 +2594,7 @@ class World:
                 culture.add_villages()
 
                 # Now that the band has some villages, it can change its subsistence strageties
-                culture.set_subsistence(random.choice(('Horticulturalist', 'Pastoralist')))
+                culture.set_subsistence(random.choice(('horticulturalist', 'pastoralist')))
                 culture.create_culture_weapons()
 
 
@@ -2707,8 +2707,8 @@ class World:
                 city.native_res['food'] = 2000
                 self.tiles[city.x][city.y].res['food'] = 2000
 
-            if self.tiles[city.x][city.y].culture.subsistence != 'Agriculture':
-                self.tiles[city.x][city.y].culture.set_subsistence('Agriculture')
+            if self.tiles[city.x][city.y].culture.subsistence != 'agricultural':
+                self.tiles[city.x][city.y].culture.set_subsistence('agricultural')
 
             # Make sure the cultures the cities are a part of gain access to the resource
             for resource in self.tiles[city.x][city.y].res.keys():
@@ -8297,9 +8297,9 @@ class Culture:
         self.races = races
         # Set astrology from the world
         self.astrology = religion.Astrology(world.moons, world.suns, language=self.language)
-        self.pantheon = religion.Pantheon(astrology=self.astrology, num_misc_gods=1)
+        self.pantheon = religion.Pantheon(astrology=self.astrology, num_nature_gods=roll(1, 2))
 
-        self.subsistence = 'Hunter-gatherer'
+        self.subsistence = 'hunter-gatherer'
 
         self.neighbor_cultures = []
 
@@ -9104,32 +9104,22 @@ class Game:
         if self.map_scale == 'human':
 
             panel2.bmap_buttons = [
-                                   gui.Button(gui_panel=panel2, func=player_order_move, args=[],
-                                              text='Move!', topleft=(4, PANEL2_HEIGHT-26), width=10, height=5),
-                                   gui.Button(gui_panel=panel2, func=player_order_follow, args=[],
-                                              text='Follow Me!', topleft=(14, PANEL2_HEIGHT-26), width=10, height=5),
+                                   gui.Button(gui_panel=panel2, func=player_order_move, args=[], text='Move!', topleft=(4, PANEL2_HEIGHT-26), width=10, height=5),
+                                   gui.Button(gui_panel=panel2, func=player_order_follow, args=[], text='Follow Me!', topleft=(14, PANEL2_HEIGHT-26), width=10, height=5),
 
-                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[],
-                                              text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=self.return_to_worldmap, args=[], text='Return to World view',
-                                      topleft=(4, PANEL2_HEIGHT-16), width=20, height=5),
-                                   gui.Button(gui_panel=panel2, func=pick_up_menu, args=[], text='Pick up item',
-                                      topleft=(4, PANEL2_HEIGHT-11), width=20, height=5),
-                                   gui.Button(gui_panel=panel2, func=manage_inventory, args=[], text='Inventory',
-                                      topleft=(4, PANEL2_HEIGHT-6), width=20, height=5)
+                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
+                                   gui.Button(gui_panel=panel2, func=self.return_to_worldmap, args=[], text='Return to World view', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5),
+                                   gui.Button(gui_panel=panel2, func=pick_up_menu, args=[], text='Pick up item', topleft=(4, PANEL2_HEIGHT-11), width=20, height=5),
+                                   gui.Button(gui_panel=panel2, func=manage_inventory, args=[], text='Inventory', topleft=(4, PANEL2_HEIGHT-6), width=20, height=5)
                                    ]
 
         elif self.map_scale == 'world':
 
             panel2.wmap_buttons = [
-                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[],
-                                              text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=WORLD.goto_scale_map, args=[],
-                                              text='Go to scale map', topleft=(4, PANEL2_HEIGHT-16), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=show_civs, args=[WORLD],
-                                              text='Civ info', topleft=(4, PANEL2_HEIGHT-11), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=show_languages, args=[WORLD, None],
-                                              text='Languages', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=5)
+                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
+                                   gui.Button(gui_panel=panel2, func=WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, PANEL2_HEIGHT-16), width=bwidth, height=5),
+                                   gui.Button(gui_panel=panel2, func=show_civs, args=[WORLD], text='Civ info', topleft=(4, PANEL2_HEIGHT-11), width=bwidth, height=5),
+                                   gui.Button(gui_panel=panel2, func=show_cultures, args=[WORLD, None], text='Cultures', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=5)
                                    ]
 
     def handle_fov_recompute(self):
@@ -10255,70 +10245,76 @@ def show_people(world):
         key_pressed = game.get_key(key)
 
 
-def show_languages(world, spec_language=None):
-    lang_number = 0
+def show_cultures(world, spec_culture=None):
+    index = 0
 
     key_pressed = None
     event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
 
     while key_pressed != libtcod.KEY_ESCAPE:
+        #### If there's been a specific culture specified
+        if spec_culture:
+            culture = spec_culture
+            language = culture.language
 
-        if spec_language == None:
-            if key_pressed == libtcod.KEY_LEFT:
-                lang_number -= 1
-            if key_pressed == libtcod.KEY_RIGHT:
-                lang_number += 1
-
-            if lang_number < 0:
-                lang_number = len(world.languages) - 1
-            elif lang_number > len(world.languages) - 1:
-                lang_number = 0
-
-            language = world.languages[lang_number]
-
+        #### Handle flipping through the world's cultures with the arrow keys
         else:
-            language = spec_language
+            if key_pressed == libtcod.KEY_LEFT:
+                index = looped_increment(initial_num=index, max_num=len(WORLD.cultures)-1, increment_amt=-1)
+            elif key_pressed == libtcod.KEY_RIGHT:
+                index = looped_increment(initial_num=index, max_num=len(WORLD.cultures)-1, increment_amt=-1)
 
+            culture = world.cultures[index]
+            language = culture.language
+
+        # Clear console
         libtcod.console_clear(0) ## 0 should be variable "con"?
 
+        culture_box_y = 13
+        language_box_y = culture_box_y + 1
 
         #### General ######
         root_con.draw_box(0, SCREEN_WIDTH - 1, 0, SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
-
-        root_con.draw_box(1, SCREEN_WIDTH - 2, 1, 6, PANEL_FRONT)
-
-        libtcod.console_print(0, 2, 2, 'Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
+        ## Box around cultural descriptions
+        root_con.draw_box(1, SCREEN_WIDTH - 2, 1, culture_box_y, PANEL_FRONT)
+        ## Header
+        libtcod.console_print(0, 2, 2, 'Cultures and Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
 
         libtcod.console_set_default_foreground(0, PANEL_FRONT)
-        libtcod.console_print(0, 4, 4, '-* The language of ' + language.name + ' *-')
+        libtcod.console_print(0, 4, 4, '-* The {0} culture *-'.format(culture.name))
+
+        ## Background info, including subsitence and races
+        libtcod.console_print(0, 4, 6, 'The {0} are a {1}-speaking {2} culture of {3}.'.format(culture.name, language.name.capitalize(), culture.subsistence, join_list([c.capitalize() for c in culture.races])))
+        traits = [tdesc(trait, m) for (trait, m) in culture.culture_traits.iteritems()]
+        libtcod.console_print(0, 4, 7, 'They are considered {0}'.format(join_list(traits)))
+        ## Religion
+        libtcod.console_print(0, 4, 9, 'They worship {0} gods in the Pantheon of {1}'.format(len(culture.pantheon.gods), culture.pantheon.gods[0].fulltitle()))
+        ## Cultural weapons
+        libtcod.console_print(0, 4, 11, 'Their arsenal includes {0}'.format(join_list(culture.weapons)))
 
         ###### PHONOLOGY ########
-        root_con.draw_box(x=1, x2=40, y=7, y2=7 + 2 + len(language.consonants), color=PANEL_FRONT)
-        y = 8
-        libtcod.console_print(0, 4, y, ''.join(['Consonants in ', language.name]))
+        root_con.draw_box(x=1, x2=40, y=language_box_y, y2=language_box_y + 2 + len(language.consonants), color=PANEL_FRONT)
+        y = language_box_y + 1
+        libtcod.console_print(0, 4, y, 'Consonants in {0}'.format(language.name))
         for consonant in language.consonants:
             y += 1
             cnum = consonant.num
             libtcod.console_print(0, 4, y, language.orthography.mapping[cnum])
-
-            description = ''.join([lang.PHON_TO_ENG_EXAMPLES[cnum]])
-            libtcod.console_print(0, 7, y, description)
+            libtcod.console_print(0, 7, y, lang.PHON_TO_ENG_EXAMPLES[cnum])
 
         y += 4
-        root_con.draw_box(x=1, x2=40, y=y - 1, y2=y - 1 + 2 + len(language.vowel_freqs), color=PANEL_FRONT)
-        libtcod.console_print(0, 4, y, ''.join(['Vowels in ', language.name]))
+        root_con.draw_box(x=1, x2=40, y=y-1, y2=y-1 + 2 + len(language.vowel_freqs), color=PANEL_FRONT)
+        libtcod.console_print(0, 4, y, 'Vowels in {0}'.format(language.name))
         for (vnum, vfreq) in language.vowel_freqs:
             y += 1
             libtcod.console_print(0, 4, y, language.orthography.mapping[vnum])
-
-            description = ''.join([lang.PHON_TO_ENG_EXAMPLES[vnum]])
-            libtcod.console_print(0, 7, y, description)
-            ###### / PHONOLOGY #######
+            libtcod.console_print(0, 7, y, lang.PHON_TO_ENG_EXAMPLES[vnum])
+        ###### / PHONOLOGY #######
 
         ###### VOCABULARY ########
-        y = 8
-        root_con.draw_box(x=41, x2=68, y=y - 1, y2=y - 1 + 2 + len(language.vocabulary.keys()), color=PANEL_FRONT)
-        libtcod.console_print(0, 43, y, ''.join(['Basic ', language.name, ' vocabulary']))
+        y = language_box_y + 1
+        root_con.draw_box(x=41, x2=68, y=y-1, y2=y-1 + 2 + len(language.vocabulary.keys()), color=PANEL_FRONT)
+        libtcod.console_print(0, 43, y, 'Basic {0} vocabulary'.format(language.name))
         sorted_vocab = [(k, v) for k, v in language.vocabulary.iteritems()]
         sorted_vocab.sort()
         for (eng_word, word) in sorted_vocab:
@@ -10326,7 +10322,6 @@ def show_languages(world, spec_language=None):
             if y > SCREEN_HEIGHT - 2:
                 break
             libtcod.console_print(0, 43, y, eng_word)
-
             libtcod.console_print(0, 55, y, word)
 
         libtcod.console_flush()
@@ -10334,8 +10329,6 @@ def show_languages(world, spec_language=None):
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
         #key = libtcod.console_check_for_keypress(True)
         key_pressed = game.get_key(key)
-
-
 
 
 def show_civs(world):
@@ -10385,8 +10378,8 @@ def show_civs(world):
             view = 'building'
         elif key_pressed == 'f':
             view = 'figures'
-        elif key_pressed == 'l':
-            show_languages(world=world, spec_language=city.culture.language)
+        elif key_pressed == 'c':
+            show_cultures(world=world, spec_language=city.culture)
         elif key_pressed == 'r':
             world.cities[city_number].econ.run_simulation()
 
@@ -10396,7 +10389,7 @@ def show_civs(world):
         root_con.draw_box(0, SCREEN_WIDTH - 1, 0, SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
         root_con.draw_box(1, SCREEN_WIDTH - 2, 1, 7, PANEL_FRONT)
         libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to change city, PGUP PGDOWN to scroll vertically)')
-        libtcod.console_print(0, 2, 4, '<p> Show people    <b> Show buildings    <f> Show figures    <e> Show economy    <d> Detailed economy    <l> Language')
+        libtcod.console_print(0, 2, 4, '<p> Show people   <b> Show buildings   <f> Show figures   <e> Show economy   <d> Detailed economy   <c> Culture')
 
         #libtcod.console_print_left(0, 2, 4, libtcod.BKGND_NONE, '-* ' + city.name + ' *-')
         #libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
