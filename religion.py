@@ -10,10 +10,13 @@ moon_colors = ['red', 'grey', 'brown', 'green', 'sepia', 'dull grey', 'dull brow
 sun_nums = (1, 1, 1, 1, 1, 1, 2, 2, 2)
 sun_colors = ['white', 'bright white', 'bright yellow', 'dull yellow', 'yellow', 'dull red', 'blue', 'bright blue']
 
-spheres = ['death', 'life', 'love', 'mountains', 'forests', 'rivers', 'oceans', 'industry', 'battle',
-           'music', 'dancing', 'earth_name', 'fertility', 'thunder', 'creation', 'harvests', 'craftsmen',
-           'justice', 'knowledge', 'fire', 'trickery', 'deception', 'feasting', 'wisdom',
-           'the sky', 'lightning', 'storms', 'cities', 'volcanoes', 'thieves']
+natural_spheres = ['mountains', 'forests', 'rivers', 'oceans', 'earth', 'fire', 'the sky']
+
+civilizational_spheres = ['death', 'life', 'love', 'industry', 'battle',
+           'music', 'dancing', 'fertility', 'thunder', 'creation', 'harvests', 'craftsmen',
+           'justice', 'knowledge', 'trickery', 'deception', 'feasting', 'wisdom',
+           'lightning', 'storms', 'cities', 'volcanoes', 'thieves']
+
 
 
 def create_astronomy():
@@ -46,9 +49,11 @@ class Moon:
 
     def describe(self):
         if len(self.astronomy.moons) == 1:
-            return self.name + ', the moon'
+            #return self.name + ', the moon'
+            return 'the moon'
         else:
-            return ''.join([self.name, ', the ', self.color, ' moon'])
+            #return ''.join([self.name, ', the ', self.color, ' moon'])
+            return 'the {0} moon'.format(self.color)
 
 class Sun:
     def __init__(self, name, earth_name, astronomy, color):
@@ -59,9 +64,11 @@ class Sun:
 
     def describe(self):
         if len(self.astronomy.suns) == 1:
-            return self.name + ', the sun'
+            #return self.name + ', the sun'
+            return 'the sun'
         else:
-            return ''.join([self.name, ', the ', self.color, ' sun'])
+            #return ''.join([self.name, ', the ', self.color, ' sun'])
+            return 'the {0} sun'.format(self.color)
 
 
 class Astrology:
@@ -194,10 +201,10 @@ class God:
 
 
 class Pantheon:
-    def __init__(self, astrology, num_misc_gods):
+    def __init__(self, astrology, num_nature_gods):
         self.astrology = astrology
 
-        self.available_spheres = spheres[:]
+        self.available_spheres = natural_spheres[:] + civilizational_spheres[:]
         self.gods = []
 
         self.holy_objects = []
@@ -205,8 +212,11 @@ class Pantheon:
 
         self.create_celestial_gods()
         self.set_name()
-        self.create_misc_gods(num_misc_gods=num_misc_gods)
+        self.create_nature_gods(num_nature_gods=num_nature_gods)
         self.update_god_relationships()
+
+        # Shuffle gods in-place so sun-god is not always first
+        random.shuffle(self.gods)
 
     def create_celestial_gods(self):
         # Create gods for each celestial body
@@ -215,6 +225,17 @@ class Pantheon:
             name = lang.spec_cap(name)
 
             self.gods.append(God(name=name, sphere=c_body.describe()) )
+
+    def create_nature_gods(self, num_nature_gods):
+        # Create misc gods
+        for i in xrange(num_nature_gods):
+            sphere = random.choice([s for s in natural_spheres if s in self.available_spheres])
+            self.available_spheres.remove(sphere)
+
+            name = self.astrology.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
+            name = lang.spec_cap(name)
+
+            self.gods.append(God(name=name, sphere=sphere))
 
     def set_name(self):
         if roll(1, 2) == 1:
@@ -231,6 +252,8 @@ class Pantheon:
 
             self.gods.append(God(name=name, sphere=sphere))
 
+        # Further shuffle gods
+        random.shuffle(self.gods)
 
     def update_god_relationships(self):
         # Gods have relationships with each other
