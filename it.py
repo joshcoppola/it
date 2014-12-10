@@ -271,7 +271,14 @@ civ_colors = (
               libtcod.Color(160, 32, 190), libtcod.Color(96, 121, 106), libtcod.Color(147, 112, 169),
               libtcod.Color(136, 28, 66), libtcod.Color(169, 112, 147), libtcod.Color(95, 122, 103),
               libtcod.Color(101, 120, 101), libtcod.Color(18, 90, 128), libtcod.Color(109, 11, 63),
-              libtcod.Color(113, 40, 113)
+              libtcod.Color(113, 40, 113),
+
+              libtcod.Color(66, 115, 61), libtcod.Color(36, 96, 36), libtcod.Color(189, 169, 18),
+              libtcod.Color(128, 0, 0), libtcod.Color(142, 56, 142), libtcod.Color(113, 113, 198),
+              libtcod.Color(56, 142, 142), libtcod.Color(113, 198, 113), libtcod.Color(198, 113, 113),
+              libtcod.Color(238, 106, 80), libtcod.Color(48, 128, 20), libtcod.Color(0, 199, 140),
+              libtcod.Color(125, 38, 205), libtcod.Color(132, 112, 255), libtcod.Color(61, 89, 171),
+              libtcod.Color(148, 62, 15), libtcod.Color(205, 38, 38), libtcod.Color(255, 64, 64)
               )
 
 MCFG = {
@@ -511,6 +518,11 @@ def join_list(string_list):
         #return ', '.join([s for s in string_list]) + ', and ', string_list[-1]
         return '{0}, and {1}'.format(', '.join([s for s in string_list]), string_list[-1])
 
+
+def centroid(data):
+    x, y = zip(*data)
+    l = len(x)
+    return sum(x) / l, sum(y) / l
 
 
 def cart2card(x1, y1, x2, y2):
@@ -1638,7 +1650,7 @@ class World:
         self.sentient_races = []
         self.brutish_races = []
 
-        self.bands = []
+        self.cultures = []
         self.languages = []
         self.cities = []
         self.hideouts = []
@@ -2528,14 +2540,14 @@ class World:
     def gen_cultures(self):
         begin = time.time()
 
-        number_of_cultures = roll(50, 100)
+        number_of_cultures = roll(75, 100)
         ## Place some hunter-getherer cultures
         for i in xrange(number_of_cultures):
             # Random playable coords
             x, y = random.choice(self.play_tiles)
             # Make sure it's a legit tile and that no other culture owns it
             if not self.tiles[x][y].blocks_mov and self.tiles[x][y].culture == None:
-                # spawn a band
+                # spawn a culture
                 language = lang.Language()
                 self.languages.append(language)
                 if roll(1, 10) > 2:
@@ -2550,24 +2562,26 @@ class World:
                                 races.append(race)
                                 break
 
-                band = Culture(color=random.choice(civ_colors), language=language, world=self, races=races)
-                band.edge = [(x, y)]
-                self.bands.append(band)
+                culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=races)
+                culture.edge = [(x, y)]
+                culture.add_territory(x, y)
+                self.cultures.append(culture)
 
         # Now, cultures expand organically
-        expanded_bands = self.bands[:]
-        while expanded_bands:
-            for culture in reversed(expanded_bands):
+        expanded_cultures = self.cultures[:]
+        while expanded_cultures:
+            for culture in reversed(expanded_cultures):
                 culture_expanded = culture.expand_culture_territory()
 
                 if not culture_expanded:
-                    expanded_bands.remove(culture)
+                    expanded_cultures.remove(culture)
 
-        ## Clean up ideal_locs a bit, so that cities can't start where there's no culture
-        ## Reverse to avoid skipping ahead if something gets deleted
-        for x, y in reversed(self.ideal_locs):
-            if (not self.tiles[x][y].culture) or self.tiles[x][y].blocks_mov:
-                self.ideal_locs.remove((x, y))
+                    (cx, cy) = centroid(culture.territory)
+                    culture.centroid = (int(cx), int(cy))
+                    #self.tiles[culture.centroid[0]][culture.centroid[1]].color = libtcod.green
+
+        ## Clean up ideal_locs a bit
+        self.ideal_locs = filter(lambda (x, y): self.tiles[x][y].culture and not self.tiles[x][y].blocks_mov, self.ideal_locs)
 
         game.add_message('Cultures created in {0} seconds'.format(time.time() - begin))
 
@@ -2575,13 +2589,13 @@ class World:
 
     def settle_cultures(self):
         '''Right now, a really simple and bad way to get some additional settlements'''
-        for band in self.bands:
+        for culture in self.cultures:
             if roll(1, 5) == 1:
-                band.add_villages()
+                culture.add_villages()
 
                 # Now that the band has some villages, it can change its subsistence strageties
-                band.set_subsistence(random.choice(('Horticulturalist', 'Pastoralist')))
-                band.create_culture_weapons()
+                culture.set_subsistence(random.choice(('Horticulturalist', 'Pastoralist')))
+                culture.create_culture_weapons()
 
 
     def create_civ_cradle(self):
@@ -8288,7 +8302,11 @@ class Culture:
         self.subsistence = 'Hunter-gatherer'
 
         self.neighbor_cultures = []
+
         self.territory = []
+        # "Center" of territory
+        self.centroid = None
+
         self.villages = []
         self.access_res = []
 
@@ -8307,7 +8325,7 @@ class Culture:
         newedge = []
         for (x, y) in self.edge:
             for (s, t) in get_border_tiles(x, y):
-                if WORLD.is_val_xy((s, t)) and not WORLD.tiles[s][t].blocks_mov and not WORLD.tiles[s][t].culture:
+                if WORLD.is_val_xy((s, t)) and not WORLD.tiles[s][t].blocks_mov and not WORLD.tiles[s][t].culture and roll(1, 5) > 1:
                     self.add_territory(s, t)
                     newedge.append((s, t))
 
@@ -10269,8 +10287,7 @@ def show_languages(world, spec_language=None):
 
         root_con.draw_box(1, SCREEN_WIDTH - 2, 1, 6, PANEL_FRONT)
 
-        libtcod.console_print(0, 2, 2,
-                              'Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
+        libtcod.console_print(0, 2, 2, 'Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
 
         libtcod.console_set_default_foreground(0, PANEL_FRONT)
         libtcod.console_print(0, 4, 4, '-* The language of ' + language.name + ' *-')
