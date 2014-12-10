@@ -604,6 +604,8 @@ class Region:
         self.wdist = None
         self.moist = None
 
+        self.pathing_number = None
+
         self.culture = None
         self.site = None
         self.territory = None
@@ -1684,6 +1686,9 @@ class World:
 
         ##### End setup actual world #####
 
+        # For pathing
+        self.divide_into_regions()
+
         ######## Add some buttons #######
         panel2.wmap_buttons = [
                           gui.Button(gui_panel=panel2, func=self.gen_history, args=[1],
@@ -2438,6 +2443,22 @@ class World:
 						if self.tiles[nx][ny].region == self.tiles[x][y].region:
 							self.tiles[x][y].color = libtcod.color_lerp(self.tiles[x][y].color, self.tiles[nx][ny].color, smooth_coef)
 				'''
+
+    def divide_into_regions(self):
+        region_num = 0
+
+        def do_fill(region, region_num):
+            region.pathing_number = region_num
+
+        for x in xrange(1, self.width - 1):
+            for y in xrange(1, self.height - 1):
+                if not self.tiles[x][y].blocks_mov and not self.tiles[x][y].pathing_number:
+                    region_num += 1
+                    filled_tiles = floodfill(fmap=self, x=x, y=y, do_fill=do_fill, do_fill_args=[region_num], is_border=lambda tile: tile.blocks_mov or tile.pathing_number)
+
+                    if len(filled_tiles) > 20:
+                        print 'region {0} created with {1} filled tiles'.format(region_num, len(filled_tiles))
+
 
 
     def gen_history(self, years):
