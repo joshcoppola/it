@@ -8323,15 +8323,23 @@ class Culture:
     def expand_culture_territory(self):
         ''' Once all cultures are created, they expand one turn at a time. This is the method called to expand '''
         newedge = []
+        expanded = 0
         for (x, y) in self.edge:
             for (s, t) in get_border_tiles(x, y):
-                if WORLD.is_val_xy((s, t)) and not WORLD.tiles[s][t].blocks_mov and not WORLD.tiles[s][t].culture and roll(1, 5) > 1:
-                    self.add_territory(s, t)
-                    newedge.append((s, t))
+                if WORLD.is_val_xy((s, t)) and not WORLD.tiles[s][t].blocks_mov and not WORLD.tiles[s][t].culture:
+                    expanded = 1
+                    # A little randomness helps the cultures look more natural
+                    # However, we must set expanded to true so that even if the check fails, this culture will
+                    # go back to expand again next round (Fixes glitch where cultures stopped expanding before continent was filled)
+                    if roll(1, 5) > 1:
+                        self.add_territory(s, t)
+                        newedge.append((s, t))
+                    # If random roll fails, must re-check this tile
+                    else:
+                        newedge.append((x, y))
 
         self.edge = newedge
-        # Have we expanded?
-        expanded = len(newedge) > 0
+
         return expanded
 
     def add_territory(self, x, y):
