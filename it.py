@@ -2619,31 +2619,21 @@ class World:
         # Running list of cultures who have created cities
         civilized_cultures = []
 
+        city_blocker_resources = ('copper', 'bronze', 'iron')
+
         while city_sites != []:
             nx, ny = random.choice(city_sites)
             city_sites.remove((nx, ny))
-            ########## :( #################
-            # Make sure the chosen site has a path to the rest of the cities
-            # Should prevent stray cities on islands or whatever
-            road_path = libtcod.path_compute(self.rook_path_map, x, y, nx, ny)
-            new_path_len = libtcod.path_size(self.rook_path_map)
-            if (x, y) == (nx, ny):
-                new_path_len = 1
-            elif not new_path_len:
-                print 'new_path_len', new_path_len, ', so looks like this did something'
-            ########## :( ###############
 
-            if not new_path_len or self.tiles[nx][ny].culture == None or self.tiles[nx][ny].site != None:
+            for resource in WORLD.tiles[nx][ny].res.keys():
+                if resource in city_blocker_resources:
+                    (nx, ny) = random.choice([t for t in get_border_tiles(nx, ny) if self.is_valid_site(t[0], t[1]) ])
+                    break
+
+            if self.tiles[nx][ny].site:
                 continue
 
-            ## Ugly hack for now - but we don't want a city to start with JUST food
-            if self.tiles[nx][ny].res.keys() == ['food']:
-                self.tiles[nx][ny].res['flax'] = 2000
-            #################
-            # This will later civilize the cultures that cities start in
-            if self.tiles[nx][ny].culture not in civilized_cultures:
-                civilized_cultures.append(self.tiles[nx][ny].culture)
-            ################
+            #### Create a civilization #####
             civ_color = random.choice(civ_colors)
             name = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
 
@@ -2664,56 +2654,32 @@ class World:
             # Setup satellites around the city #
             for resource_loc in nearby_resource_locations:
                 wx, wy = resource_loc
-                distance_to_city = self.get_astar_distance_to(nx, ny, wx, wy)
-                ## Occasionally they can colonize an area where no culture actively exists, this should fix that
-                if self.tiles[wx][wy].culture is None:
-                    self.tiles[wx][wy].culture = city.culture
-
-                if self.tiles[wx][wy].culture not in civilized_cultures:
-                    civilized_cultures.append(self.tiles[wx][wy].culture)
-                ## Now, create colonies
-                if self.tiles[wx][wy].site == None and distance_to_city <= 3:
-                    ## TITLE INFO ##
-                    ## Creating a village which will be vassal to the original city
-                    vname = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
-
-                    profession = Profession(name='Chief', category='noble')
-                    new_faction = Faction(leader_prefix='Chief', faction_name='Chiefdom of %s'%vname, color=civ_color, succession='dynasty')
-                    city.faction.set_subfaction(new_faction)
-
-                    village = self.make_city(cx=wx, cy=wy, char='+', color=civ_color, name=vname, faction=new_faction)
-
-                    ## New dynasty here too
-                    leader, all_new_figures = village.create_initial_dynasty(wife_is_new_dynasty=1)
-                    new_faction.set_leader(leader)
-                    profession.give_profession_to(figure=leader)
-                    profession.set_building(building=village.get_building(building_name='City Hall'))
-
-                    created_cities.append(village)
-                    #########################
-                    for resource, amount in self.tiles[wx][wy].res.iteritems():
-                        city.add_import(village, resource)
-                        village.add_export(city, resource)
-                        # Add the resource to the city's access
-                        #city.obtain_resource(resource, amount-10)
-
-                elif self.tiles[wx][wy].site == None and distance_to_city > 3:
-                    ## add any site which if greater than a certain distance
+                for location in [(city.x, city.y) for city in created_cities] + city_sites:
+                    if get_distance_to(location[0], location[1], wx, wy) <= 3:
+                        break
+                ## Add to cities if it's not too close
+                else:
                     city_sites.append((wx, wy))
+
 
         ## We assume the domestication of food has spread to all nearby cities
         for city in created_cities:
             if not 'food' in city.native_res.keys():
                 city.native_res['food'] = 2000
-                self.tiles[city.x][city.y].res['food'] = 2000
+            if not 'flax' in city.native_res.keys():
+                city.native_res['flax'] = 2000
 
-            if self.tiles[city.x][city.y].culture.subsistence != 'agricultural':
-                self.tiles[city.x][city.y].culture.set_subsistence('agricultural')
+            if city.culture.subsistence != 'agricultural':
+                city.culture.set_subsistence('agricultural')
 
             # Make sure the cultures the cities are a part of gain access to the resource
             for resource in self.tiles[city.x][city.y].res.keys():
                 if resource not in self.tiles[city.x][city.y].culture.access_res:
                     self.tiles[city.x][city.y].culture.access_res.append(resource)
+
+            if city.culture not in civilized_cultures:
+                civilized_cultures.append(city.culture)
+
         ## The cultures surrounding the cities now fill in with villages, sort of
         for culture in civilized_cultures:
             # Add some more gods to their pantheons, and update the relationships between them
@@ -3854,12 +3820,8 @@ class City(Site):
             for y in range(self.y - self.territory_radius, self.y + self.territory_radius + 1):
                 if in_circle(center_x=self.x, center_y=self.y, radius=self.territory_radius, x=x, y=y) and not WORLD.tiles[x][y].blocks_mov:
                     if WORLD.tiles[x][y].territory is None:
-                        WORLD.tiles[x][y].territory = self
-                        self.territory.append((x, y))
-
-                    if WORLD.tiles[x][y].culture is None:
-                        WORLD.tiles[x][y].culture = self.culture
-
+                        self.acquire_tile(x, y)
+                # Force-acquire any tile within 2 distance of us
                 elif WORLD.tiles[x][y].territory != self and self.distance(x, y) < 2:
                     self.acquire_tile(x, y)
 
@@ -3882,6 +3844,10 @@ class City(Site):
         WORLD.tiles[x][y].territory = self
         if (x, y) not in self.territory:
             self.territory.append((x, y))
+
+        # Add any resources
+        for resource, amount in WORLD.tiles[x][y].res.iteritems():
+            self.obtain_resource(resource=resource, amount=amount)
 
     def abandon_site(self):
         if self in self.owner.cities:
