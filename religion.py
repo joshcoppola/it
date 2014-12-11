@@ -10,12 +10,13 @@ moon_colors = ['red', 'grey', 'brown', 'green', 'sepia', 'dull grey', 'dull brow
 sun_nums = (1, 1, 1, 1, 1, 1, 2, 2, 2)
 sun_colors = ['white', 'bright white', 'bright yellow', 'dull yellow', 'yellow', 'dull red', 'blue', 'bright blue']
 
-natural_spheres = ['mountains', 'forests', 'rivers', 'oceans', 'earth', 'fire', 'the sky']
+natural_spheres = ['mountains', 'forests', 'rivers', 'oceans', 'water', 'earth', 'fire', 'the sky', 'night', 'the stars', 'plains']
 
-civilizational_spheres = ['death', 'life', 'love', 'industry', 'battle',
+civilizational_spheres = ['death', 'life', 'love', 'industry', 'battle', 'healing', 'hearth',
            'music', 'dancing', 'fertility', 'thunder', 'creation', 'harvests', 'craftsmen',
-           'justice', 'knowledge', 'trickery', 'deception', 'feasting', 'wisdom',
-           'lightning', 'storms', 'cities', 'volcanoes', 'thieves']
+           'justice', 'knowledge', 'trickery', 'deception', 'feasting', 'wisdom', 'threshholds',
+           'lightning', 'storms', 'cities', 'volcanoes', 'thieves', 'creation', 'destruction', 'time',
+           'oaths', 'travellers', 'labor']
 
 
 
