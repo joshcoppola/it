@@ -10631,12 +10631,8 @@ def economy_tab(world):
         libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to scroll)')
         libtcod.console_print(0, 2, 4, '<p> - Show people    <b> - Show buildings    <f> - Show figures    <e> Show economy')
 
-        #libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
-        #libtcod.console_print_left(0, 2, 4, libtcod.BKGND_NONE, '-* ' + city.name + ' *-')
-
         libtcod.console_set_default_foreground(0, PANEL_FRONT)
-        libtcod.console_print(0, 2, 5,
-                              str(len(city.territory)) + ' square km. Access to: ' + ', '.join(city.native_res.keys()))
+        libtcod.console_print(0, 2, 5,'{0} square km. Access to: {1}'.format(len(city.territory), join_list(city.native_res.keys())))
 
         ####### AGENTS ############
         y = 10
@@ -10657,23 +10653,23 @@ def economy_tab(world):
             if y > 70:
                 break
             libtcod.console_print(0, 5, y, agent.name)
-            libtcod.console_print(0, 5, y + 1, str(agent.gold) + ' gold')
-            libtcod.console_print(0, 5, y + 2, str(agent.buys) + ' buys')
-            libtcod.console_print(0, 5, y + 3, str(agent.sells) + ' sells')
-            libtcod.console_print(0, 5, y + 4, 'Alive: ' + str(agent.turns_alive))
-            libtcod.console_print(0, 5, y + 5, str(agent.turns_since_food) + ' since food')
+            libtcod.console_print(0, 5, y + 1, '{0} gold'.format(agent.gold))
+            libtcod.console_print(0, 5, y + 2, '{0} buys'.format(agent.buys))
+            libtcod.console_print(0, 5, y + 3, '{0} sells'.format(agent.sells))
+            libtcod.console_print(0, 5, y + 4, 'Alive: {0}'.format(agent.turns_alive))
+            libtcod.console_print(0, 5, y + 5, '{0} since food'.format(agent.turns_since_food))
 
             inventory = Counter(agent.inventory)
             iy = y
             for item, amount in inventory.iteritems():
-                libtcod.console_print(0, 25, iy, item + ' (' + str(amount) + ')')
+                libtcod.console_print(0, 25, iy, '{0} ({1})'.format(item, amount))
                 iy += 1
                 if iy > 70: break
 
             cy, ly = y, y
             if agent in city.econ.resource_gatherers + city.econ.good_producers:
                 for commodity, value in agent.perceived_values.iteritems():
-                    libtcod.console_print(0, 45, cy, commodity + ': ' + str(value.center) + ' (' + str(value.uncertainty) + ')')
+                    libtcod.console_print(0, 45, cy, '{0}: {1} ({2})'.format(commodity, value.center, value.uncertainty))
                     cy += 1
                     if cy > 70: break
 
