@@ -7882,9 +7882,8 @@ class BasicWorldBrain:
                 weighed_options[option][misc_reason] = decisions[decision_name][option][misc_reason]
 
 
-######################## Code from Paradox Inversion on libtcod forums ###################################
 class TimeCycle(object):
-    # The TimeCycle class has all information on time and current day
+    ''' Code adapted from Paradox Inversion on libtcod forums '''
     def __init__(self):
         self.ticks_per_hour = 600
         self.hours_per_day = 24
@@ -7900,10 +7899,9 @@ class TimeCycle(object):
         self.current_month = 0
         self.current_year = 1
 
-        self.weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
-                         'Saturday', 'Sunday']
-        self.months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
-                       'September', 'October', 'November', 'December']
+        self.weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        self.months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
         ## Dict of events, with keys being the future Y, M, and D, and values being a list of events
         self.events = {}
 
@@ -7944,7 +7942,6 @@ class TimeCycle(object):
             for event in self.events[(self.current_year, self.current_month, self.current_day)]:
                 event()
 
-
     def check_tick(self):
         if self.current_tick == self.ticks_per_hour:
             self.current_tick = 0
@@ -7952,11 +7949,11 @@ class TimeCycle(object):
             self.check_hour()
 
     def check_hour(self):
-        if 7 <= self.current_hour < 19:
-            if self.current_hour == 7:
+        # If it's 7am, day breaks
+        if self.current_hour == 7:
                 self.nightToDay()
-        else: #If the current time is not between 7a and 7p
-            if self.current_hour == 19: #If it's 7, night falls
+        # If it's 7pm, night falls
+        elif self.current_hour == 19:
                 self.dayToNight()
 
         if self.current_hour == self.hours_per_day + 1:
@@ -7964,10 +7961,8 @@ class TimeCycle(object):
             self.current_day += 1
             self.current_weekday += 1
             self.check_day()
-            #game.add_message('It is now ' + self.weekdays[self.current_weekday], libtcod.light_sea)
-            # day_tick method to test civs:
+
             self.day_tick(num_days=1)
-            ##############################
 
     def next_day(self):
         if self.current_day + 1 >= self.days_per_month:
@@ -7980,16 +7975,16 @@ class TimeCycle(object):
         # Day to day stuff
         self.current_day += 1
         self.current_weekday += 1
+
         # Change week (civs take turn)
         if self.current_weekday == self.days_per_week:
             self.current_weekday = 0
             self.week_tick()
-            # Change month
+
+        # Change month
         if self.current_day == self.days_per_month:
             self.current_day = 0
-
             self.month_tick()
-            #game.add_message('It is now ' + self.months[self.current_month], libtcod.light_sea)
 
     def check_month(self):
         if self.current_month == self.months_per_year:
@@ -8000,11 +7995,9 @@ class TimeCycle(object):
         self.day_tick(days_til_next_week)
 
     def dayToNight(self):
-        #message ('Night falls.', libtcod.grey)
         pass
 
     def nightToDay(self):
-        #message ('The sun breaks the dark of night.', libtcod.light_yellow)
         pass
 
     def get_current_date(self):
@@ -8013,13 +8006,14 @@ class TimeCycle(object):
     def get_current_time(self):
         minutes = int(math.floor(self.current_tick / 10))
         if minutes < 10:
-            minutes = '0' + str(minutes)
+            minutes = '0{0}'.format(minutes)
         else:
             minutes = str(minutes)
 
-        return str(self.current_hour) + ':' + minutes
+        return '{0}:{1}'.format(self.current_hour, minutes)
 
     def years_ago(self, *args):
+        ''' Calculates X years again if 1 arg, randint between X and Y years ago if 2 args '''
         if len(args) == 1:
             return self.curent_year - args[0]
         elif len(args) == 2:
@@ -8055,21 +8049,8 @@ class TimeCycle(object):
                     next_tick = next_tick - self.ticks_per_hour
                 actor.creature.next_tick = next_tick
                 actor.local_brain.take_turn()
-                #actor.creature.dijmap_move()
 
         M.update_dmaps()
-
-        '''
-		for army in armies_in_battle[:]:
-				if len(army.units) == 0:
-					armies_in_battle.remove(army)
-					army.disband()
-					game.add_message(army.name + ' has been completely destroyed!')
-		'''
-
-    #def hour_tick(self):
-    #    self.current_hour += 1
-    #    self.check_hour()
 
     def day_tick(self, num_days):
         for iteration in xrange(num_days):
@@ -8080,13 +8061,6 @@ class TimeCycle(object):
                 if figure.world_brain and figure.sapient.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
                     #figure.world_brain.next_tick = self.next_day()
                     figure.world_brain.take_turn()
-
-#             for traveler in reversed(WORLD.travelers):
-#                 if traveler.world_brain and traveler.sapient.is_available_to_act() and traveler.world_brain.next_tick == self.current_day:
-#                     traveler.world_brain.next_tick = self.next_day()
-#                     traveler.world_brain.take_turn()
-#                     #M.fov_recompute = True
-#                     #############################################
 
     def week_tick(self):
         # Cheaply defined to get civs working per-day
@@ -8128,7 +8102,6 @@ class TimeCycle(object):
             if figure.sapient.get_age() > 70:
                 figure.sapient.die()
 
-
     def rapid_tick(self, ticks):
         ticks = ticks
         for x in xrange(ticks):
@@ -8141,8 +8114,6 @@ class TimeCycle(object):
     def rapid_month_tick(self, months):
         for x in xrange(months):
             self.month_tick()
-
-######################## End Code from Paradox inversion on libtcod forums ###################################
 
 
 class Camera:
@@ -8330,9 +8301,6 @@ class Culture:
     def set_subsistence(self, subsistence):
         self.subsistence = subsistence
 
-        #if subsistence != 'Hunter-gatherer':
-        #    self.create_culture_weapons()
-
     def gen_word(self, syllables, num_phonemes=(3, 20), cap=0):
         word = self.language.gen_word(syllables=syllables, num_phonemes=num_phonemes)
 
@@ -8352,8 +8320,6 @@ class Culture:
             materials = [m for m in self.access_res if m=='iron' or m=='bronze' or m=='copper']
 
         ''' Create a few types of unique weapons for this culture '''
-        #weapon_types = ('sword', 'axe')
-
         for wtype in weapon_types:
             material_name = random.choice(materials)
             material = phys.materials[material_name]
@@ -8443,7 +8409,6 @@ class Culture:
             if important:
                 WORLD.important_figures.append(human)
 
-
         return human
 
 
@@ -8483,20 +8448,20 @@ def get_info_under_mouse():
     (x, y) = camera.cam2map(mouse.cx, mouse.cy)
     info = []
     if game.map_scale == 'human' and M.is_val_xy((x, y)):
-        info.append(('Tick: ' + str(time_cycle.current_tick), PANEL_FRONT))
-        info.append(('at coords %i, %i height is %i' %(x, y, M.tiles[x][y].height), PANEL_FRONT))
+        info.append(('Tick: {0}'.format(time_cycle.current_tick), PANEL_FRONT))
+        info.append(('at coords {0}, {1} height is {2}'.format(x, y, M.tiles[x][y].height), PANEL_FRONT))
         ### This will spit out some info about the unit we've selected (debug stuff)
         if render_handler.debug_active_unit_dijmap and not M.tiles[x][y].blocks_mov:
             debug_unit = render_handler.debug_active_unit_dijmap
-            info.append((debug_unit.fullname() + ': tick = ' + str(debug_unit.creature.next_tick), libtcod.copper))
+            info.append(('{0}: tick = {1}'.format(debug_unit.fullname(), debug_unit.creature.next_tick), libtcod.copper))
             total_desire = 0
             for desire, amount in debug_unit.creature.dijmap_desires.iteritems():
                 if amount < 0: dcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.red, amount/100)
                 elif amount > 0: dcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.green, amount/100)
                 else: dcolor = PANEL_FRONT
-                info.append((desire + ': ' + str(amount), dcolor ))
+                info.append(('{0}: {1}'.format(desire, amount), dcolor ))
                 total_desire += (M.dijmaps[desire].dmap[x][y] * amount)
-            info.append(('Total: ' + str(total_desire), libtcod.dark_violet))
+            info.append(('Total: {0}'.format(total_desire), libtcod.dark_violet))
             info.append((' ', libtcod.white))
         ###############################################################################
 
@@ -8518,8 +8483,7 @@ def get_info_under_mouse():
                 info.append((obj.fulltitle(), libtcod.color_lerp(PANEL_FRONT, obj.color, .3) ))
 
                 if obj.creature and obj.creature.status == 'alive':
-                    info.append(
-                        ('Facing ' + COMPASS[obj.creature.facing], libtcod.color_lerp(libtcod.yellow, color, .5) ))
+                    info.append(('Facing {0}'.format(COMPASS[obj.creature.facing]), libtcod.color_lerp(libtcod.yellow, color, .5) ))
 
                 info.append((' ', color))
                 '''
@@ -8539,8 +8503,8 @@ def get_info_under_mouse():
             info.append((WORLD.tiles[x][y].region.capitalize(), libtcod.color_lerp(color, WORLD.tiles[x][y].color, .5)))
             ###### Cultures ########
             if WORLD.tiles[x][y].culture is not None:
-                info.append(('Culture:  ' + WORLD.tiles[x][y].culture.name, libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
-                info.append(('Language: ' + WORLD.tiles[x][y].culture.language.name, libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
+                info.append(('Culture: {0}'.format(WORLD.tiles[x][y].culture.name), libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
+                info.append(('Language: {0}'.format(WORLD.tiles[x][y].culture.language.name), libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
             else:
                 info.append(('No civilized creatures inhabit this region', color))
             ###### Territory #######
