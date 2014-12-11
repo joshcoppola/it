@@ -9147,7 +9147,6 @@ class Game:
                 WORLD.tiles[x][y].culture = cult
                 WORLD.tiles[x][y].height = 120
 
-
         ########### Factions ################
         faction1 = Faction(leader_prefix='King', faction_name='Player faction', color=random.choice(civ_colors), succession='dynasty')
         faction2 = Faction(leader_prefix='King', faction_name='Enemy faction', color=random.choice(civ_colors), succession='dynasty')
@@ -9155,23 +9154,23 @@ class Game:
         faction1.set_enemy_faction(faction=faction2)
 
         ### Make the player ###
-        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1, wx=1, wy=1)
+        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1, wx=1, wy=1, save_being=1)
         player.char = '@'
         player.local_brain = None
 
-        ### Make player's party ###
-        #player_party = Army(x=None, y=None, char='@', name=player.fullname() + '\'s band', color=faction1.color, speed=3,
-        #                    goods=None, figures=[player], units={'Swordsmen': 10}, faction=faction1, culture=cult, ai=None)
-        #player_party.world_last_dir = (0, 1)
+        sentients = {cult:{random.choice(cult.races):{'Swordsmen':20}}}
+        player_party = WORLD.create_population(char='@', name="player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=player)
 
-        ### Make enemy party ###
-        #enemy_army = Army(x=None, y=None, char='x', name='Enemies', color=faction2.color, speed=3,
-        #                  goods=None, figures=[], units={'Swordsmen': 10}, faction=faction2, culture=cult, ai=None)
-        #enemy_army.world_last_dir = (0, 0)
+
+        leader = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
+        sentients = {cult:{random.choice(cult.races):{'Bandits':20}}}
+        player_party = WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
+
 
         hideout_site = WORLD.tiles[1][1].add_minor_site(world=WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
         hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
         #hideout_building.add_garrison(enemy_army)
+
         #WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
         #WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
         #WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))
@@ -9193,7 +9192,6 @@ class Game:
         M.set_initial_dmaps()
         M.add_sapients_from_world()
 
-
         # Clothing...
         ### WEARABLE Wearable
         #shirtcomps = phys.shirtcomps
@@ -9204,35 +9202,7 @@ class Game:
         packcomps = phys.packcomps
         pack = Object(name='pack', char='T', color=libtcod.sepia, components=packcomps, blocks_mov=0, blocks_vis=0,
                       description='A pack', creature=None, sapient=None, weapon=None, wearable=1, x=None, y=None)
-
         player.put_on_clothing(clothing=pack)
-        #player.sapient.epithet = "the Wise"
-        ## Deer?
-        #info = phys.creature_dict['deer']
-        #creature_component = Creature(creature_type='deer', sex=1)
-        #deer = assemble_object(object_blueprint=info, creature=creature_component, sapient=None, ai=BasicHerbivore(), force_material=None)
-        #M.add_object_to_map(x=150, y=200, obj=deer)
-
-        ####################
-
-        '''
-        cx, cy = 150, 150
-        colors = [libtcod.red, libtcod.orange, libtcod.yellow, libtcod.cyan, libtcod.blue]
-        side = 20
-
-        for color in colors:
-            side += 10
-            tiles = 0
-            t = time.time()
-
-            for x in xrange(cx-side, cx+1+side):
-                for y in xrange(cy-side, cy+1+side):
-                    if is_circle_radius(cx, cy, side, x, y):
-                        M.tiles[x][y].set_color(color)
-                        tiles += 1
-
-            game.add_message('%i tiles, done in %.05f' %(tiles, time.time()-t), color)
-        '''
 
         camera.center(player.x, player.y)
 
@@ -9244,10 +9214,6 @@ class Game:
 
     def return_to_worldmap(self):
         '''
-        for obj in M.objects[:]:
-            if obj.ai or obj == player:
-                M.objects.remove(obj)
-
         file = shelve.open('WORLD' + str(player_party.x) + str(player_party.y), 'n')
         file['map'] = map
         file['WORLD' + str(player_party.x) + str(player_party.y) + '.objects'] = objects
@@ -9404,7 +9370,6 @@ class Game:
 
 def main_menu():
     global game, mouse, key
-    img = libtcod.image_load('neuromancer.png')
 
     b_width = 20
     # Set button origin points
@@ -9426,22 +9391,14 @@ def main_menu():
 
     ## Start looping
     while not libtcod.console_is_window_closed():
-
         if game.quit_game:
             break
-
-        active_button = None
         ## Clear the console
         libtcod.console_clear(root_con.con)
-        #show the background image, at twice the regular console resolution
-        #libtcod.image_blit_2x(img, 0, 0, 0)
-        #libtcod.image_blit_2x(image=img, console=root_con.con, dx=0, dy=10)
 
         # Handle buttons
         for button in buttons:
-            active_button = button.display(mouse)
-            if active_button is not None:
-                break
+            button.display(mouse)
 
         #show the title
         libtcod.console_set_default_foreground(0, libtcod.light_grey)
@@ -10672,8 +10629,7 @@ def economy_tab(world):
         root_con.draw_box(0, SCREEN_WIDTH - 1, 0, SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
         root_con.draw_box(1, SCREEN_WIDTH - 2, 1, 7, PANEL_FRONT)
         libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to scroll)')
-        libtcod.console_print(0, 2, 4,
-                              '<p> - Show people    <b> - Show buildings    <f> - Show figures    <e> Show economy')
+        libtcod.console_print(0, 2, 4, '<p> - Show people    <b> - Show buildings    <f> - Show figures    <e> Show economy')
 
         #libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
         #libtcod.console_print_left(0, 2, 4, libtcod.BKGND_NONE, '-* ' + city.name + ' *-')
@@ -10772,17 +10728,10 @@ def economy_tab(world):
 if __name__ == '__main__':
     global interface, render_handler, game
 
-    #SCREEN_RES = (1920, 1080)
-    #SCREEN_RES = (1366, 768)
-    #SCREEN_RES = libtcod.sys_get_current_resolution()
     TILE_SIZE = 12
     #actual size of the window
     SCREEN_WIDTH = int(SCREEN_RES[0]/TILE_SIZE)
     SCREEN_HEIGHT = int(SCREEN_RES[1]/TILE_SIZE)
-
-    #SCREEN_WIDTH = 130
-    #SCREEN_HEIGHT = 70
-
 
     PANEL1_HEIGHT = 17
     #sizes and coordinates relevant for the GUI
@@ -10816,10 +10765,7 @@ if __name__ == '__main__':
     MSG_HEIGHT = PANEL1_HEIGHT - 2
 
     font_path = os.path.join(os.getcwd(), 'fonts', 't12_test.png')
-    #libtcod.console_set_custom_font('t10.png', libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE)
     libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
-    #libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'Iron Testament v0.5', False, renderer=libtcod.RENDERER_SDL)
-    #libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'Iron Testament v0.5', False, renderer=libtcod.RENDERER_OPENGL)
     libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'Iron Testament v0.5', True, renderer=libtcod.RENDERER_GLSL)
     libtcod.mouse_show_cursor(visible=1)
     libtcod.sys_set_fps(LIMIT_FPS)
@@ -10834,13 +10780,10 @@ if __name__ == '__main__':
 
     map_con = gui.GuiPanel(width=CAMERA_WIDTH, height=CAMERA_HEIGHT, xoff=0, yoff=0, interface=interface, name='MapCon')
 
-    ## 2 other GUI panels ##
+    ## Other GUI panels ##
     panel1 = gui.GuiPanel(width=PANEL1_WIDTH, height=PANEL1_HEIGHT, xoff=PANEL1_XPOS, yoff=PANEL1_YPOS, interface=interface, name='Panel1')
-
     panel2 = gui.GuiPanel(width=PANEL2_WIDTH, height=PANEL2_HEIGHT, xoff=PANEL2_XPOS, yoff=PANEL2_YPOS, interface=interface, name='Panel2')
-
     panel3 = gui.GuiPanel(width=PANEL3_WIDTH, height=PANEL3_HEIGHT, xoff=PANEL3_XPOS, yoff=PANEL3_YPOS, interface=interface, name='Panel3')
-
     panel4 = gui.GuiPanel(width=PANEL4_WIDTH, height=PANEL4_HEIGHT, xoff=PANEL4_XPOS, yoff=PANEL4_YPOS, interface=interface, name='Panel4')
     panel4.render = False
 
