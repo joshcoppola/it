@@ -8916,9 +8916,6 @@ def infobox(header, options, xb=0, yb=0, xoffset=2, yoffset=2, textc=libtcod.gre
         libtcod.console_flush()
 
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
-        #key = libtcod.console_wait_for_keypress(True)
-        #key = libtcod.console_check_for_keypress(False)
-        #### Mouse code ####
         (mx, my) = (mouse.cx, mouse.cy)
 
     libtcod.console_delete(wpanel.con)
@@ -10222,7 +10219,6 @@ def show_cultures(world, spec_culture=None):
         libtcod.console_flush()
 
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
-        #key = libtcod.console_check_for_keypress(True)
         key_pressed = game.get_key(key)
 
 
@@ -10286,16 +10282,11 @@ def show_civs(world):
         libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to change city, PGUP PGDOWN to scroll vertically)')
         libtcod.console_print(0, 2, 4, '<p> Show people   <b> Show buildings   <f> Show figures   <e> Show economy   <d> Detailed economy   <c> Culture')
 
-        #libtcod.console_print_left(0, 2, 4, libtcod.BKGND_NONE, '-* ' + city.name + ' *-')
-        #libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
-        #libtcod.console_print_left(0, 2, 5, libtcod.BKGND_NONE, '-* ' + city.name + ' *-' + str(len(city.territory)) + ' square km. Access to: ' + ', '.join(city.native_res.keys()))
-        #libtcod.console_set_default_foreground(0, PANEL_FRONT)
-
         ## Show government type - left panel
         root_con.draw_box(1, 28, 8, SCREEN_HEIGHT - 2, PANEL_FRONT) # Around relations
         # Check for title holder
         if city.faction.leader:
-            title_info = ' '.join([city.faction.leader_prefix, city.faction.get_leader().fullname(), 'age', str(city.faction.get_leader().sapient.get_age())])
+            title_info = '{0} {1}, age {2}'.format(city.faction.leader_prefix, city.faction.get_leader().fullname(), city.faction.get_leader().sapient.get_age())
         else:
             title_info = 'No holder'
         libtcod.console_print(0, 2, 11, title_info)
@@ -10303,7 +10294,7 @@ def show_civs(world):
 
         y = 13
         for heir in city.faction.heirs:
-            libtcod.console_print(0, 2, y, heir.fullname() + ', age ' + str(heir.sapient.get_age()))
+            libtcod.console_print(0, 2, y, '{0}, age {1}'.format(heir.fullname(), heir.sapient.get_age()))
             y += 1
 
         ######### Cities and governers #############
@@ -10311,9 +10302,8 @@ def show_civs(world):
 
         y = 14
         libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
-        libtcod.console_print(0, 32, y - 4, 'City of ' + city.name + ' (Population: ' + str(
-            city.get_population()) + ', Treasury: ' + str(city.treasury) + ')')
-        libtcod.console_print(0, 32, y - 3, 'Immediate access to: ' + ', '.join(city.native_res.keys()))
+        libtcod.console_print(0, 32, y - 4, 'City of {0} (Population: {1}, {2} gold)'.format(city.name, city.get_population(), city.treasury))
+        libtcod.console_print(0, 32, y - 3, 'Access to: {0}'.format(join_list(city.native_res.keys())))
         if city.faction.parent == None:
             liege = ' * Independent *  '
         else:
@@ -10577,7 +10567,6 @@ def show_civs(world):
         libtcod.console_flush()
 
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
-        #key = libtcod.console_check_for_keypress(True)
         key_pressed = game.get_key(key)
 
 
@@ -10585,7 +10574,7 @@ def economy_tab(world):
     global mouse, key
     city_number = 0
     agent_index = 0
-    view = 'economy'
+
     key_pressed = None
     event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
 
@@ -10632,7 +10621,7 @@ def economy_tab(world):
         libtcod.console_print(0, 2, 4, '<p> - Show people    <b> - Show buildings    <f> - Show figures    <e> Show economy')
 
         libtcod.console_set_default_foreground(0, PANEL_FRONT)
-        libtcod.console_print(0, 2, 5,'{0} square km. Access to: {1}'.format(len(city.territory), join_list(city.native_res.keys())))
+        libtcod.console_print(0, 2, 5, '{0} square km. Access to: {1}'.format(len(city.territory), join_list(city.native_res.keys())))
 
         ####### AGENTS ############
         y = 10
@@ -10680,11 +10669,11 @@ def economy_tab(world):
 
             elif agent in city.econ.buy_merchants + city.econ.sell_merchants and agent.current_location == city.econ:
                 for commodity, value in agent.buy_perceived_values.iteritems():
-                    libtcod.console_print(0, 45, cy, agent.buy_economy.owner.name + ' - ' + commodity + ': ' + str(value.center) + ' (' + str(value.uncertainty) + ')')
+                    libtcod.console_print(0, 45, cy, '{0} - {1}: {2} ({3})'.format(agent.buy_economy.owner.name, commodity, value.center, value.uncertainty))
                     cy += 1
                     if cy > 70: break
                 for commodity, value in agent.sell_perceived_values.iteritems():
-                    libtcod.console_print(0, 45, cy, agent.sell_economy.owner.name + ' - ' + commodity + ': ' + str(value.center) + ' (' + str(value.uncertainty) + ')')
+                    libtcod.console_print(0, 45, cy, '{0} - {1}: {2} ({3})'.format(agent.sell_economy.owner.name, commodity, value.center, value.uncertainty))
                     cy += 1
                     if cy > 70: break
 
@@ -10716,7 +10705,6 @@ def economy_tab(world):
         libtcod.console_flush()
 
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
-        #key = libtcod.console_check_for_keypress(True)
         key_pressed = game.get_key(key)
 
 
@@ -10766,11 +10754,9 @@ if __name__ == '__main__':
     libtcod.mouse_show_cursor(visible=1)
     libtcod.sys_set_fps(LIMIT_FPS)
 
-    #interface = gui.PlayerInterface()
+    # PlayerInterface class has been initialized in GUI
     interface = gui.interface
-
     root_con = gui.GuiPanel(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, xoff=0, yoff=0, interface=interface, is_root=1, name='Root')
-    #libtcod.console_set_fullscreen(True)
 
     render_handler = RenderHandler()
 
