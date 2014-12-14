@@ -9779,6 +9779,9 @@ def show_civs(world):
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
         key_pressed = game.get_key(key)
 
+        if key_pressed == 'a':
+            city.econ.graph_results(solid=city.econ.get_all_available_commodity_tokens(), dot=[])
+
 
 def economy_tab(world):
     global mouse, key
