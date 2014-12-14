@@ -1128,10 +1128,11 @@ class Value:
         self.center = center + roll(-2, 2)
         self.uncertainty = uncertainty + roll(-2, 2)
 
-class Auction:
+class AuctionHouse:
     # Seperate "auction" for each commodity
     # Runs each round of bidding, as well as archives historical price info
-    def __init__(self, commodity):
+    def __init__(self, economy, commodity):
+        self.economy = economy
         self.commodity = commodity
         self.bids = []
         self.sells = []
@@ -1165,6 +1166,22 @@ class Auction:
         for price in reversed(self.price_history):
             if price is not None:
                 return price
+
+    def check_auction_health(self):
+        ''' Find how many times this item was requested, but was not available to buy '''
+        # Get the most recent 10 entries of the auction
+        recent_bids = self.bid_history[-10:]
+        recent_bids.reverse()
+        recent_sells = self.sell_history[-10:]
+        recent_sells.reverse()
+
+        num_times_commodity_not_present = 0
+        for i, num_sells in enumerate(recent_sells):
+            if num_sells == 0 and recent_bids[i] > 0:
+                num_times_commodity_not_present += 1
+
+        #if num_times_commodity_not_present > 0:
+        #    print '{0}: {1} bid on in {2} out of 10 latest rounds, but was not available'.format(self.economy.owner.name, self.commodity, num_times_commodity_not_present)
 
 class Offer:
     # An offer that goes into the auction's "bids" or "sells".
@@ -1208,14 +1225,15 @@ class Economy:
 
 
     def add_commodity_to_economy(self, commodity):
+        ''' Each commodity has an associated auction house, containing some price / bidding history '''
         category = COMMODITY_TOKENS[commodity].category
         if category in self.available_types.keys():
             if commodity not in self.available_types[category]:
                 self.available_types[category].append(commodity)
-                self.auctions[commodity] = Auction(commodity)
+                self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
         else:
             self.available_types[category] = [commodity]
-            self.auctions[commodity] = Auction(commodity)
+            self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
 
     def add_random_agent(self):
         if roll(0, 1):
@@ -1467,6 +1485,9 @@ class Economy:
             del self.owner.food_demand[0]
             self.owner.food_supply.append(self.auctions['food'].supply)
             self.owner.food_demand.append(self.auctions['food'].demand)
+
+        #auction.check_auction_health()
+
 
     def graph_results(self, solid, dot):
         # Spit out some useful info	about the economy
