@@ -9628,14 +9628,12 @@ def show_civs(world):
                     libtcod.console_print(0, 100, y, str(auction.mean_price))
 
                     # Color trades - green means price last round was > than avg, red means < than avg
-                    if auction.mean_price <= auction.price_history[-1]:
-                        color = libtcod.color_lerp(libtcod.green, PANEL_FRONT,
-                                                   auction.mean_price / auction.price_history[-1])
+                    if auction.mean_price <= auction.get_last_valid_price():
+                        color = libtcod.color_lerp(libtcod.green, PANEL_FRONT, auction.mean_price / auction.get_last_valid_price())
                     else:
-                        color = libtcod.color_lerp(libtcod.red, PANEL_FRONT,
-                                                   auction.price_history[-1] / auction.mean_price)
+                        color = libtcod.color_lerp(libtcod.red, PANEL_FRONT, auction.get_last_valid_price() / auction.mean_price)
                     libtcod.console_set_default_foreground(0, color)
-                    libtcod.console_print(0, 105, y, str(auction.price_history[-1]))
+                    libtcod.console_print(0, 105, y, str(auction.get_last_valid_price()))
                     ## /color trades
                     libtcod.console_set_default_foreground(0, PANEL_FRONT)
                     libtcod.console_print(0, 110, y, str(auction.supply))
