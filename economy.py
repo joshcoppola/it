@@ -4,17 +4,13 @@ import random
 #import pstats
 import os
 import yaml
-'''
-try:
-    import numpy as np
-except:
-    print 'Can\'t load numpy - no access to graphs'
 
 try:
-    from matplotlib.pyplot import plot, title, legend, show, grid, figure
+    import numpy as np
+    import matplotlib.pyplot as plt
 except:
-    print 'Can\'t load matplotlib - no access to graphs'
-'''
+    print 'Can\'t load numpy or matplotlib - no access to graphs'
+
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
 HIST_WINDOW_SIZE = 5 # Amount of trades auctions keep in memory to determine avg price (used by agents)
@@ -43,6 +39,9 @@ FOOD_BID_THRESHHOLD = 4 # Will bid on food when lower than this amount
 GRANARY_THRESH = 5 # # of turns before we can get free food from the granary
 STARVATION_THRESH = 10 # # of turns before we starve
 ########################### New stuff ###########################
+
+plot_colors = {'food':(0, 1, 0), 'flax':(.5, .5, .4), 'clay':(.8, .5, .4), 'wood':(.2, .2, .1), 'copper':(.9, .5, .1), 'bronze':(.7, .6, .05), 'iron':(.3, .3, .3),
+               'flax clothing':(.2, .2, .1), 'clay pottery':(.6, .3, .2), 'wood furniture':(.1, .1, 0), 'copper tools':(.7, .3, 0), 'bronze tools':(.5, .4, 0), 'iron tools':(.1, .1, .1)}
 
 
 def setup_resources():
@@ -1213,7 +1212,7 @@ class Economy:
         # Amount of gold paid in taxes each turn
         self.local_taxes = local_taxes
 
-    def get_commodity_types(self):
+    def get_all_available_commodity_tokens(self):
         return [token for tokens in self.available_types.values() for token in tokens]
 
     def get_valid_agent_types(self):
@@ -1492,45 +1491,85 @@ class Economy:
     def graph_results(self, solid, dot):
         # Spit out some useful info	about the economy
         overall_history = []
+        overall_bid_history = []
+        overall_sell_history = []
         # Bad hack to transpose matix so plot() works correctly
         for i in xrange(len(self.auctions['food'].price_history)):
             overall_history.append([])
+            overall_bid_history.append([])
+            overall_sell_history.append([])
             for auction in self.auctions.itervalues():
                 overall_history[i].append(auction.price_history[i])
+                overall_bid_history[i].append(auction.bid_history[i])
+                overall_sell_history[i].append(auction.sell_history[i])
 
         # Split in half so graph is easier to read
         if len(dot) == 0:
-            half_items = int(round(len(solid)/2))
-            dot = solid[:-half_items]
-            solid = solid[-half_items:]
+            #half_items = int(round(len(solid)/2))
+            #dot = solid[:-half_items]
+            #solid = solid[-half_items:]
+            new_solid = []
+            dot = []
+            for item in solid:
+                if item in [r.name for r in RESOURCES]:
+                    dot.append(item)
+                elif item in [g.name for g in GOODS]:
+                    new_solid.append(item)
 
-        ## Solid lines
-        for item in solid:
-            plot(self.auctions[item].price_history, lw=3.0, alpha=.6)
-
-        ## Dotted lines
-        for item in dot:
-            plot(self.auctions[item].price_history, '--', lw=3.0, alpha=.6)
+            solid = new_solid
 
         ## Legend for graph
         glegend = []
-        for thing in solid:
-            glegend.append(thing)
-        for thing in dot:
-            glegend.append(thing)
+        for item in solid + dot:
+            name_for_legend = item
+            # Check for imported
+            for other_city, commodities in self.owner.imports.iteritems():
+                for commodity in commodities:
+                    if item == commodity:
+                        name_for_legend = '{0} (imported)'.format(item)
+                        break
+            # Check for exported
+            for other_city, commodities in self.owner.exports.iteritems():
+                for commodity in commodities:
+                    if item == commodity:
+                        name_for_legend = '{0} (exported)'.format(item)
+                        break
+            glegend.append(name_for_legend)
 
-        ## Add legend and show graph
-        legend(glegend, loc=2, prop={'size':7})
-        grid(True)
-        show()
+        ######### PRICES ###########
+        plt.subplot(311)
+        plt.title('Price history')
+        plt.grid(True)
+        ## Solid lines
+        for item in solid:
+            plt.plot(self.auctions[item].price_history, lw=3.0, alpha=.8)
+        for item in dot:
+            plt.plot(self.auctions[item].price_history, '--', lw=3.0, alpha=.8)
 
-        ## Show agent nums
-        agent_nums = {}
-        for agent in self.agents:
-            try: agent_nums[agent.name] += 1
-            except: agent_nums[agent.name] = 1
+        ######## BIDS ##############
+        plt.subplot(312)
+        plt.title('Demand (by number of agents requesting item)')
+        plt.grid(True)
+        for item in solid:
+            plt.plot(self.auctions[item].bid_history, lw=3.0, alpha=.8)
+        for item in dot:
+            plt.plot(self.auctions[item].bid_history, '--', lw=3.0, alpha=.8)
 
-        print str(len(self.agents)), agent_nums
+        ######## SELLS ############
+        plt.subplot(313)
+        plt.title('Supply (by number of agents creating sell offers)')
+        plt.grid(True)
+        for item in solid:
+            plt.plot(self.auctions[item].sell_history, lw=3.0, alpha=.8)
+        for item in dot:
+            plt.plot(self.auctions[item].sell_history, '--', lw=3.0, alpha=.8)
+
+
+        plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
+        ## Show graph
+        plt.subplot(311)
+        plt.legend(glegend, loc=2, prop={'size':7})
+        plt.show()
 
 
 def main():
