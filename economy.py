@@ -1359,10 +1359,8 @@ class Economy:
             if num_bids > 0 or num_sells > 0:
                 auction.supply = sum(offer.quantity for offer in auction.sells)
                 auction.demand = sum(offer.quantity for offer in auction.bids)
-            #print commodity + ': ' + str(num_bids) + ' bids, ' + str(num_sells) + ' sells'
-            #for x in range(min(num_bids, num_sells)):
-                #if auction.bids[x].price > auction.sells[x].price:
-                #print(commodity + ': ' + str(auction.bids[x].price) + ', ' + str(auction.sells[x].price))
+
+            # Match bidders with sellers
             while not len(auction.bids) == 0 and not len(auction.sells) == 0:
                 buyer = auction.bids[0]
                 seller = auction.sells[0]
@@ -1375,14 +1373,13 @@ class Economy:
                 if buyer.price < seller.price:
                     buyer.owner.eval_bid_rejected(self, commodity, seller.price)
                     buyer.quantity = 0
-
+                ## Make the transaction
                 else:
                     # Determine price/amount
                     quantity = min(buyer.quantity, seller.quantity)
                     price = int(round((buyer.price + seller.price)/2))
 
                     if quantity > 0:
-                        #print buyer.owner.name, 'bought', quantity, commodity, 'from', seller.owner.name, 'at', price
                         # Adjust buyer/seller requested amounts
                         buyer.quantity -= quantity
                         seller.quantity -= quantity
@@ -1399,27 +1396,31 @@ class Economy:
                         seller.owner.gold += (price*quantity)
 
                         buyer.owner.buys += quantity
-                        buyer.owner.last_turn.append('Bought ' + str(quantity) + ' ' + commodity + ' from ' + seller.owner.name + ' at ' + str(price))
+                        buyer.owner.last_turn.append('Bought {0} {1} from {2} at {3}'.format(quantity, commodity, seller.owner.name, price))
                         seller.owner.sells += quantity
-                        seller.owner.last_turn.append('Sold ' + str(quantity) + ' ' + commodity + ' to ' + buyer.owner.name + ' at ' + str(price))
+                        seller.owner.last_turn.append('Sold {0} {1} to {2} at {3}'.format(quantity, commodity, buyer.owner.name, price))
 
                         # Add to running tally of prices this turn
                         self.prices[commodity].append(price)
 
-                # Now that a transaction has occured, bump out the buyer or seller if either is satasfied
+                # Now that a transaction has occurred, bump out the buyer or seller if either is satisfied
                 if seller.quantity == 0: del auction.sells[0]
                 if buyer.quantity == 0: del auction.bids[0]
 
-            # All bidders re-evaluate prices - currently too simplistic
+            # All bidders re-evaluate prices
+            # Added 12/13/14- only re-evaluate prices when some quantity was being offered
             if len(auction.bids) > 0:
-                for buyer in auction.bids:
-                    buyer.owner.eval_bid_rejected(self, buyer.commodity)
+                if num_sells > 0:
+                    for buyer in auction.bids:
+                        buyer.owner.eval_bid_rejected(self, buyer.commodity)
                 self.auctions[commodity].bids = []
 
-            # All sellers re-evaluate prices - too simplistic as well
+            # All sellers re-evaluate prices
+            # Added 12/13/14- only re-evaluate prices when some quantity was being offered
             elif len(auction.sells) > 0:
-                for seller in auction.sells:
-                    seller.owner.eval_sell_rejected(self, seller.commodity)
+                if num_bids > 0:
+                    for seller in auction.sells:
+                        seller.owner.eval_sell_rejected(self, seller.commodity)
                 self.auctions[commodity].sells = []
 
             ## Average prices
@@ -1428,19 +1429,15 @@ class Economy:
                 auction.price_history.append(self.price_mean)
                 # Track mean price for last N turns
                 auction.update_mean_price()
-                #print (auction.commodity + ': ' + str(auction.mean_price) + '. This round: ' +
-                #str(len(prices[commodity])) + ' ' + commodity + ' averaged at $' + str(price_mean) +
-                #' (' + str(num_bids) + ' bids, ' + str(num_sells) + ' sells)')
+
             elif auction.commodity is not 'nothing':
                 auction.price_history.append(auction.price_history[-1])
-                #print (commodity + ' was not sold this round (' + str(num_bids) + ' bids, ' + str(num_sells) + ' sells)')
 
             ## Add information about how much stuff we've taken into that warehouse
             if self.owner:
                 del self.owner.warehouses[commodity].in_history[0]
                 self.owner.warehouses[commodity].in_history.append(auction.warehouse_contribution)
             auction.warehouse_contribution = 0
-
 
         ## Merchants evaluate whether or not to move on to the next city
         for merchant in self.buy_merchants + self.sell_merchants:
