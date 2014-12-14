@@ -1136,6 +1136,11 @@ class Auction:
         self.bids = []
         self.sells = []
         self.price_history = [START_VAL]
+        # How many bids have existed each round
+        self.bid_history = [0]
+        # How many sells have existed each round
+        self.sell_history= [0]
+
         self.mean_price = START_VAL
         self.iterations = 0
 
@@ -1143,9 +1148,23 @@ class Auction:
         self.demand = None
         self.warehouse_contribution = 0
 
+    def update_historical_data(self, mean_price, num_bids, num_sells):
+        # Updates the history for this auction
+        self.price_history.append(mean_price)
+        self.bid_history.append(num_bids)
+        self.sell_history.append(num_sells)
+
     def update_mean_price(self):
         # update the mean price for this commodity by averaging over the last HIST_WINDOW_SIZE items
-        self.mean_price = int(round(sum(self.price_history[-HIST_WINDOW_SIZE:])/len(self.price_history[-HIST_WINDOW_SIZE:])))
+        recent_prices = filter(lambda price: price is not None, self.price_history[-HIST_WINDOW_SIZE:])
+        if len(recent_prices) > 0:
+            self.mean_price = int(round(sum(recent_prices)/len(recent_prices)))
+
+    def get_last_valid_price(self):
+        # Naive way to get the last non-None price in our history
+        for price in reversed(self.price_history):
+            if price is not None:
+                return price
 
 class Offer:
     # An offer that goes into the auction's "bids" or "sells".
@@ -1425,13 +1444,12 @@ class Economy:
 
             ## Average prices
             if len(self.prices[commodity]) > 0:
-                self.price_mean = int(round(sum(self.prices[commodity])/len(self.prices[commodity])))
-                auction.price_history.append(self.price_mean)
-                # Track mean price for last N turns
-                auction.update_mean_price()
-
-            elif auction.commodity is not 'nothing':
-                auction.price_history.append(auction.price_history[-1])
+                mean_price = int(round(sum(self.prices[commodity])/len(self.prices[commodity])))
+            else:
+                mean_price = None
+            auction.update_historical_data(mean_price, num_bids, num_sells)
+            # Track mean price for last N turns
+            auction.update_mean_price()
 
             ## Add information about how much stuff we've taken into that warehouse
             if self.owner:
