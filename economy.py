@@ -19,7 +19,7 @@ MAX_INVENTORY_SIZE = 15 # A not-really-enforced max inventory limit
 PROFIT_MARGIN = 1.1 # Won't sell an item for lower than this * normalized production cost
 STARTING_GOLD = 15000 # How much gold each agent starts with
 
-PREFERRED_ITEM_MIN_GOLD = 2000
+PREFERRED_ITEM_MIN_GOLD = 1000
 
 MIN_CERTAINTY_VALUE = 8 ## Within what range traders are limited to estimating the market price
 BID_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when our bid is rejected
@@ -48,8 +48,8 @@ def setup_resources():
     global RESOURCES, RESOURCE_TYPES, GOODS, GOOD_TYPES, COMMODITY_TYPES, COMMODITY_TOKENS
     global STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN, AGENT_INFO
 
-    CITY_RESOURCE_SLOTS = {'foods':4, 'cloths':4, 'clays':2, 'ores':4, 'woods':4}
-    CITY_INDUSTRY_SLOTS = {'tools':4, 'clothing':5, 'pottery':5, 'furniture':3}
+    CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':8, 'clays':4, 'ores':8, 'woods':10}
+    CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8}
 
     RESOURCES = []
     GOODS = []
@@ -380,7 +380,7 @@ class ResourceGatherer(Agent):
         self.turns_since_food = 0
 
         self.need_food = 1
-        if 'Farmer' in self.name and self.name != 'Flax Farmer':
+        if 'Food' in self.name:
             self.need_food = 0
 
         self.turns_alive = 0
@@ -427,8 +427,10 @@ class ResourceGatherer(Agent):
                 self.attached_to.sapient.economy_agent = None
                 self.attached_to = None
 
-            #self.economy.add_agent_based_on_token( self.economy.find_most_profitable_agent_token() )
-            self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
+            if roll(0, 1):
+                self.economy.add_agent_based_on_token( self.economy.find_most_profitable_agent_token() )
+            else:
+                self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
             return None
 
         self.consume_food()
@@ -656,9 +658,11 @@ class GoodProducer(Agent):
                 self.attached_to.sapient.economy_agent = None
                 self.attached_to = None
 
-            #self.economy.add_agent_based_on_token( self.economy.find_most_profitable_agent_token() )
-            self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
-            return None
+            if roll(0, 1):
+                self.economy.add_agent_based_on_token( self.economy.find_most_profitable_agent_token() )
+            else:
+                self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
+            return
 
         self.consume_food()
         self.check_production_ability() # <- will gather resources
@@ -1078,11 +1082,12 @@ class Merchant(object):
                 token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
                 self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
 
-        for type_of_item in other_items and self.gold >= PREFERRED_ITEM_MIN_GOLD:
-            if type_of_item != 'foods':
-                # For now, place a bid for a random item available to use of that type
-                token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
-                self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
+        if self.gold >= PREFERRED_ITEM_MIN_GOLD:
+            for type_of_item in other_items:
+                if type_of_item != 'foods':
+                    # For now, place a bid for a random item available to use of that type
+                    token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
+                    self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
 
 
     def check_for_needed_items(self):
@@ -1212,6 +1217,9 @@ class Economy:
         # Amount of gold paid in taxes each turn
         self.local_taxes = local_taxes
 
+        # Counter to be appended to agent names
+        self.agent_num = 1
+
     def get_all_available_commodity_tokens(self):
         return [token for tokens in self.available_types.values() for token in tokens]
 
@@ -1244,27 +1252,37 @@ class Economy:
 
     def add_resource_gatherer(self, resource):
         info = AGENT_INFO['gatherers'][resource]
-        gatherer = ResourceGatherer(name=info['name'], economy=self, resource=resource, gather_amount=COMMODITY_TOKENS[resource].gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+        name = '{0} {1}'.format(info['name'], self.agent_num)
+        gatherer = ResourceGatherer(name=name, economy=self, resource=resource, gather_amount=COMMODITY_TOKENS[resource].gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
         self.resource_gatherers.append(gatherer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(resource)
 
+        self.agent_num += 1
+
     def add_good_producer(self, good):
         info = AGENT_INFO['producers'][good]
-        producer = GoodProducer(name=info['name'], economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+        name = '{0} {1}'.format(info['name'], self.agent_num)
+        producer = GoodProducer(name=name, economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
         self.good_producers.append(producer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(good)
 
+        self.agent_num += 1
+
     def add_merchant(self, sell_economy, traded_item, attached_to=None):
         info = AGENT_INFO['merchants']['merchant']
-        merchant = Merchant(name=traded_item + ' merchant', buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
+        name = '{0} merchant {1}'.format(traded_item, self.agent_num)
+        merchant = Merchant(name=name, buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
 
         self.buy_merchants.append(merchant)
         sell_economy.sell_merchants.append(merchant)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(traded_item)
         sell_economy.add_commodity_to_economy(traded_item)
+
+        self.agent_num += 1
+
         return merchant
 
     def add_agent_based_on_token(self, token):
@@ -1401,9 +1419,9 @@ class Economy:
                 buyer = auction.bids[0]
                 seller = auction.sells[0]
                 ## Allow the buyer to make some radical readjustments the first few turns it's alive
-                if buyer.price < seller.price and (buyer.owner.turns_alive < 10 or (commodity == 'food' and buyer.owner.turns_since_food > 2)):
-                    buyer.price = int(round(seller.price * 1.5))
-                    buyer.owner.eval_bid_rejected(self, commodity, int(round(seller.price * 1.5)))
+                #if buyer.price < seller.price and (buyer.owner.turns_alive < 10 or (commodity == 'food' and buyer.owner.turns_since_food > 2)):
+                #    buyer.price = int(round(seller.price * 1.5))
+                #    buyer.owner.eval_bid_rejected(self, commodity, int(round(seller.price * 1.5)))
 
                 ## If the price is still lower than the seller
                 if buyer.price < seller.price:
