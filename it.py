@@ -1276,7 +1276,7 @@ class Wmap:
             for rdir in road_dirs:
 
                 i, j = world_2_wmap_roads[rdir]
-                road_start_positions.append(PathNode(x=i, y=j, size=5, neighbors=[]))
+                road_start_positions.append(mgen.PathNode(x=i, y=j, size=5, neighbors=[]))
 
             ## Initialize the line, and connect the 2 points. This should
             ## cause roads to be build from appropriate map edges
@@ -1289,7 +1289,7 @@ class Wmap:
                 # If there's still a point from map edge, add the midpoint of the current road so that others connect
                 if len(road_start_positions) == 1:
                     ii, jj = (int((r_begin.x + r_end.x)/2), int((r_begin.y + r_end.y)/2) )
-                    road_start_positions.append(PathNode(x=ii, y=jj, size=5, neighbors=[]))
+                    road_start_positions.append(mgen.PathNode(x=ii, y=jj, size=5, neighbors=[]))
 
 
         ## Add cave entrances
@@ -9962,6 +9962,7 @@ if __name__ == '__main__':
     MSG_HEIGHT = PANEL1_HEIGHT - 2
 
     font_path = os.path.join(os.getcwd(), 'fonts', 't12_test.png')
+    #font_path = os.path.join(os.getcwd(), 'fonts', 't16_test.png')
     libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
     libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'Iron Testament v0.5', True, renderer=libtcod.RENDERER_GLSL)
     libtcod.mouse_show_cursor(visible=1)
