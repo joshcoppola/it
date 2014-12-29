@@ -1,0 +1,45 @@
+
+bookkeeper:
+    category: commoner
+baker:
+    category: commoner
+brewer:
+    category: commoner
+bow maker:
+    category: commoner
+brickmaker:
+    category: commoner
+laborer:
+    category: commoner
+priest:
+    category: commoner
+craftsman:
+    category: commoner
+cleaner:
+    category: commoner
+farmer:
+    category: commoner
+scribe:
+    category: commoner
+fisherman:
+    category: commoner
+metalsmith:
+    category: commoner
+innkeeper:
+    category: commoner
+miller:
+    category: commoner
+basket weaver:
+    category: commoner
+carpenter:
+    category: commoner
+leatherworker:
+    category: commoner
+stone engraver:
+    category: commoner
+stone cutter:
+    category: commoner
+weaver:
+    category: commoner
+wood carver:
+    category: commoner
