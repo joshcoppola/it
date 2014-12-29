@@ -6,7 +6,6 @@ import os
 import yaml
 
 try:
-    import numpy as np
     import matplotlib.pyplot as plt
 except:
     print 'Can\'t load numpy or matplotlib - no access to graphs'
