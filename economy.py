@@ -8,7 +8,7 @@ import yaml
 try:
     import matplotlib.pyplot as plt
 except:
-    print 'Can\'t load numpy or matplotlib - no access to graphs'
+    print 'Can\'t load matplotlib - no access to graphs'
 
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
