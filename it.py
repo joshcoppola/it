@@ -3237,7 +3237,6 @@ class World:
             sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
             self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
-            #building.add_garrison(army)
             if roll(1, 10) >= 2:
                 closest_city = self.get_closest_city(x, y)[0]
                 closest_city.culture.pantheon.add_holy_site(ruin_site)
@@ -3978,15 +3977,6 @@ class Building:
     def remove_housed_object(self, obj):
         self.housed_objects.remove(obj)
 
-
-    def add_garrison(self, army):
-        self.garrison.append(army)
-        army.garrisoned = self
-
-    def remove_garrison(self, army):
-        self.garrison.remove(army)
-        army.garrisoned = None
-
     def add_inhabitant(self, inhabitant):
         inhabitant.sapient.house = self
         self.inhabitants.append(inhabitant)
@@ -4006,7 +3996,7 @@ class Building:
         if not self.physical_property:
             print self.get_name(), 'has no physical property!'
             return
-            # First choose a tile that is not blocks_mov
+            # Choose a tile that is not blocked
         while 1:
             x, y = random.choice(self.physical_property)
             if not M.tiles[x][y].blocks_mov:
@@ -4017,15 +4007,21 @@ class Building:
 
     def set_name(self):
         if self.b_type == 'Tavern':
-            num = roll(1, 3)
+            num = roll(1, 5)
             if num == 1:
-                front = 'The ' + random.choice(TAVERN_ADJECTIVES) + ' ' + random.choice(TAVERN_NOUNS)
-                ending = random.choice(['', '', '', ' Inn', ' Tavern', ' Lodge', ' Bar and Inn'])
+                front = 'The {0} {1}'.format(random.choice(TAVERN_ADJECTIVES), random.choice(TAVERN_NOUNS))
+                ending = random.choice(['', '', '', ' Inn', ' Tavern', ' Tavern', ' Lodge', ' Bar and Inn'])
             elif num == 2:
-                front = 'The ' + random.choice(TAVERN_NOUNS) + '\'s ' + random.choice(TAVERN_OBJECTS)
+                front = 'The {0}\'s {1}'.format(random.choice(TAVERN_NOUNS), random.choice(TAVERN_OBJECTS))
                 ending = ''
             elif num == 3:
-                front = self.site.name + '\'s ' + random.choice(TAVERN_OBJECTS)
+                front = '{0}\'s {1}'.format(random.choice(TAVERN_NOUNS), random.choice(TAVERN_OBJECTS))
+                ending = random.choice([' Inn', ' Tavern', ' Tavern', ' Lodge', ' Bar and Inn'])
+            elif num == 4:
+                front = '{0}\'s {1}'.format(self.site.name, random.choice(TAVERN_OBJECTS))
+                ending = ''
+            elif num == 5:
+                front = 'The {0} of the {1} {2}'.format(random.choice(('Inn', 'Tavern', 'Lodge')), random.choice(TAVERN_ADJECTIVES), random.choice(TAVERN_NOUNS))
                 ending = ''
 
             self.name = front + ending
@@ -4144,7 +4140,6 @@ class Building:
 
 class Profession:
     '''A profession for historical figures to have'''
-
     def __init__(self, name, category):
         self.name = name
         self.category = category
@@ -4165,7 +4160,7 @@ class Profession:
     def give_profession_to(self, figure):
         # Remove current holder from buildings, and the profession
         if self.holder:
-            game.add_message(figure.fullname() + ' is now ' + self.name + ' in ' + self.building.site.name + ' (formerly ' + self.holder.fullname() + ')', libtcod.light_green)
+            game.add_message('{0} has replaced {1} as {2} in {3}'.format(figure.fullname(), self.holder.fullname(), self.name, self.building.site.name), libtcod.light_green)
             if self.current_work_building:
                 self.current_work_building.remove_worker(self.holder)
             self.holder.sapient.profession.remove_profession_from(self.holder)
@@ -4182,8 +4177,6 @@ class Profession:
         figure.sapient.profession = None
         self.holder = None
         figure.sapient.set_opinions()
-
-
 
 class Faction:
     def __init__(self, leader_prefix, faction_name, color, succession):
@@ -9026,7 +9019,6 @@ class Game:
 
         hideout_site = WORLD.tiles[1][1].add_minor_site(world=WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
         hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
-        #hideout_building.add_garrison(enemy_army)
 
         #WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
         #WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
