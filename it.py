@@ -1081,8 +1081,6 @@ class Wmap:
             #go through all tiles, and set their background color according to the FOV
             for cam_y in xrange(camera.height):
                 for cam_x in xrange(camera.width):
-                    ## TODO - which way is more efficient?
-                    #(map_x, map_y) = (camera.x + x, camera.y + y)
                     (x, y) = camera.cam2map(cam_x, cam_y)
                     if self.is_val_xy((x, y)):
                         visible = libtcod.map_is_in_fov(self.fov_map, x, y)
@@ -3837,7 +3835,7 @@ class City(Site):
 
         # Leader's siblings
         leader_siblings = []
-        for i in xrange(roll(0, 3)):
+        for i in xrange(roll(2, 5)):
             sex = roll(0, 1)
             sibling = self.create_inhabitant(sex=sex, born=leader.sapient.born + roll(-8, 8), char='o', dynasty=new_dynasty,
                                              race=new_dynasty.race, important=1, house=None)
@@ -3847,7 +3845,7 @@ class City(Site):
         # Wife's siblings
         if wife_is_new_dynasty:
             wife_siblings = []
-            for i in xrange(roll(0, 3)):
+            for i in xrange(roll(2, 5)):
                 sex = roll(0, 1)
                 sibling = self.create_inhabitant(sex=sex, born=wife.sapient.born + roll(8, 8), char='o',
                                                  dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
@@ -3880,6 +3878,11 @@ class City(Site):
             for other_child in children:
                 if other_child != child and other_child not in child.sapient.siblings:
                     child.sapient.siblings.append(other_child)
+
+        # Give a "Noble" profession to any new male members
+        for figure in filter(lambda f: f.sapient.get_age() >= MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
+            profession = Profession(name='Noble', category='noble')
+            profession.give_profession_to(figure=figure)
 
         return leader, all_new_figures
 
@@ -4048,18 +4051,12 @@ class Building:
         potential_employees = [figure for figure in WORLD.tiles[self.site.x][self.site.y].entities if
                                figure.sapient.profession == None and figure.creature.sex == 1 and figure.sapient.get_age() > MIN_MARRIAGE_AGE]
         if profession.name in ('High Priest', 'General'):
-            # Check if we have people available to fill the position
-            if roll(1, 3) >= 3 and len(potential_employees) > 0:
-                human = random.choice(potential_employees)
-                all_new_figures = [human]
-            # Or, chance of creating new dynasty
-            else:
-                human, all_new_figures = self.site.create_initial_dynasty()
-
+            # Create new dynasty
+            human, all_new_figures = self.site.create_initial_dynasty()
 
         else:
             # Mostly try to use existing folks to fill the position
-            if not profession.name in ('Assassin') and roll(1, 4) >= 2 and len(potential_employees) > 0:
+            if not profession.name in ('Assassin') and len(potential_employees) > 0:
                 human = random.choice(potential_employees)
                 all_new_figures = [human]
             # Otherwise, create a new person
@@ -6748,10 +6745,12 @@ class SapientComponent:
     def get_profession(self):
         if self.profession:
             return self.profession.name
-        elif self.owner.creature.sex == 0 and self.spouse:
-            return 'Housewife'
         elif self.get_age() < MIN_CHILDBEARING_AGE:
             return 'Child'
+        elif self.owner.creature.sex == 0 and self.spouse:
+            return 'Housewife'
+        elif self.owner.creature.sex == 0:
+            return 'Maiden'
         return 'No profession'
 
     def take_spouse(self, spouse):
@@ -6786,7 +6785,7 @@ class SapientComponent:
                     break
             if usable:
                 # "Somewhat = .5, regular = 1, "very" = 2
-                multiplier = random.choice([.5, .5, 1, 1, 1, 1, 2])
+                multiplier = random.choice((.5, .5, 1, 1, 1, 1, 2))
                 self.traits[trait] = multiplier
                 trait_num -= 1
                 #t_ind = TRAITS.index(trait)
@@ -9482,7 +9481,7 @@ def show_civs(world):
         elif key_pressed == 'f':
             view = 'figures'
         elif key_pressed == 'c':
-            show_cultures(world=world, spec_language=city.culture)
+            show_cultures(world=world, spec_culture=city.culture)
         elif key_pressed == 'r':
             world.cities[city_number].econ.run_simulation()
 
