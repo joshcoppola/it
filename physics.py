@@ -25,13 +25,61 @@ PROPERTIES = [
              'attack_bonus'
              ]
 
+'''
 WEAPON_PROPERTIES = {'sword':{'defense_bonus':5},
                      'dagger':{'bleed_chance':5},
                      'mace':{'knock_bonus':5},
                      'spear':{'attack_chance':5},
                      'axe':{'pain_chance':5}
                      }
+'''
 
+WEAPON_PROPERTIES = {'sword':{
+                              'high swing': 0,
+                              'middle swing': 15,
+                              'low swing': 0,
+                              'vertical swing': 0,
+                              'high thrust': 0,
+                              'middle thrust': 10,
+                              'low thrust': 0
+                              },
+                     'dagger':{
+                              'high swing': 0,
+                              'middle swing': 15,
+                              'low swing': 0,
+                              'vertical swing': 0,
+                              'high thrust': 0,
+                              'middle thrust': 10,
+                              'low thrust': 0
+                              },
+                     'mace':{
+                              'high swing': 0,
+                              'middle swing': 15,
+                              'low swing': 0,
+                              'vertical swing': 0,
+                              'high thrust': 0,
+                              'middle thrust': 10,
+                              'low thrust': 0
+                              },
+                     'spear':{
+                              'high swing': 0,
+                              'middle swing': 15,
+                              'low swing': 0,
+                              'vertical swing': 0,
+                              'high thrust': 0,
+                              'middle thrust': 10,
+                              'low thrust': 0
+                              },
+                     'axe':{
+                              'high swing': 0,
+                              'middle swing': 15,
+                              'low swing': 0,
+                              'vertical swing': 0,
+                              'high thrust': 0,
+                              'middle thrust': 10,
+                              'low thrust': 0
+                              }
+                     }
 
 class Weapon:
     def __init__(self, wtype, properties):

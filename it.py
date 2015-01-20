@@ -25,6 +25,7 @@ import religion
 import gui
 import building_templates
 import map_generation as mgen
+import combat
 from helpers import *
 
 # Code to detect screen resolution (libtcod's doesn't work for some reason?)
@@ -979,7 +980,7 @@ class Wmap:
 
     def create_and_add_object(self, name, x, y, creature=None, sapient=None, local_brain=None, world_brain=None, force_material=None):
         # Add an object to a tile
-        obj = assemble_object(object_blueprint=phys.object_dict[name], creature=creature, sapient=sapient, local_brain=local_brain, world_brain=world_brain, force_material=force_material, wx=self.wx, wy=self.wy)
+        obj = assemble_object(object_blueprint=phys.object_dict[name], force_material=force_material, wx=self.wx, wy=self.wy, creature=creature, sapient=sapient, local_brain=local_brain, world_brain=world_brain)
 
         # Check to see if the obj blocks movement
         if not obj.creature and (obj.blocks_mov or obj.blocks_vis):
@@ -2599,7 +2600,7 @@ class World:
             object_blueprint = phys.object_dict['holy relic']
             material = phys.materials['copper']
             initial_location = random.choice(culture.territory)
-            obj = assemble_object(object_blueprint=object_blueprint, creature=None, sapient=None, local_brain=None, world_brain=None, force_material=material, wx=initial_location[0], wy=initial_location[1])
+            obj = assemble_object(object_blueprint=object_blueprint, force_material=material, wx=initial_location[0], wy=initial_location[1])
             culture.pantheon.add_holy_object(obj)
             self.add_famous_object(obj=obj)
 
@@ -4380,7 +4381,7 @@ class Faction:
 
             weapon_name = self.site.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
 
-            name = '%s %s' %(weapon_name, wtype)
+            name = '{0} {1}'.format(weapon_name, wtype)
             weapon_info_dict['name'] = name
 
             # Finally, append to list of object dicts
@@ -5137,7 +5138,7 @@ class Object:
 
 def attack_menu(actor, target):
     width = 70
-    height = 32
+    height = 50
 
     bwidth = width - (4 * 2)
 
@@ -5149,7 +5150,7 @@ def attack_menu(actor, target):
 
     def button_refresh_func(target):
         width = 70
-        height = 32
+        height = 50
 
         bwidth = 20
 
@@ -5169,6 +5170,8 @@ def attack_menu(actor, target):
                    gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
+
+        '''
         ## Make a button for each component
         for component in target.components:
             #for (layer, coverage) in component.get_coverage_layers():
@@ -5216,6 +5219,27 @@ def attack_menu(actor, target):
                                    text=button_disp_info, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
                                    hover_header=h_header, hover_text=h_info) )
 
+            '''
+        weapon = player.creature.get_current_weapon()
+        component = target.components[0] ##temp
+
+        yval = 8
+        for combat_move in combat.combat_moves:
+            yval += 4
+            xval = 5
+
+            odds = []
+            for other_combat_move in combat.combat_moves:
+                c1, _ = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
+
+                odds.append(' * vs {0} * '.format(other_combat_move))
+                for reason, amt in c1.iteritems():
+                    odds.append('{0} ({1})'.format(reason, amt))
+                odds.append(' ')
+
+            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.standard_combat_attack, args=[weapon.components[0], weapon.get_base_attack_value(), target, component],
+                                   text=combat_move, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
+                                   hover_header=[combat_move], hover_text=odds) )
 
         mid_y += 4
         buttons.append(gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
@@ -8232,7 +8256,7 @@ class Culture:
 
         sapient_comp = SapientComponent(firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
-        human = assemble_object(object_blueprint=info, creature=creature_component, sapient=sapient_comp, local_brain=DijmapSapient(), world_brain=BasicWorldBrain(), force_material=None, wx=wx, wy=wy)
+        human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, sapient=sapient_comp, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
         faction.add_member(human)
 
         if dynasty is not None:
@@ -8243,7 +8267,7 @@ class Culture:
         else:                       wname = random.choice(self.weapons)
 
         if armed:
-            weapon = assemble_object(object_blueprint=phys.object_dict[wname], creature=None, sapient=None, local_brain=None, world_brain=None, force_material=material, wx=wx, wy=wy)
+            weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=material, wx=wx, wy=wy)
             human.initial_give_object_to_hold(weapon)
 
         ################################
@@ -8265,7 +8289,7 @@ class Culture:
         return human
 
 
-def assemble_object(object_blueprint, creature, sapient, local_brain, world_brain, force_material, wx, wy):
+def assemble_object(object_blueprint, force_material, wx, wy, creature=None, sapient=None, local_brain=None, world_brain=None):
     ''' Build an object from the blueprint dictionary '''
     ## TODO - Currently only force_material works...
 
