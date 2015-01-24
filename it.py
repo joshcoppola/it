@@ -5220,6 +5220,7 @@ def attack_menu(actor, target):
                                    hover_header=h_header, hover_text=h_info) )
 
             '''
+        ########## New simultaneous combat system preview ############
         weapon = player.creature.get_current_weapon()
         component = target.components[0] ##temp
 
@@ -5232,14 +5233,15 @@ def attack_menu(actor, target):
             for other_combat_move in combat.combat_moves:
                 c1, _ = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
 
-                odds.append(' * vs {0} * '.format(other_combat_move))
+                odds.append('{0} vs {1} * '.format(combat_move, other_combat_move))
                 for reason, amt in c1.iteritems():
                     odds.append('{0} ({1})'.format(reason, amt))
                 odds.append(' ')
 
-            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.standard_combat_attack, args=[weapon.components[0], weapon.get_base_attack_value(), target, component],
+            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move],
                                    text=combat_move, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
                                    hover_header=[combat_move], hover_text=odds) )
+        ######### End new simultaneous combat system preview #########
 
         mid_y += 4
         buttons.append(gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
@@ -6916,6 +6918,19 @@ class Creature:
         self.current_weapon = None
         self.status = 'alive'
 
+        self.combat_target = []
+        self.needs_to_calculate_combat = 0
+
+        self.combat_moves = {
+                             'high swing': 100,
+                             'middle swing': 100,
+                             'low swing': 100,
+                             'vertical swing': 100,
+                             'high thrust': 100,
+                             'middle thrust': 100,
+                             'low thrust': 100
+                             }
+
         self.cskills = {'Mobility': 10,
                         'Fighting': 10,
                         'Reflexes': 10,
@@ -7008,6 +7023,10 @@ class Creature:
 
     def get_graspers(self):
         return [component for component in self.owner.components if 'grasp' in component.functions]
+
+    def set_combat_attack(self, target, move):
+        self.needs_to_calculate_combat = 1
+        self.combat_target = [target, move]
 
     def get_defense_score(self):
 
@@ -7503,9 +7522,12 @@ class DijmapSapient:
         # TODO - make sure this makeshift code is turned into something much more intelligent
         weapon = self.owner.creature.get_current_weapon()
         if weapon:
-            target_part = random.choice(enemy.components)
+            #target_part = random.choice(enemy.components)
             #target_layer, coverage_amount = random.choice(target_part.get_coverage_layers() )
-            self.owner.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=enemy, target_component=target_part)
+            #self.owner.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=enemy, target_component=target_part)
+
+            move = random.choice(self.owner.creature.combat_moves.keys())
+            self.owner.creature.set_combat_attack(target=enemy, move=move)
 
 
 class BasicWorldBrain:
@@ -7926,6 +7948,29 @@ class TimeCycle(object):
                     next_tick = next_tick - self.ticks_per_hour
                 actor.creature.next_tick = next_tick
                 actor.local_brain.take_turn()
+
+        # Now that entities have made their moves, calculate the outcome of any combats
+        for entity in M.creatures + M.sapients[:]:
+            if entity.creature.needs_to_calculate_combat:
+                target_entity, entity_attack_move = entity.creature.combat_target
+
+                if target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
+                    target_entity_attack_move = target_entity.creature.combat_target[1]
+                    # Only reset the flag if they're attacking back; since they could be attacking someone else
+                    target_entity.creature.needs_to_calculate_combat = 0
+                    target_entity.creature.combat_target = []
+                else:
+                    target_entity_attack_move = None
+
+                # Reset combat flags
+                entity.creature.needs_to_calculate_combat = 0
+                entity.creature.combat_target = []
+
+                # Regardless of whether the opponent fights back, calculate the outcome
+                combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_move=entity_attack_move, combatant_2=target_entity, combatant_2_move=target_entity_attack_move)
+
+                for line, color in combat_log:
+                    game.add_message(line, color)
 
         M.update_dmaps()
 
