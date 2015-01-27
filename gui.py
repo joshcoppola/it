@@ -208,7 +208,7 @@ class GuiPanel:
 
 class Button:
     # A button. Usually has a border, needs to highlight on mouseover, and execute its function on click
-    def __init__(self, gui_panel, func, args, text, topleft, width, height, hover_header=None, hover_text=None, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
+    def __init__(self, gui_panel, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
         x, y = topleft
 
         self.gui_panel = gui_panel
@@ -221,6 +221,7 @@ class Button:
 
         self.hover_header = hover_header
         self.hover_text = hover_text
+        self.hover_text_offset = hover_text_offset
 
         self.color = color
         self.hcolor = hcolor
@@ -267,7 +268,7 @@ class Button:
 
             if self.hover_text:
                 #hover_info(interface=interface, header=['t'], text=self.hover_text, xb=self.x, yb=self.y-10, transp=0)
-                interface.add_hover_info(interface=interface, header=self.hover_header, text=self.hover_text, cx=mouse.cx, cy=mouse.cy, transp=1, do_hover=0)
+                interface.add_hover_info(interface=interface, header=self.hover_header, text=self.hover_text, cx=mouse.cx + self.hover_text_offset[0], cy=mouse.cy + self.hover_text_offset[1], transp=1, do_hover=0)
 
             # Handle clicks
             if mouse.lbutton_pressed and not self.clicked:
