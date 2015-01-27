@@ -5,6 +5,7 @@ import economy as econ
 import copy
 import yaml
 
+import random
 from random import randint as roll
 import libtcodpy as libtcod
 
@@ -35,49 +36,49 @@ WEAPON_PROPERTIES = {'sword':{'defense_bonus':5},
 '''
 
 WEAPON_PROPERTIES = {'sword':{
-                              'high swing': 0,
+                              'high swing': 10,
                               'middle swing': 15,
-                              'low swing': 0,
-                              'vertical swing': 0,
-                              'high thrust': 0,
+                              'low swing': 10,
+                              'vertical swing': 10,
+                              'high thrust': 5,
                               'middle thrust': 10,
-                              'low thrust': 0
+                              'low thrust': 5
                               },
                      'dagger':{
-                              'high swing': 0,
-                              'middle swing': 15,
-                              'low swing': 0,
-                              'vertical swing': 0,
-                              'high thrust': 0,
-                              'middle thrust': 10,
-                              'low thrust': 0
+                              'high swing': -20,
+                              'middle swing': -20,
+                              'low swing': -20,
+                              'vertical swing': -20,
+                              'high thrust': 15,
+                              'middle thrust': 30,
+                              'low thrust': 10
                               },
                      'mace':{
-                              'high swing': 0,
+                              'high swing': 10,
                               'middle swing': 15,
                               'low swing': 0,
-                              'vertical swing': 0,
-                              'high thrust': 0,
-                              'middle thrust': 10,
-                              'low thrust': 0
+                              'vertical swing': 20,
+                              'high thrust': -20,
+                              'middle thrust': -20,
+                              'low thrust': -20
                               },
                      'spear':{
-                              'high swing': 0,
-                              'middle swing': 15,
-                              'low swing': 0,
-                              'vertical swing': 0,
-                              'high thrust': 0,
-                              'middle thrust': 10,
-                              'low thrust': 0
+                              'high swing': -10,
+                              'middle swing': -20,
+                              'low swing': -30,
+                              'vertical swing': -30,
+                              'high thrust': 20,
+                              'middle thrust': 30,
+                              'low thrust': 20
                               },
                      'axe':{
-                              'high swing': 0,
-                              'middle swing': 15,
+                              'high swing': 20,
+                              'middle swing': 20,
                               'low swing': 0,
-                              'vertical swing': 0,
-                              'high thrust': 0,
-                              'middle thrust': 10,
-                              'low thrust': 0
+                              'vertical swing': 40,
+                              'high thrust': -20,
+                              'middle thrust': -20,
+                              'low thrust': -20
                               }
                      }
 
@@ -117,9 +118,9 @@ class WeaponGenerator:
         # Add any other special properties
         for wproperty, value in special_properties.iteritems():
             if wproperty in properties.keys():
-                properties[wproperty] += value
+                properties[wproperty] += value + random.choice((-10, -5, 0, 0, 10, 20))
             else:
-                properties[wproperty] = value
+                properties[wproperty] = value + random.choice((-10, -5, 0, 0, 10, 20))
 
         weapon_component = {'wtype':wtype, 'properties':properties}
         weapon_info_dict['weapon_component'] = weapon_component
@@ -204,6 +205,8 @@ class MaterialLayer:
 
 
         self.take_damage(blunt_damage=blunt_damage, sharpness=sharpness)
+
+        return total_force, layer_resistance, blunt_damage
 
 
     def take_damage(self, blunt_damage, sharpness):

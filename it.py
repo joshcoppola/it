@@ -4379,7 +4379,11 @@ class Faction:
             # Send it over to the item generator to generate the weapon
             weapon_info_dict = phys.wgenerator.generate_weapon(wtype=wtype, material=material, special_properties=special_properties)
 
-            weapon_name = self.site.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
+            # Pick weapon name, either by culture of leader or culture of site
+            if self.leader:
+                weapon_name = self.leader.sapient.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
+            else:
+                weapon_name = self.site.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
 
             name = '{0} {1}'.format(weapon_name, wtype)
             weapon_info_dict['name'] = name
@@ -5230,17 +5234,39 @@ def attack_menu(actor, target):
             xval = 5
 
             odds = []
+            # Go through each other combat move and find the odds
             for other_combat_move in combat.combat_moves:
-                c1, _ = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
+                c1, c2 = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
+                c1_total = max(1, sum(c1.values()))
+                c2_total = max(1, sum(c2.values()))
+                total_odds = c1_total/(c1_total + c2_total) * 100
 
-                odds.append('{0} vs {1} * '.format(combat_move, other_combat_move))
+                odds_reasons = []
+                # Add the reasons/numbers contributing to the total odds
                 for reason, amt in c1.iteritems():
-                    odds.append('{0} ({1})'.format(reason, amt))
-                odds.append(' ')
+                    odds_reasons.append('++ {0} ({1})'.format(reason, amt))
+                for reason, amt in c2.iteritems():
+                    odds_reasons.append('-- {0} ({1})'.format(reason, amt))
+                #odds.append(' ')
+
+                #odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move, other_combat_move, total_odds))
+                odds.append([combat_move, other_combat_move, total_odds, odds_reasons])
+
+            # Now sort the odds by the total_odds
+            odds.sort(key=lambda sublist: sublist[2], reverse=True)
+
+            #Flatten the odds list into a new list, hover_odds.
+            # Hover_odds needs to just be a list of strings to pass as hover info.
+            hover_odds = []
+            for combat_move, other_combat_move, total_odds, odds_reasons in odds:
+                hover_odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move, other_combat_move, total_odds))
+                for reason in odds_reasons:
+                    hover_odds.append(reason)
+                hover_odds.append(' ')
 
             buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move],
                                    text=combat_move, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
-                                   hover_header=[combat_move], hover_text=odds) )
+                                   hover_header=[combat_move], hover_text=hover_odds, hover_text_offset=(30, 0)) )
         ######### End new simultaneous combat system preview #########
 
         mid_y += 4
@@ -9077,18 +9103,23 @@ class Game:
         player.char = '@'
         player.local_brain = None
 
-        sentients = {cult:{random.choice(cult.races):{'Swordsmen':20}}}
+        sentients = {cult:{random.choice(cult.races):{'Adventurers':20}}}
         player_party = WORLD.create_population(char='@', name="player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=player)
 
 
         leader = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':20}}}
-        player_party = WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
+        enemy_party = WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
 
         hideout_site = WORLD.tiles[1][1].add_minor_site(world=WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
         hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
+        faction1.set_leader(leader=player)
+        faction2.set_leader(leader=leader)
+        # Weapons for variety
+        faction1.create_faction_weapons()
+        faction2.create_faction_weapons()
         #WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
         #WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
         #WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))
