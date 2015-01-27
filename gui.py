@@ -369,7 +369,7 @@ class HoverInfo:
 
 
         if not self.xy_corner:
-            # center to coords. Fix for hanging over the left side of the screen and the top of the screen, not yet fixed for right side.
+            # center to coords. Fix for hanging over the left side of the screen and the top of the screen, not yet fixed for right/bottom side.
             x = max(0, int(self.cx - int(width/2) ))
             y = max(0, self.cy - height)
         else:
