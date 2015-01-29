@@ -6947,14 +6947,12 @@ class Creature:
         self.combat_target = []
         self.needs_to_calculate_combat = 0
 
-        self.combat_moves = {
-                             'high swing': 100,
-                             'middle swing': 100,
-                             'low swing': 100,
-                             'vertical swing': 100,
-                             'high thrust': 100,
-                             'middle thrust': 100,
-                             'low thrust': 100
+        self.natural_combat_moves = {
+                             'bite': 10,
+                             'high punch': 100,
+                             'middle punch': 100,
+                             'low punch': 100,
+                             'kick': 100
                              }
 
         self.cskills = {'Mobility': 10,
@@ -7552,7 +7550,8 @@ class DijmapSapient:
             #target_layer, coverage_amount = random.choice(target_part.get_coverage_layers() )
             #self.owner.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=enemy, target_component=target_part)
 
-            move = random.choice(self.owner.creature.combat_moves.keys())
+            #move = random.choice(self.owner.creature.combat_moves.keys())
+            move = random.choice(combat.combat_moves)
             self.owner.creature.set_combat_attack(target=enemy, move=move)
 
 

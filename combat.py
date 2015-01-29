@@ -170,6 +170,7 @@ def simple_combat_attack(winner, loser):
     return combat_log
 
 
+
 load_combat_matrix()
 
 
