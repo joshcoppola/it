@@ -1,0 +1,110 @@
+sword:
+   char: "/"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s "
+   weapon_component: null
+   components:
+      - name: sword
+        functions: [attack]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1.1
+        wearing_info: 0
+        layers: 
+          - material_tokens: []
+            material_types: [ores]
+            coverage: 1
+            width: .08
+            height: 1
+            depth: .01
+            filled: .9
+dagger:
+   char: "/"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s "
+   weapon_component: null
+   components:
+      - name: sword
+        functions: [attack]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1.1
+        wearing_info: 0
+        layers: 
+          - material_tokens: []
+            material_types: [ores]
+            coverage: 1
+            width: .05
+            height: .2
+            depth: .01
+            filled: .9
+mace:
+   char: "/"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s "
+   weapon_component: null
+   components:
+      - name: sword
+        functions: [attack]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1.1
+        wearing_info: 0
+        layers: 
+          - material_tokens: []
+            material_types: [ores]
+            coverage: 1
+            width: .06
+            height: .7
+            depth: .01
+            filled: .9
+spear:
+   char: "/"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s "
+   weapon_component: null
+   components:
+      - name: sword
+        functions: [attack]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1.1
+        wearing_info: 0
+        layers: 
+          - material_tokens: [wood]
+            material_types: []
+            coverage: 1
+            width: .03
+            height: 1.2
+            depth: .03
+            filled: .9
+axe:
+   char: "/"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s "
+   weapon_component: null
+   components:
+      - name: sword
+        functions: [attack]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1.1
+        wearing_info: 0
+        layers: 
+          - material_tokens: []
+            material_types: [ores]
+            coverage: 1
+            width: .05
+            height: .7
+            depth: .02
+            filled: .9

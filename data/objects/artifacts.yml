@@ -1,0 +1,22 @@
+holy relic:
+   char: "*"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a holy relic"
+   weapon_component: null
+   components:
+      - name: relic
+        functions: []
+        attaches_to: null
+        attach_strength: null
+        sharp: 1
+        wearing_info: 0
+        layers: 
+          - material_tokens: [copper]
+            material_types: []
+            coverage: 1
+            width: .2
+            height: .5
+            depth: .2
+            filled: .75

@@ -1,0 +1,88 @@
+door:
+   char: 262
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s door"
+   weapon_component: null
+   components:
+      - name: door
+        functions: [door]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1
+        wearing_info: 0
+        layers: 
+          - material_tokens: [wood]
+            material_types: []
+            coverage: 1
+            width: 1
+            height: 1
+            depth: .1
+            filled: 1
+pottery:
+   char: o
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s pottery"
+   weapon_component: null
+   components:
+      - name: pottery
+        functions: [storage]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1
+        wearing_info: 0
+        layers: 
+          - material_tokens: [clay]
+            material_types: []
+            coverage: 1
+            width: .1
+            height: .3
+            depth: .1
+            filled: .85
+barrel:
+   char: o
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s barrel"
+   weapon_component: null
+   components:
+      - name: barrel
+        functions: [storage]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1
+        wearing_info: 0
+        layers: 
+          - material_tokens: [wood]
+            material_types: []
+            coverage: 1
+            width: .5
+            height: 1
+            depth: .5
+            filled: .75
+crate:
+   char: #
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s crate"
+   weapon_component: null
+   components:
+      - name: crate
+        functions: [storage]
+        attaches_to: null
+        attach_strength: null
+        sharp: 1
+        wearing_info: 0
+        layers: 
+          - material_tokens: [wood]
+            material_types: []
+            coverage: 1
+            width: .5
+            height: 1
+            depth: .5
+            filled: .75

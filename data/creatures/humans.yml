@@ -1,128 +1,142 @@
-objects:
-    human:
-        sentient: true
-        char: 255
-        color: [231, 158, 109]
-        blocks_mov: true
-        blocks_vis: false
-        description: This is a human
-        weapon_component: null
-        components:
-          - name: torso
-            attaches_to: null
-            attach_strength: null
-            sharp: 1
-            functions: [breathe, pump blood]
-            layers:
-              - material_tokens: [bone]
-                material_types: []
-                coverage: 1
-                width: 0.2
-                height: 0.5
-                depth: 0.1
-                filled: 0.8
-              - material_tokens: [flesh]
-                material_types: []
-                coverage: 1
-                width: 0.25
-                height: 0.55
-                depth: 0.15
-                filled: 0.8
-          - name: head
-            attaches_to: torso
-            attach_strength: 100
-            sharp: 1
-            functions: [think]
-            layers:
-              - material_tokens: [bone]
-                material_types: []
-                coverage: 1
-                width: 0.15
-                height: 0.15
-                depth: 0.15
-                filled: 0.75
-              - material_tokens: [flesh]
-                material_types: []
-                coverage: 1
-                width: 0.17
-                height: 0.17
-                depth: 0.17
-                filled: 0.75
-          - name: left arm
-            attaches_to: torso
-            attach_strength: 100
-            sharp: 1
-            functions: [grasp, punch]
-            layers:
-              - material_tokens: [bone]
-                material_types: []
-                coverage: 1
-                width: 0.15
-                height: 0.7
-                depth: 0.15
-                filled: 0.85
-              - material_tokens: []
-                coverage: 1
-                width: 0.17
-                height: 0.75
-                depth: 0.17
-                filled: 0.85
-          - name: right arm
-            attaches_to: torso
-            attach_strength: 100
-            sharp: 1
-            functions: [grasp, punch]
-            layers:
-              - material_tokens: [bone]
-                material_types: []
-                coverage: 1
-                width: 0.15
-                height: 0.7
-                depth: 0.15
-                filled: 0.85
-              - material_tokens: []
-                coverage: 1
-                width: 0.17
-                height: 0.75
-                depth: 0.17
-                filled: 0.85
-          - name: left leg
-            attaches_to: torso
-            attach_strength: 100
-            sharp: 1
-            functions: [walk]
-            layers:
-              - material_tokens: [bone]
-                material_types: []
-                coverage: 1
-                width: 0.15
-                height: 0.8
-                depth: 0.15
-                filled: 0.85
-              - material_tokens: [flesh]
-                material_types: []
-                coverage: 1
-                width: 0.17
-                height: 0.9
-                depth: 0.17
-                filled: 0.85
-          - name: right leg
-            attaches_to: torso
-            attach_strength: 100
-            sharp: 1
-            functions: [walk]
-            layers:
-              - material_tokens: [bone]
-                material_types: []
-                coverage: 1
-                width: 0.15
-                height: 0.8
-                depth: 0.15
-                filled: 0.85
-              - material_tokens: [flesh]
-                material_types: []
-                coverage: 1
-                width: 0.17
-                height: 0.9
-                depth: 0.17
-                filled: 0.85
+
+human:
+    sentient: true
+    char: 255
+    color: [231, 158, 109]
+    blocks_mov: true
+    blocks_vis: false
+    description: This is a human
+    weapon_component: null
+    components:
+      - name: torso
+        attaches_to: null
+        attach_strength: null
+        sharp: 1
+        wearing_info: 0
+        functions: [breathe, pump blood]
+        attacks: []
+        layers:
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.2
+            height: 0.5
+            depth: 0.1
+            filled: 0.8
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.25
+            height: 0.55
+            depth: 0.15
+            filled: 0.8
+      - name: head
+        attaches_to: torso
+        attach_strength: 100
+        sharp: 1
+        wearing_info: 0
+        functions: [think]
+        attacks: [bite]
+        layers:
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.15
+            height: 0.15
+            depth: 0.15
+            filled: 0.75
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.17
+            height: 0.17
+            depth: 0.17
+            filled: 0.75
+      - name: left arm
+        attaches_to: torso
+        attach_strength: 100
+        sharp: 1
+        wearing_info: 0
+        functions: [grasp]
+        attacks: [punch]
+        layers:
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.15
+            height: 0.7
+            depth: 0.15
+            filled: 0.85
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.17
+            height: 0.75
+            depth: 0.17
+            filled: 0.85
+      - name: right arm
+        attaches_to: torso
+        attach_strength: 100
+        sharp: 1
+        wearing_info: 0
+        functions: [grasp]
+        attacks: [punch]
+        layers:
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.15
+            height: 0.7
+            depth: 0.15
+            filled: 0.85
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.17
+            height: 0.75
+            depth: 0.17
+            filled: 0.85
+      - name: left leg
+        attaches_to: torso
+        attach_strength: 100
+        sharp: 1
+        wearing_info: 0
+        functions: [walk]
+        attacks: [kick]
+        layers:
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.15
+            height: 0.8
+            depth: 0.15
+            filled: 0.85
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.17
+            height: 0.9
+            depth: 0.17
+            filled: 0.85
+      - name: right leg
+        attaches_to: torso
+        attach_strength: 100
+        sharp: 1
+        wearing_info: 0
+        functions: [walk]
+        attacks: [kick]
+        layers:
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.15
+            height: 0.8
+            depth: 0.15
+            filled: 0.85
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.17
+            height: 0.9
+            depth: 0.17
+            filled: 0.85

@@ -1,5 +1,4 @@
 from __future__ import division
-import xml.etree.ElementTree as etree
 import os
 import economy as econ
 import copy
@@ -100,7 +99,7 @@ class WeaponGenerator:
         # Important to deepcopy ths dict or bad things may happen (components/layers referencing the same object...)
         weapon_info_dict = copy.deepcopy(blueprint_dict[wtype])
         # Loop through all components to vary their parameters
-        for component_name, component in weapon_info_dict['components'].iteritems():
+        for component in weapon_info_dict['components']:
             # Loop through all layers of the component
             for layer in component['layers']:
                 # There is a "dimensions" tuple: width/height/depth/filled.
@@ -413,8 +412,8 @@ def assemble_components(clist, force_material=None):
     ''' Assembles an objects' components based on an input dictionary '''
 
     components = []
-    for component_name, component in clist.iteritems():
-
+    for component in clist:
+        component_name = component['name']
         layers = []
 
         for clayer in component['layers']:
@@ -440,111 +439,46 @@ def assemble_components(clist, force_material=None):
     return components
 
 
-
-def import_object_xml(file_path):
+def import_object_yml(file_path):
     # TODO - ignore non-xml entries
     object_files = os.listdir(file_path)
 
     object_dict = {}
 
     for ofile in object_files:
-        obj_tree = etree.parse(os.path.join(file_path, ofile))
-        obj_root = obj_tree.getroot()
 
-        for obj in obj_root.findall('object'):
-            #print obj
-            # Start off by finding basic stuff
+        with open(os.path.join(file_path, ofile)) as yaml_file:
+            objects = yaml.load(yaml_file)
 
-            # If a char is an integer, intepret it as being the index of the tileset
-            try:    char = int(obj.findtext('char'))
-            except: char = obj.findtext('char')
-            # Figure out the color
-            color = obj.findtext('color')
-            if color != 'use_material':
-                color = map(int, color.split(', '))
-                color = libtcod.Color(*color)
+        for obj in objects.keys():
 
-            current_obj = {
-                'name':obj.findtext('name'),
-                'char':char,
-                'color':color,
-                'blocks_mov':int(obj.findtext('blocks_mov')),
-                'blocks_vis':int(obj.findtext('blocks_vis')),
-                'description':obj.findtext('description'),
-                'weapon_component':obj.findtext('weapon_component'),
-                'components':{}
-                }
+            object_dict[obj] = objects[obj]
+            object_dict[obj]['name'] = obj
 
-            ## Prune the input to correct "None" strings
-            if current_obj['weapon_component'] == 'None':
-                current_obj['weapon_component'] = None
+            if object_dict[obj]['color'] != 'use_material':
+                object_dict[obj]['color'] = libtcod.Color(*object_dict[obj]['color'])
 
+            for component in object_dict[obj]['components']:
 
-            for component in obj.find('components'):
-                # Go through each body part to pull out all the info
-                component_name = component.findtext('name')
-                attaches_to = component.findtext('attaches_to')
-                # Probably need to find a better way to parse things with no attachments
-                if attaches_to == 'None':
-                    attaches_to = None
-                    attach_strength = None
-                else:
-                    attach_strength = float(component.findtext('attach_strength'))
+                component['attachment_info'] = (component['attaches_to'], component['attach_strength'])
 
-                sharp = float(component.findtext('sharp'))
-
-                wearing_info = component.findtext('wearing_info')
-                if wearing_info == '0':
-                    wearing_info = None
-
-                ## Find the functions the part is used for ##
-                funct_list = []
-                functions = component.find('functions')
-
-                for f in functions:
-                    funct_list.append(f.text)
-
-                ## Each component can be made up of several layers ##
-                imp_layers = component.find('layers')
+                imp_layers = component['layers']
                 layers = []
                 for i, layer in enumerate(imp_layers):
                     ### Bottom layer has no "inner" dimensions,
                     ### Proceeding layers have the outer dimensions of the previous layer
                     if i == 0: inner_dimensions = (0, 0, 0, 0)
-                    else:      inner_dimensions = layers[i-1]['dimensions']
+                    else:      inner_dimensions = component['layers'][i-1]['dimensions']
 
-                    ## Find material type, and dimensions of layer
-                    material_types = []
-                    material_tokens = []
-
-                    for mtype in layer.find('material_types'):
-                        material_types.append(mtype.text)
-                    for mtoken in layer.find('material_tokens'):
-                        material_tokens.append(mtoken.text)
-
-                    coverage = float(layer.findtext('coverage'))
-                    ## Dimensions of the body part
-                    width = float(layer.findtext('width'))
-                    height = float(layer.findtext('height'))
-                    depth = float(layer.findtext('depth'))
-                    filled = float(layer.findtext('filled'))
+                    component['layers'][i]['inner_dimensions'] = inner_dimensions
 
                     # Turn the raw info from xml into a legit layer
-                    dimensions = (width, height, depth, filled)
+                    component['layers'][i]['dimensions'] = (component['layers'][i]['width'], component['layers'][i]['height'], component['layers'][i]['depth'], component['layers'][i]['filled'])
 
-                    #newlayer = MaterialLayer(material=materials[material], coverage=1, dimensions=dimensions, inner_dimensions=inner_dimensions)
-                    newlayer = {'material_types':material_types, 'material_tokens':material_tokens,
-                                'coverage':coverage, 'dimensions':dimensions, 'inner_dimensions':inner_dimensions}
-
-                    # Add to list of layers
-                    layers.append(newlayer)
-
-                current_obj['components'][component_name] = {'layers':layers, 'attachment_info':(attaches_to, attach_strength),
-                                                             'wearing_info':wearing_info, 'sharp':sharp, 'functions':funct_list}
 
                 ###### Find possible materials ########
                 material_tokens = []
-                for component_name, component in current_obj['components'].iteritems():
+                for component in object_dict[obj]['components']:
                     for layer in component['layers']:
                         for material_token in layer['material_tokens']:
                             if material_token not in material_tokens:
@@ -555,10 +489,11 @@ def import_object_xml(file_path):
                                 if material_token not in material_tokens:
                                     material_tokens.append(material_token)
 
-                current_obj['possible_materials'] = material_tokens
+                object_dict[obj]['possible_materials'] = material_tokens
                 #########################################
 
-            object_dict[obj.findtext('name')] = current_obj
+    #for o in object_dict.keys():
+    #    print o, object_dict[o]
 
     return object_dict
 
@@ -572,7 +507,8 @@ def get_valid_assembly_materials(object_name, object_dict):
 
     component_materials = {}
     # Loop through all components and add the tokens of resources which can be used to create it
-    for component_name, component in obj['components'].iteritems():
+    for component in obj['components']:
+        component_name = component['name']
 
         for layer in component['layers']:
             layer_valid_materials = []
@@ -626,14 +562,14 @@ def main():
                                        brittleness=loaded_materials[material_name]['brittleness'])
 
     #### Load XML ######
-    file_path = os.path.join(os.getcwd(), 'XML', 'creatures')
-    creature_dict = import_object_xml(file_path)
+    file_path = os.path.join(os.getcwd(), 'data', 'creatures')
+    creature_dict = import_object_yml(file_path)
 
-    opath = os.path.join(os.getcwd(), 'XML', 'objects')
-    object_dict = import_object_xml(opath)
+    opath = os.path.join(os.getcwd(), 'data', 'objects')
+    object_dict = import_object_yml(opath)
 
-    bpath = os.path.join(os.getcwd(), 'XML', 'object_blueprints')
-    blueprint_dict = import_object_xml(bpath)
+    bpath = os.path.join(os.getcwd(), 'data', 'object_blueprints')
+    blueprint_dict = import_object_yml(bpath)
     ###################
 
     wgenerator = WeaponGenerator(blueprint_dict=blueprint_dict)
