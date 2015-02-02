@@ -5141,7 +5141,7 @@ class Object:
 
 
 def attack_menu(actor, target):
-    width = 70
+    width = 48
     height = 50
 
     bwidth = width - (4 * 2)
@@ -5153,7 +5153,7 @@ def attack_menu(actor, target):
 
 
     def button_refresh_func(target):
-        width = 70
+        width = 48
         height = 50
 
         bwidth = 20
@@ -5168,70 +5168,22 @@ def attack_menu(actor, target):
 
         atx, aty = 4, 14
         # Setup buttons
-        i = aty
         buttons = [gui.Button(gui_panel=wpanel, func=show_object_info, args=[target],
-                                  text='Obj info', topleft=(mid_x, i), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                                  text='Obj info', topleft=(mid_x, 40), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
                    gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
-
-        '''
-        ## Make a button for each component
-        for component in target.components:
-            #for (layer, coverage) in component.get_coverage_layers():
-                #dispinfo = ''.join([component.name, '\n (', layer.get_name(), ': ', str(int(coverage * 100)), ')'])
-                #dispinfo = ''.join([component.name, ' (', layer.get_name(), ')\n', str(int(layer.get_health() * 100)), ' hlth, ', str(int(coverage * 100)), ' cvg'])
-
-            if 'left' in component.name: #.startswith('left'):
-                xval = left_x
-                left_y += 4
-                yval = left_y
-            elif 'right' in component.name: #.startswith('right_x'):
-                xval = right_x
-                right_y += 4
-                yval = right_y
-            else:
-                xval = mid_x
-                mid_y += 4
-                yval = mid_y
-
-
-            weapon = player.creature.get_current_weapon()
-
-            attack_mods, defend_mods = player.creature.get_attack_odds(attacking_object_component=weapon.components[0],
-                                                                    force=weapon.get_base_attack_value(), target=target, target_component=component)
-
-            attack_chance = sum(attack_mods.values())
-            defend_chance = sum(defend_mods.values())
-
-            ############## Info for mouseover ##############
-            h_header = [' -* Attack {0} *-'.format(component.name.capitalize()), '{0}/{1} = {2:.02f} perc. chance'.format(attack_chance, defend_chance, (attack_chance/(attack_chance+defend_chance))*100)]
-
-            h_info = ['Attack Score (%i)'%attack_chance]
-            for mod, amt in attack_mods.iteritems():
-                h_info.append('%s: %i'%(mod, amt) )
-            h_info.append('')
-
-            h_info.append('Defense Score (%i)'%defend_chance)
-            for mod, amt in defend_mods.iteritems():
-                h_info.append('%s: %i'%(mod, amt) )
-            ###############################################
-
-            button_disp_info = '{0}\n{1:.02f} chance'.format(component.name, (attack_chance/(attack_chance+defend_chance))*100)
-
-            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.standard_combat_attack, args=[weapon.components[0], weapon.get_base_attack_value(), target, component],
-                                   text=button_disp_info, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
-                                   hover_header=h_header, hover_text=h_info) )
-
-            '''
         ########## New simultaneous combat system preview ############
         weapon = player.creature.get_current_weapon()
         component = target.components[0] ##temp
 
         yval = 8
         for combat_move in combat.melee_armed_moves:
-            yval += 4
-            xval = 5
+            yval += 3
+            xval = 2
+
+            if combat_move not in player.creature.last_turn_moves:  button_color = PANEL_FRONT
+            else:                                                   button_color = libtcod.dark_red
 
             #### Find parts which we can hit ####
             position = combat_move.position
@@ -5259,7 +5211,7 @@ def attack_menu(actor, target):
                 #odds.append(' ')
 
                 #odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move, other_combat_move, total_odds))
-                odds.append([combat_move.name, other_combat_move.name, total_odds, odds_reasons])
+                odds.append([combat_move, other_combat_move, total_odds, odds_reasons])
 
             # Now sort the odds by the total_odds
             odds.sort(key=lambda sublist: sublist[2], reverse=True)
@@ -5267,20 +5219,25 @@ def attack_menu(actor, target):
             #Flatten the odds list into a new list, hover_odds.
             # Hover_odds needs to just be a list of strings to pass as hover info.
             hover_odds = []
-            for combat_move_name, other_combat_move_name, total_odds, odds_reasons in odds:
-                hover_odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move_name, other_combat_move_name, total_odds))
+            for combat_move, other_combat_move, total_odds, odds_reasons in odds:
+                if other_combat_move not in target.creature.last_turn_moves:
+                    hover_odds.append(' vs {1} ({2:.1f}%)'.format(combat_move.name, other_combat_move.name, total_odds))
+                else:
+                    hover_odds.append('xxx vs {1} ({2:.1f}%) xxx'.format(combat_move.name, other_combat_move.name, total_odds))
+
                 for reason in odds_reasons:
                     hover_odds.append(reason)
                 hover_odds.append(' ')
 
+
             buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move, combat_move],
-                                   text=combat_move.name, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
+                                   text=combat_move.name, topleft=(xval, yval), width=20, height=3, color=button_color, hcolor=libtcod.white, do_draw_box=True,
                                    hover_header=[combat_move.name, can_hit], hover_text=hover_odds, hover_text_offset=(30, 0)) )
         ######### End new simultaneous combat system preview #########
 
         mid_y += 4
         buttons.append(gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
-                                  text='Cancel', topleft=(mid_x, mid_y), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='Cancel', topleft=(mid_x, 44), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
 
@@ -5311,10 +5268,10 @@ def attack_menu(actor, target):
 
 
         y = 6
-        libtcod.console_print(wpanel.con, atx + 35, y, 'Defense - total: ' + str(sum(defend_mods.values())))
+        libtcod.console_print(wpanel.con, atx + 22, y, 'Defense - total: ' + str(sum(defend_mods.values())))
         for mod, amt in defend_mods.iteritems():
             y += 1
-            libtcod.console_print(wpanel.con, atx + 35, y, mod + ': ' + str(amt) )
+            libtcod.console_print(wpanel.con, atx + 22, y, mod + ': ' + str(amt) )
 
 
     wpanel.update_button_refresh_func(button_refresh_func, [target])
@@ -6955,6 +6912,7 @@ class Creature:
 
         self.combat_target = []
         self.needs_to_calculate_combat = 0
+        self.last_turn_moves = []
 
         self.natural_combat_moves = {
                              'bite': 10,
@@ -7060,6 +7018,9 @@ class Creature:
     def set_combat_attack(self, target, opening_move, move2):
         self.needs_to_calculate_combat = 1
         self.combat_target = [target, opening_move, move2]
+
+    def set_last_turn_moves(self, moves):
+        self.last_turn_moves = moves
 
     def get_defense_score(self):
 
@@ -7564,8 +7525,8 @@ class DijmapSapient:
 
             #move = random.choice(self.owner.creature.combat_moves.keys())
             #move = random.choice(combat.combat_moves)
-            opening_move = random.choice(combat.melee_armed_moves)
-            move2 = random.choice([move for move in combat.melee_armed_moves if move != opening_move])
+            opening_move = random.choice([m for m in combat.melee_armed_moves if m not in self.owner.creature.last_turn_moves])
+            move2 = random.choice([m for m in combat.melee_armed_moves if m != opening_move and m not in self.owner.creature.last_turn_moves])
             self.owner.creature.set_combat_attack(target=enemy, opening_move=opening_move, move2=move2)
 
 
@@ -7991,28 +7952,37 @@ class TimeCycle(object):
         # Now that entities have made their moves, calculate the outcome of any combats
         for entity in M.creatures + M.sapients[:]:
             if entity.creature.needs_to_calculate_combat:
-                target_entity, entity_attack_move_1, entity_attack_move_2 = entity.creature.combat_target
+                target_entity, combatant_1_opening, combatant_1_closing = entity.creature.combat_target
+                # Track these moves so they can't be used next round
+                entity.creature.set_last_turn_moves([combatant_1_opening, combatant_1_closing])
 
                 if target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
-                    target_entity_attack_move_1 = target_entity.creature.combat_target[1]
-                    target_entity_attack_move_2 = target_entity.creature.combat_target[2]
+                    combatant_2_opening = target_entity.creature.combat_target[1]
+                    combatant_2_closing = target_entity.creature.combat_target[2]
+                    # Track these moves so they can't be used next round
+                    entity.creature.set_last_turn_moves([combatant_2_opening, combatant_2_closing])
+
                     # Only reset the flag if they're attacking back; since they could be attacking someone else
                     target_entity.creature.needs_to_calculate_combat = 0
                     target_entity.creature.combat_target = []
                 else:
-                    target_entity_attack_move_1 = None
-                    target_entity_attack_move_2 = None
+                    combatant_2_opening = None
+                    combatant_2_closing = None
 
                 # Reset combat flags
                 entity.creature.needs_to_calculate_combat = 0
                 entity.creature.combat_target = []
 
                 # Regardless of whether the opponent fights back, calculate the outcome
-                combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_opening=entity_attack_move_1, combatant_1_closing=entity_attack_move_2,
-                                                     combatant_2=target_entity, combatant_2_opening=target_entity_attack_move_1, combatant_2_closing=target_entity_attack_move_2)
+                combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_opening=combatant_1_opening, combatant_1_closing=combatant_1_closing,
+                                                     combatant_2=target_entity, combatant_2_opening=combatant_2_opening, combatant_2_closing=combatant_2_closing)
 
                 for line, color in combat_log:
                     game.add_message(line, color)
+
+            # If not needing to calculate moves, clear the tracking of moves we used last round so we can use them without restriction
+            else:
+                entity.creature.set_last_turn_moves([])
 
         M.update_dmaps()
 
@@ -9103,8 +9073,8 @@ class Game:
         cult = Culture(color=libtcod.grey, language=lang.Language(), world=WORLD, races=WORLD.sentient_races)
         for x in xrange(WORLD.width):
             for y in xrange(WORLD.height):
-                WORLD.tiles[x][y].region = 'temperate forest'
-                WORLD.tiles[x][y].color = libtcod.darker_sepia
+                WORLD.tiles[x][y].region = 'grass savanna'
+                WORLD.tiles[x][y].color = libtcod.Color(95, 110, 68)
                 WORLD.tiles[x][y].culture = cult
                 WORLD.tiles[x][y].height = 120
 
@@ -9320,8 +9290,8 @@ class Game:
                     if weapon:
                         #target_part = random.choice(target.components)
                         #player.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=target, target_component=target_part)
-                        opening_move = random.choice(combat.melee_armed_moves)
-                        move2 = random.choice([move for move in combat.melee_armed_moves if move != opening_move])
+                        opening_move = random.choice([m for m in combat.melee_armed_moves if m not in player.creature.last_turn_moves])
+                        move2 = random.choice([m for m in combat.melee_armed_moves if m != opening_move and m not in player.creature.last_turn_moves])
                         player.creature.set_combat_attack(target=target, opening_move=opening_move, move2=move2)
 
                 else:
