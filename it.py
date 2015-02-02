@@ -5820,7 +5820,7 @@ class Population:
         self.wy = wy
         WORLD.tiles[wx][wy].populations.append(self)
 
-        self.world_last_dir = (0, -1)
+        self.world_last_dir = (0, 0)
         self.turns_since_move = 0
 
         self.site = site
@@ -9116,6 +9116,7 @@ class Game:
 
         ### Make the player ###
         player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1, wx=1, wy=1, save_being=1)
+        player.creature.cskills['Fighting'] += 100
         player.char = '@'
         player.local_brain = None
 
@@ -9317,8 +9318,12 @@ class Game:
                     ## Or should just use whatever AI ends up happening
                     weapon = player.creature.get_current_weapon()
                     if weapon:
-                        target_part = random.choice(target.components)
-                        player.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=target, target_component=target_part)
+                        #target_part = random.choice(target.components)
+                        #player.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=target, target_component=target_part)
+                        opening_move = random.choice(combat.melee_armed_moves)
+                        move2 = random.choice([move for move in combat.melee_armed_moves if move != opening_move])
+                        player.creature.set_combat_attack(target=target, opening_move=opening_move, move2=move2)
+
                 else:
                     player.move_and_face(dx, dy)
                 # Advance time!
