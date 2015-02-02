@@ -1,14 +1,15 @@
 
 from __future__ import division
 import csv
+import yaml
 import os
 import random
 from random import randint as roll
 
 from helpers import weighted_choice
 
-def load_combat_matrix():
-    global combat_matrix, combat_moves
+def load_combat_data():
+    global combat_matrix, combat_moves, melee_armed_moves
 
     file_path = os.path.join('data', 'combat_matrix.csv')
 
@@ -51,11 +52,35 @@ def load_combat_matrix():
 
 
     combat_moves = tuple(combat_matrix.keys())
+
+    ## Open file containing data on melee combat moves
+    melee_armed_moves = []
+
+    combat_file_path = os.path.join('data', 'combat_moves.yml')
+    with open(combat_file_path) as yaml_file:
+        combat_move_info = yaml.load(yaml_file)
+
+        for m in combat_move_info['armed_melee']:
+
+            move = CombatAttack(name=m['name'], position=m['position'], method=m['method'], distance=m['distance'])
+            melee_armed_moves.append(move)
+
     #print current_move, 'vs', columns[column_index], ':', probs
     #print combat_matrix
 
+class CombatAttack:
+    def __init__(self, name, position, method, distance):
+        self.name = name
+        self.position = position
+        self.method = method
+        self.distance = distance
+
+
 
 def get_combat_odds(combatant_1, combatant_1_move, combatant_2, combatant_2_move):
+
+    combatant_1_move = combatant_1_move.name
+    combatant_2_move = combatant_2_move.name
 
     c1_dict = {}
     c2_dict = {}
@@ -91,12 +116,12 @@ def calculate_winner_of_opening_round(c1_dict, c2_dict):
     else:
         return 2
 
-def calculate_combat(combatant_1, combatant_1_move, combatant_2, combatant_2_move):
+def calculate_combat(combatant_1, combatant_1_opening, combatant_1_closing, combatant_2, combatant_2_opening, combatant_2_closing):
 
     combat_log = []
-    if combatant_2_move != None:
+    if combatant_2_opening != None:
         # Assuming both combatants attacked each other, compare their moves and sum
-        c1_dict, c2_dict = get_combat_odds(combatant_1, combatant_1_move, combatant_2, combatant_2_move)
+        c1_dict, c2_dict = get_combat_odds(combatant_1, combatant_1_opening, combatant_2, combatant_2_opening)
 
         # 1 means combatant 1 one, 2 means combatant 2 won
         if calculate_winner_of_opening_round(c1_dict, c2_dict) == 1:
@@ -106,30 +131,38 @@ def calculate_combat(combatant_1, combatant_1_move, combatant_2, combatant_2_mov
             winner = combatant_2
             loser = combatant_1
 
-        combat_log.append(('{0}\'s {1} with {2} {3} countered {4}\'s {5} with {6} {7}.'.format(combatant_1.fulltitle(), combatant_1_move,
-            'his', combatant_1.creature.get_current_weapon().name, combatant_2.fulltitle(), combatant_2_move, 'his', combatant_2.creature.get_current_weapon().name), winner.color))
+        combat_log.append(('{0}\'s {1} with {2} {3} countered {4}\'s {5} with {6} {7}.'.format(combatant_1.fulltitle(), combatant_1_opening.name,
+            'his', combatant_1.creature.get_current_weapon().name, combatant_2.fulltitle(), combatant_2_opening.name, 'his', combatant_2.creature.get_current_weapon().name), winner.color))
         # Winner performs single attack on loser
-        combat_log.extend(simple_combat_attack(winner, loser))
+        combat_log.extend(simple_combat_attack(winner, combatant_1_closing, loser))
 
     else:
         # Attacker gets 2 opportunities to attack
-        combat_log.extend(simple_combat_attack(winner=combatant_1, loser=combatant_2))
+        combat_log.extend(simple_combat_attack(attacker=combatant_1, attacker_move=combatant_1_opening, target=combatant_2))
 
-        combat_log.extend(simple_combat_attack(winner=combatant_1, loser=combatant_2))
+        combat_log.extend(simple_combat_attack(attacker=combatant_1, attacker_move=combatant_1_closing, target=combatant_2))
 
     return combat_log
 
 
-def simple_combat_attack(winner, loser):
+def simple_combat_attack(attacker, attacker_move, target):
 
     combat_log = []
     # Hacking in some defaults for now
-    attacking_weapon = winner.creature.get_current_weapon()
+    attacking_weapon = attacker.creature.get_current_weapon()
     attacking_object_component = attacking_weapon.components[0]
     force = attacking_weapon.get_mass()
-    target_component = random.choice(loser.components)
 
-    attack_modifiers, defend_modifiers = winner.creature.get_attack_odds(attacking_object_component=attacking_object_component, force=force, target=loser, target_component=target_component)
+    # Calculate the body parts that can be hit from this attack
+    position = attacker_move.position
+    possible_target_components = []
+    for component in target.components:
+        if component.position == position or component.position == None:
+            possible_target_components.append(component)
+    # TODO - needs to handle targets which don't have any valid componenets
+    target_component = random.choice(possible_target_components)
+
+    attack_modifiers, defend_modifiers = attacker.creature.get_attack_odds(attacking_object_component=attacking_object_component, force=force, target=target, target_component=target_component)
 
     attack_chance = sum(attack_modifiers.values())
     defend_chance = int(sum(defend_modifiers.values())/2)
@@ -161,17 +194,21 @@ def simple_combat_attack(winner, loser):
         else:
             preposition = 'covering'
         #combat_log.append(('{0}\'s attack hits {1}\'s {2} - the total force of {3:.1f} is diluted by the layer resistance of {4:.1f} for a total of {5:.1f} blunt damage.'.format(winner.fulltitle(), loser.fulltitle(), targeted_layer.get_name(), total_force, layer_resistance, blunt_damage), winner.color))
-        combat_log.append(('{0}\'s {1} hits the {2} {3} {4}\'s {5} - {6:.1f}/{7:.1f} = {8:.1f} damage.'.format(winner.fullname(), winner.creature.get_current_weapon().name, targeted_layer.get_name(), preposition, loser.fullname(), target_component.name, total_force, layer_resistance, blunt_damage), winner.color))
+        combat_log.append(('{0}\'s {1} with {2} {3} hits the {4} {5} {6}\'s {7} - {8:.1f}/{9:.1f} = {10:.1f} damage.'.format(attacker.fullname(), attacker_move.name, 'his', attacker.creature.get_current_weapon().name,
+                            targeted_layer.get_name(), preposition, target.fullname(), target_component.name, total_force, layer_resistance, blunt_damage), attacker.color))
 
     # Attack didn't connect
     else:
-        combat_log.append(('{0} dodged {1}\'s attack!'.format(loser.fullname(), winner.fullname()), loser.color))
+        combat_log.append(('{0} dodged {1}\'s attack!'.format(target.fullname(), attacker.fullname()), target.color))
 
     return combat_log
 
 
+def main():
+    load_combat_data()
 
-load_combat_matrix()
+main()
+
 
 
 

@@ -245,7 +245,7 @@ class MaterialLayer:
 
 ## The component that the object is made out of
 class ObjectComponent:
-    def __init__(self, name, layers, sharp, functions, attachment_info, wearing_info=None):
+    def __init__(self, name, layers, sharp, functions, attachment_info, position=None, wearing_info=None):
         self.name = name
         # Owner should be overwritten when object initializes
         self.owner = None
@@ -269,6 +269,7 @@ class ObjectComponent:
         self.attached_to = None
         self.attach_strength = None
 
+        self.position = position
         ## Convoluted code to help with clothing/wearing
         if wearing_info:
             self.bodypart_covered = wearing_info[0]
@@ -432,7 +433,7 @@ def assemble_components(clist, force_material=None):
         ## Now that we have the layers, create the component
         new_component = ObjectComponent(name=component_name, layers=layers, sharp=component['sharp'],
                                         functions=[function for function in component['functions']], attachment_info=component['attachment_info'],
-                                        wearing_info=component['wearing_info'])
+                                        position=component['position'], wearing_info=component['wearing_info'])
 
         components.append(new_component)
 

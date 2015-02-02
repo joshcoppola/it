@@ -8,6 +8,8 @@ door:
    components:
       - name: door
         functions: [door]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1
@@ -30,6 +32,8 @@ pottery:
    components:
       - name: pottery
         functions: [storage]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1
@@ -52,6 +56,8 @@ barrel:
    components:
       - name: barrel
         functions: [storage]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1
@@ -65,7 +71,7 @@ barrel:
             depth: .5
             filled: .75
 crate:
-   char: #
+   char: "#"
    color: use_material
    blocks_mov: 0
    blocks_vis: 0
@@ -74,6 +80,8 @@ crate:
    components:
       - name: crate
         functions: [storage]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1

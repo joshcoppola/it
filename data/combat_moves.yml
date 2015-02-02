@@ -1,0 +1,36 @@
+
+armed_melee:
+  - name: high swing 
+    position: high
+    method: swing
+    distance: medium
+  - name: middle swing 
+    position: middle
+    method: swing
+    distance: medium
+  - name: low swing 
+    position: low
+    method: swing
+    distance: medium
+  - name: vertical swing 
+    position: high
+    method: swing
+    distance: medium
+  - name: high thrust 
+    position: high
+    method: thrust
+    distance: medium
+  - name: middle thrust 
+    position: middle
+    method: thrust
+    distance: medium
+  - name: low thrust 
+    position: low
+    method: thrust
+    distance: medium
+
+   
+
+
+
+

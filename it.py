@@ -5229,13 +5229,22 @@ def attack_menu(actor, target):
         component = target.components[0] ##temp
 
         yval = 8
-        for combat_move in combat.combat_moves:
+        for combat_move in combat.melee_armed_moves:
             yval += 4
             xval = 5
 
+            #### Find parts which we can hit ####
+            position = combat_move.position
+            possible_target_components = []
+            for component in target.components:
+                if component.position == position or component.position == None:
+                    possible_target_components.append(component)
+            can_hit = 'Can hit: {0}'.format(join_list(string_list=[c.name for c in possible_target_components]))
+            #######################################
+
             odds = []
             # Go through each other combat move and find the odds
-            for other_combat_move in combat.combat_moves:
+            for other_combat_move in combat.melee_armed_moves:
                 c1, c2 = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
                 c1_total = max(1, sum(c1.values()))
                 c2_total = max(1, sum(c2.values()))
@@ -5250,7 +5259,7 @@ def attack_menu(actor, target):
                 #odds.append(' ')
 
                 #odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move, other_combat_move, total_odds))
-                odds.append([combat_move, other_combat_move, total_odds, odds_reasons])
+                odds.append([combat_move.name, other_combat_move.name, total_odds, odds_reasons])
 
             # Now sort the odds by the total_odds
             odds.sort(key=lambda sublist: sublist[2], reverse=True)
@@ -5258,15 +5267,15 @@ def attack_menu(actor, target):
             #Flatten the odds list into a new list, hover_odds.
             # Hover_odds needs to just be a list of strings to pass as hover info.
             hover_odds = []
-            for combat_move, other_combat_move, total_odds, odds_reasons in odds:
-                hover_odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move, other_combat_move, total_odds))
+            for combat_move_name, other_combat_move_name, total_odds, odds_reasons in odds:
+                hover_odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move_name, other_combat_move_name, total_odds))
                 for reason in odds_reasons:
                     hover_odds.append(reason)
                 hover_odds.append(' ')
 
-            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move],
-                                   text=combat_move, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
-                                   hover_header=[combat_move], hover_text=hover_odds, hover_text_offset=(30, 0)) )
+            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move, combat_move],
+                                   text=combat_move.name, topleft=(xval, yval), width=20, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True,
+                                   hover_header=[combat_move.name, can_hit], hover_text=hover_odds, hover_text_offset=(30, 0)) )
         ######### End new simultaneous combat system preview #########
 
         mid_y += 4
@@ -7048,9 +7057,9 @@ class Creature:
     def get_graspers(self):
         return [component for component in self.owner.components if 'grasp' in component.functions]
 
-    def set_combat_attack(self, target, move):
+    def set_combat_attack(self, target, opening_move, move2):
         self.needs_to_calculate_combat = 1
-        self.combat_target = [target, move]
+        self.combat_target = [target, opening_move, move2]
 
     def get_defense_score(self):
 
@@ -7143,16 +7152,19 @@ class Creature:
         if target.creature:
             defend_score = target.creature.get_defense_score()
         else:
-            defend_score = {}
+            #defend_score = {}
+            # Adding default for now...
+            defend_score = {'Providing default value here': 1}
 
         # Compare volume of volume of the creature to the volume of the target component
         # This difference becomes a defense modifier
-        if target_component:
+        '''if target_component:
             #volume_mod = int( (target_component.get_volume() / self.owner.get_volume()) )
             volume_mod = int( self.owner.get_volume() / target_component.get_volume() )
             #print volume_mod
 
             defend_score['Vol. size bonus'] = volume_mod
+        '''
 
         return attack_score, defend_score
 
@@ -7551,8 +7563,10 @@ class DijmapSapient:
             #self.owner.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=enemy, target_component=target_part)
 
             #move = random.choice(self.owner.creature.combat_moves.keys())
-            move = random.choice(combat.combat_moves)
-            self.owner.creature.set_combat_attack(target=enemy, move=move)
+            #move = random.choice(combat.combat_moves)
+            opening_move = random.choice(combat.melee_armed_moves)
+            move2 = random.choice([move for move in combat.melee_armed_moves if move != opening_move])
+            self.owner.creature.set_combat_attack(target=enemy, opening_move=opening_move, move2=move2)
 
 
 class BasicWorldBrain:
@@ -7977,22 +7991,25 @@ class TimeCycle(object):
         # Now that entities have made their moves, calculate the outcome of any combats
         for entity in M.creatures + M.sapients[:]:
             if entity.creature.needs_to_calculate_combat:
-                target_entity, entity_attack_move = entity.creature.combat_target
+                target_entity, entity_attack_move_1, entity_attack_move_2 = entity.creature.combat_target
 
                 if target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
-                    target_entity_attack_move = target_entity.creature.combat_target[1]
+                    target_entity_attack_move_1 = target_entity.creature.combat_target[1]
+                    target_entity_attack_move_2 = target_entity.creature.combat_target[2]
                     # Only reset the flag if they're attacking back; since they could be attacking someone else
                     target_entity.creature.needs_to_calculate_combat = 0
                     target_entity.creature.combat_target = []
                 else:
-                    target_entity_attack_move = None
+                    target_entity_attack_move_1 = None
+                    target_entity_attack_move_2 = None
 
                 # Reset combat flags
                 entity.creature.needs_to_calculate_combat = 0
                 entity.creature.combat_target = []
 
                 # Regardless of whether the opponent fights back, calculate the outcome
-                combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_move=entity_attack_move, combatant_2=target_entity, combatant_2_move=target_entity_attack_move)
+                combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_opening=entity_attack_move_1, combatant_1_closing=entity_attack_move_2,
+                                                     combatant_2=target_entity, combatant_2_opening=target_entity_attack_move_1, combatant_2_closing=target_entity_attack_move_2)
 
                 for line, color in combat_log:
                     game.add_message(line, color)

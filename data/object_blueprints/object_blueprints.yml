@@ -8,6 +8,8 @@ sword:
    components:
       - name: sword
         functions: [attack]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1.1
@@ -28,8 +30,10 @@ dagger:
    description: "This is a %s "
    weapon_component: null
    components:
-      - name: sword
+      - name: dagger
         functions: [attack]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1.1
@@ -50,8 +54,10 @@ mace:
    description: "This is a %s "
    weapon_component: null
    components:
-      - name: sword
+      - name: mace
         functions: [attack]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1.1
@@ -72,8 +78,10 @@ spear:
    description: "This is a %s "
    weapon_component: null
    components:
-      - name: sword
+      - name: spear
         functions: [attack]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1.1
@@ -94,8 +102,10 @@ axe:
    description: "This is a %s "
    weapon_component: null
    components:
-      - name: sword
+      - name: axe
         functions: [attack]
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1.1

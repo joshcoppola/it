@@ -8,6 +8,8 @@ holy relic:
    components:
       - name: relic
         functions: []
+        attacks: []
+        position: null
         attaches_to: null
         attach_strength: null
         sharp: 1
