@@ -462,43 +462,51 @@ class CityMap:
         ### Adding agents from the economy to the city
         profession_to_business = {'Blacksmith':'Foundry', 'Potter':'Kiln', 'Carpenter':'Carpenter Workshop', 'Clothier':'Clothier Workshop'}
 
+        unplaced_homeseekers = 0
         for good_producer in self.city_class.econ.good_producers:
-            work_tiles = random.choice(self.industries)
-            home_tiles = random.choice(self.houses)
+            if len(self.industries) and len(self.houses):
+                work_tiles = random.choice(self.industries)
+                home_tiles = random.choice(self.houses)
 
-            self.industries.remove(work_tiles)
-            self.houses.remove(home_tiles)
+                self.industries.remove(work_tiles)
+                self.houses.remove(home_tiles)
 
-            ## Choose a title for the business
-            professions = [Profession(name=good_producer.name, category='commoner')]
-            ptype = good_producer.name.split(' ')[1]
-            new_building = self.city_class.create_building(zone='commercial', b_type=profession_to_business[ptype],
-                                    template='TEST', professions=professions, inhabitants=[], tax_status='commoner')
-
-
-            ## Fill positions
-            new_building.fill_initial_positions()
-            # The first employee listed is the actual economy agent
-            new_building.current_workers[0].sapient.economy_agent = good_producer
+                ## Choose a title for the business
+                professions = [Profession(name=good_producer.name, category='commoner')]
+                ptype = good_producer.name.split(' ')[1]
+                new_building = self.city_class.create_building(zone='commercial', b_type=profession_to_business[ptype],
+                                        template='TEST', professions=professions, inhabitants=[], tax_status='commoner')
 
 
-            for x in xrange(work_tiles.x1, work_tiles.x2 + 1):
-                for y in xrange(work_tiles.y1, work_tiles.y2 + 1):
-                    new_building.physical_property.append((x, y))
-                    self.usemap.tiles[x][y].building = new_building
+                ## Fill positions
+                new_building.fill_initial_positions()
+                # The first employee listed is the actual economy agent
+                new_building.current_workers[0].sapient.economy_agent = good_producer
 
-            for employee in new_building.current_workers:
-                new_building.place_within(obj=employee)
-                placed_figures.append(employee)
 
-            #### WILL ONLY CREATE HOUSE FOR FIRST EMPLOYEE
-            # And will not place employee in house
-            household = self.city_class.create_building(zone='residential', b_type='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
+                for x in xrange(work_tiles.x1, work_tiles.x2 + 1):
+                    for y in xrange(work_tiles.y1, work_tiles.y2 + 1):
+                        new_building.physical_property.append((x, y))
+                        self.usemap.tiles[x][y].building = new_building
 
-            for x in xrange(home_tiles.x1, home_tiles.x2 + 1):
-                for y in xrange(home_tiles.y1, home_tiles.y2 + 1):
-                    household.physical_property.append((x, y))
-                    self.usemap.tiles[x][y].building = household
+                for employee in new_building.current_workers:
+                    new_building.place_within(obj=employee)
+                    placed_figures.append(employee)
+
+                #### WILL ONLY CREATE HOUSE FOR FIRST EMPLOYEE
+                # And will not place employee in house
+                household = self.city_class.create_building(zone='residential', b_type='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
+
+                for x in xrange(home_tiles.x1, home_tiles.x2 + 1):
+                    for y in xrange(home_tiles.y1, home_tiles.y2 + 1):
+                        household.physical_property.append((x, y))
+                        self.usemap.tiles[x][y].building = household
+
+            # TODO - find out why there aren't enough houses in the city
+            else:
+                unplaced_homeseekers += 1
+
+        print '{0} unplaced figures looking for either home or work'.format(unplaced_homeseekers)
 
         taverns = [building for building in self.city_class.buildings if building.b_type == 'Tavern']
         #for figure in self.city_class.figures:
