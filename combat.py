@@ -126,15 +126,25 @@ def calculate_combat(combatant_1, combatant_1_opening, combatant_1_closing, comb
         # 1 means combatant 1 one, 2 means combatant 2 won
         if calculate_winner_of_opening_round(c1_dict, c2_dict) == 1:
             winner = combatant_1
+            winning_opening = combatant_1_opening
+            winning_closing = combatant_1_closing
+
             loser = combatant_2
+            losing_opening = combatant_2_opening
+            losing_closing = combatant_2_closing
         else:
             winner = combatant_2
-            loser = combatant_1
+            winning_opening = combatant_2_opening
+            winning_closing = combatant_2_closing
 
-        combat_log.append(('{0}\'s {1} with {2} {3} countered {4}\'s {5} with {6} {7}.'.format(combatant_1.fulltitle(), combatant_1_opening.name,
-            'his', combatant_1.creature.get_current_weapon().name, combatant_2.fulltitle(), combatant_2_opening.name, 'his', combatant_2.creature.get_current_weapon().name), winner.color))
+            loser = combatant_1
+            losing_opening = combatant_1_opening
+            losing_closing = combatant_1_closing
+
+        combat_log.append(('{0}\'s {1} with {2} {3} countered {4}\'s {5} with {6} {7}.'.format(winner.fulltitle(), winning_opening.name,
+            'his', winner.creature.get_current_weapon().name, loser.fulltitle(), losing_opening.name, 'his', loser.creature.get_current_weapon().name), winner.color))
         # Winner performs single attack on loser
-        combat_log.extend(simple_combat_attack(winner, combatant_1_closing, loser))
+        combat_log.extend(simple_combat_attack(attacker=winner, attacker_move=winning_closing, target=loser))
 
     else:
         # Attacker gets 2 opportunities to attack
