@@ -4757,6 +4757,25 @@ class Object:
         else:
             return self.get_mass() / 2
 
+
+    def get_possible_target_components_from_attack_position(self, position):
+        possible_target_components = []
+        for component in self.components:
+            if component.position == position or component.position == None:
+                possible_target_components.append(component)
+
+        return possible_target_components
+
+    def get_wounds(self):
+        wounds = []
+
+        for component in self.components:
+            for layer in component.layers:
+                for wound in layer.wounds:
+                    wounds.append('{0} ({1}) {2}'.format(component.name, layer.get_name(), wound))
+
+        return wounds
+
     def get_mass(self):
         mass = 0
         for component in self.components:
@@ -5186,11 +5205,7 @@ def attack_menu(actor, target):
             else:                                                   button_color = libtcod.dark_red
 
             #### Find parts which we can hit ####
-            position = combat_move.position
-            possible_target_components = []
-            for component in target.components:
-                if component.position == position or component.position == None:
-                    possible_target_components.append(component)
+            possible_target_components = target.get_possible_target_components_from_attack_position(position=combat_move.position)
             can_hit = 'Can hit: {0}'.format(join_list(string_list=[c.name for c in possible_target_components]))
             #######################################
 
@@ -7140,9 +7155,10 @@ class Creature:
         else:
             target.local_brain.set_state('fleeing')
 
-
+    '''
+    # Deprecated in favor of simple_combat_attack
     def standard_combat_attack(self, attacking_object_component, force, target, target_component):
-        ''' Calculates whether an attack will hit or not '''
+        # '' Calculates whether an attack will hit or not ''
 
         if target.sapient and target.local_brain and target.local_brain.ai_state == 'idle':
             self.handle_renegade_faction(target)
@@ -7153,29 +7169,64 @@ class Creature:
         attack_chance = sum(attack_modifiers.values())
         defend_chance = sum(defend_modifiers.values())
 
+        # If attack hits...
         if roll(1, attack_chance + defend_chance) < attack_chance:
-            # Attack hits!
-
             # Lists the top layers (outermost layer first)
-            layers = target_component.get_coverage_layers()
+            chances_to_hit = target_component.get_chances_to_hit_exposed_layers()
+            # Weighted choice, from stackoverflow
+            targeted_layer = weighted_choice(chances_to_hit)
 
-            chances_to_hit = []
-            running_coverage_amt = 0
-            for layer, coverage_amt in layers:
-                # Chance to hit is this layer's coverage minus previous layer's coverage
-                # Exception - if this layer's coverage is smaller, it's essentially un-hittable
-                # TODO - ensure that chance_to_hit and running_coverage_amt work correctly with layers with weird cvg amounts
-                chance_to_hit = max(coverage_amt, running_coverage_amt) - running_coverage_amt
-                running_coverage_amt += chance_to_hit
+            target_component.apply_force(other_obj_comp=attacking_object_component, total_force=force, targeted_layer=targeted_layer)
+            # Use the poorly-written physics module to compute damage
+            #targeted_layer.apply_force(other_obj_comp=attacking_object_component, total_force=force)
+    '''
 
-                chances_to_hit.append((layer, chance_to_hit))
+    def simple_combat_attack(self, combat_move, target):
+        combat_log = []
 
-            #print chances_to_hit
+
+        if target.sapient and target.local_brain and target.local_brain.ai_state == 'idle':
+            self.handle_renegade_faction(target)
+
+        # Hacking in some defaults for now
+        attacking_weapon = self.get_current_weapon()
+        attacking_object_component = attacking_weapon.components[0]
+        force = attacking_weapon.get_mass() * (roll(100, 160)/10)
+
+        # Calculate the body parts that can be hit from this attack
+        # TODO - needs to handle targets which don't have any valid componenets
+        possible_target_components = target.get_possible_target_components_from_attack_position(position=combat_move.position)
+        target_component = random.choice(possible_target_components)
+
+
+        # Find chances of attack hitting
+        attack_modifiers, defend_modifiers = self.get_attack_odds(attacking_object_component=attacking_object_component, force=force, target=target, target_component=target_component)
+
+        attack_chance = sum(attack_modifiers.values())
+        defend_chance = int(sum(defend_modifiers.values())/2)
+
+        if roll(1, attack_chance + defend_chance) < attack_chance:
+            chances_to_hit = target_component.get_chances_to_hit_exposed_layers()
             # Weighted choice, from stackoverflow
             targeted_layer = weighted_choice(chances_to_hit)
 
             # Use the poorly-written physics module to compute damage
-            targeted_layer.apply_force(other_obj_comp=attacking_object_component, total_force=force)
+            target_component.apply_force(other_obj_comp=attacking_object_component, total_force=force, targeted_layer=targeted_layer)
+
+            if targeted_layer.owner == target_component:
+                preposition = 'on'
+            else:
+                preposition = 'covering'
+
+            combat_log.append(('{0}\'s {1} with {2} {3} hits the {4} {5} {6}\'s {7}.'.format(self.owner.fullname(), combat_move.name, 'his', self.get_current_weapon().name,
+                                targeted_layer.get_name(), preposition, target.fullname(), target_component.name), self.owner.color))
+
+        # Attack didn't connect
+        else:
+            combat_log.append(('{0} dodged {1}\'s attack!'.format(target.fullname(), self.owner.fullname()), target.color))
+
+        return combat_log
+
 
     def cause_to_bleed(self, damage, sharpness):
         #self.bleeding = min(damage*sharpness, self.max_blood)
@@ -7247,7 +7298,7 @@ class Creature:
                 # Drop the object (and release hold on it)
                 creature_obj.drop_object(own_component=component, obj=component.grasped_item)
 
-        if creature_obj.sapient.commander and self.owner in creature_obj.sapient.commander.commanded_figures:
+        if creature_obj.sapient.commander and self.owner in creature_obj.sapient.commander.sapient.commanded_figures:
             creature_obj.sapient.commander.sapient.remove_commanded_figure(creature_obj)
 
         M.sapients.remove(creature_obj)
@@ -7519,12 +7570,6 @@ class DijmapSapient:
         # TODO - make sure this makeshift code is turned into something much more intelligent
         weapon = self.owner.creature.get_current_weapon()
         if weapon:
-            #target_part = random.choice(enemy.components)
-            #target_layer, coverage_amount = random.choice(target_part.get_coverage_layers() )
-            #self.owner.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=enemy, target_component=target_part)
-
-            #move = random.choice(self.owner.creature.combat_moves.keys())
-            #move = random.choice(combat.combat_moves)
             opening_move = random.choice([m for m in combat.melee_armed_moves if m not in self.owner.creature.last_turn_moves])
             move2 = random.choice([m for m in combat.melee_armed_moves if m != opening_move and m not in self.owner.creature.last_turn_moves])
             self.owner.creature.set_combat_attack(target=enemy, opening_move=opening_move, move2=move2)
@@ -8765,6 +8810,11 @@ def battle_hover_information():
             for line in reversed(description):
                 text.insert(0, line)
 
+            text.append(' ')
+            text.append('Wounds:')
+            for wound in target.get_wounds():
+                text.append(wound)
+            text.append(' ')
 
             if target.local_brain:
                 text.append(' :- - - - - - - : ')
@@ -9288,8 +9338,6 @@ class Game:
                     ## Or should just use whatever AI ends up happening
                     weapon = player.creature.get_current_weapon()
                     if weapon:
-                        #target_part = random.choice(target.components)
-                        #player.creature.standard_combat_attack(attacking_object_component=weapon.components[0], force=weapon.get_mass(), target=target, target_component=target_part)
                         opening_move = random.choice([m for m in combat.melee_armed_moves if m not in player.creature.last_turn_moves])
                         move2 = random.choice([m for m in combat.melee_armed_moves if m != opening_move and m not in player.creature.last_turn_moves])
                         player.creature.set_combat_attack(target=target, opening_move=opening_move, move2=move2)

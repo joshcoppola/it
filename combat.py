@@ -144,72 +144,13 @@ def calculate_combat(combatant_1, combatant_1_opening, combatant_1_closing, comb
         combat_log.append(('{0}\'s {1} with {2} {3} countered {4}\'s {5} with {6} {7}.'.format(winner.fulltitle(), winning_opening.name,
             'his', winner.creature.get_current_weapon().name, loser.fulltitle(), losing_opening.name, 'his', loser.creature.get_current_weapon().name), winner.color))
         # Winner performs single attack on loser
-        combat_log.extend(simple_combat_attack(attacker=winner, attacker_move=winning_closing, target=loser))
+        combat_log.extend(winner.creature.simple_combat_attack(combat_move=winning_closing, target=loser))
 
     else:
         # Attacker gets 2 opportunities to attack
-        combat_log.extend(simple_combat_attack(attacker=combatant_1, attacker_move=combatant_1_opening, target=combatant_2))
+        combat_log.extend(combatant_1.creature.simple_combat_attack(combat_move=combatant_1_opening, target=combatant_2))
 
-        combat_log.extend(simple_combat_attack(attacker=combatant_1, attacker_move=combatant_1_closing, target=combatant_2))
-
-    return combat_log
-
-
-def simple_combat_attack(attacker, attacker_move, target):
-
-    combat_log = []
-    # Hacking in some defaults for now
-    attacking_weapon = attacker.creature.get_current_weapon()
-    attacking_object_component = attacking_weapon.components[0]
-    force = attacking_weapon.get_mass()
-
-    # Calculate the body parts that can be hit from this attack
-    position = attacker_move.position
-    possible_target_components = []
-    for component in target.components:
-        if component.position == position or component.position == None:
-            possible_target_components.append(component)
-    # TODO - needs to handle targets which don't have any valid componenets
-    target_component = random.choice(possible_target_components)
-
-    attack_modifiers, defend_modifiers = attacker.creature.get_attack_odds(attacking_object_component=attacking_object_component, force=force, target=target, target_component=target_component)
-
-    attack_chance = sum(attack_modifiers.values())
-    defend_chance = int(sum(defend_modifiers.values())/2)
-
-    if roll(1, attack_chance + defend_chance) < attack_chance:
-        # Lists the top layers (outermost layer first)
-        layers = target_component.get_coverage_layers()
-
-        chances_to_hit = []
-        running_coverage_amt = 0
-        for layer, coverage_amt in layers:
-            # Chance to hit is this layer's coverage minus previous layer's coverage
-            # Exception - if this layer's coverage is smaller, it's essentially un-hittable
-            # TODO - ensure that chance_to_hit and running_coverage_amt work correctly with layers with weird cvg amounts
-            chance_to_hit = max(coverage_amt, running_coverage_amt) - running_coverage_amt
-            running_coverage_amt += chance_to_hit
-
-            chances_to_hit.append((layer, chance_to_hit))
-
-        #print chances_to_hit
-        # Weighted choice, from stackoverflow
-        targeted_layer = weighted_choice(chances_to_hit)
-
-        # Use the poorly-written physics module to compute damage
-        total_force, layer_resistance, blunt_damage = targeted_layer.apply_force(other_obj_comp=attacking_object_component, total_force=force)
-
-        if targeted_layer.owner == target_component:
-            preposition = 'on'
-        else:
-            preposition = 'covering'
-        #combat_log.append(('{0}\'s attack hits {1}\'s {2} - the total force of {3:.1f} is diluted by the layer resistance of {4:.1f} for a total of {5:.1f} blunt damage.'.format(winner.fulltitle(), loser.fulltitle(), targeted_layer.get_name(), total_force, layer_resistance, blunt_damage), winner.color))
-        combat_log.append(('{0}\'s {1} with {2} {3} hits the {4} {5} {6}\'s {7} - {8:.1f}/{9:.1f} = {10:.1f} damage.'.format(attacker.fullname(), attacker_move.name, 'his', attacker.creature.get_current_weapon().name,
-                            targeted_layer.get_name(), preposition, target.fullname(), target_component.name, total_force, layer_resistance, blunt_damage), attacker.color))
-
-    # Attack didn't connect
-    else:
-        combat_log.append(('{0} dodged {1}\'s attack!'.format(target.fullname(), attacker.fullname()), target.color))
+        combat_log.extend(combatant_1.creature.simple_combat_attack(combat_move=combatant_1_opening, target=combatant_2))
 
     return combat_log
 
