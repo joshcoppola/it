@@ -17,20 +17,27 @@ human:
         attacks: []
         position: middle
         layers:
-          - material_tokens: [bone]
-            material_types: []
-            coverage: 1
-            width: 0.2
-            height: 0.5
-            depth: 0.1
-            filled: 0.8
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.25
-            height: 0.55
+            width: 0.21
+            height: 0.38
+            depth: 0.05
+            filled: 0.9
+          - material_tokens: [bone]
+            material_types: []
+            coverage: 1
+            width: 0.31
+            height: 0.48
             depth: 0.15
-            filled: 0.8
+            filled: 0.9
+          - material_tokens: [flesh]
+            material_types: []
+            coverage: 1
+            width: 0.36
+            height: 0.53
+            depth: 0.20
+            filled: 0.9
       - name: head
         attaches_to: torso
         attach_strength: 100
