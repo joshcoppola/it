@@ -5,6 +5,7 @@ door:
    blocks_vis: 0
    description: "This is a %s door"
    weapon_component: null
+   wearable: 0
    components:
       - name: door
         functions: [door]
@@ -12,16 +13,14 @@ door:
         position: null
         attaches_to: null
         attach_strength: null
-        sharp: 1
-        wearing_info: 0
+        sharp: 0
+        wearing_info: null
         layers: 
           - material_tokens: [wood]
             material_types: []
             coverage: 1
-            width: 1
-            height: 1
-            depth: .1
-            filled: 1
+            dimensions: [1, 1, .1, 1]
+            layer_thickness: null
 pottery:
    char: o
    color: use_material
@@ -29,6 +28,7 @@ pottery:
    blocks_vis: 0
    description: "This is a %s pottery"
    weapon_component: null
+   wearable: 0
    components:
       - name: pottery
         functions: [storage]
@@ -36,16 +36,14 @@ pottery:
         position: null
         attaches_to: null
         attach_strength: null
-        sharp: 1
-        wearing_info: 0
+        sharp: 0
+        wearing_info: null
         layers: 
           - material_tokens: [clay]
             material_types: []
             coverage: 1
-            width: .1
-            height: .3
-            depth: .1
-            filled: .85
+            dimensions: [.1, .3, .1, .85]
+            layer_thickness: .01
 barrel:
    char: o
    color: use_material
@@ -53,6 +51,7 @@ barrel:
    blocks_vis: 0
    description: "This is a %s barrel"
    weapon_component: null
+   wearable: 0
    components:
       - name: barrel
         functions: [storage]
@@ -60,16 +59,14 @@ barrel:
         position: null
         attaches_to: null
         attach_strength: null
-        sharp: 1
-        wearing_info: 0
+        sharp: 0
+        wearing_info: null
         layers: 
           - material_tokens: [wood]
             material_types: []
             coverage: 1
-            width: .5
-            height: 1
-            depth: .5
-            filled: .75
+            layer_thickness: .01
+            dimensions: [.5, 1, .5, .75]
 crate:
    char: "#"
    color: use_material
@@ -77,6 +74,7 @@ crate:
    blocks_vis: 0
    description: "This is a %s crate"
    weapon_component: null
+   wearable: 0
    components:
       - name: crate
         functions: [storage]
@@ -84,13 +82,137 @@ crate:
         position: null
         attaches_to: null
         attach_strength: null
-        sharp: 1
-        wearing_info: 0
+        sharp: 0
+        wearing_info: null
         layers: 
           - material_tokens: [wood]
             material_types: []
             coverage: 1
-            width: .5
-            height: 1
-            depth: .5
-            filled: .75
+            layer_thickness: .01
+            dimensions: [.5, 1, .5, .75]
+shirt:
+    char: T
+    color: use_material
+    blocks_mov: 0
+    blocks_vis: 0
+    description: "This is a shirt"
+    weapon_component: null
+    wearable: 1
+    components:
+      - name: shirt
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: null
+        attach_strength: null
+        sharp: 0
+        wearing_info: [torso, null, null]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: .6
+            dimensions: [.36, 53, .20, .9]
+            layer_thickness: .001
+      - name: right sleeve
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: shirt
+        attach_strength: 100
+        sharp: 0
+        wearing_info: [right arm, null, null]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: .4
+            dimensions: [.17, .75, .17, .85]
+            layer_thickness: .001
+      - name: left sleeve
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: shirt
+        attach_strength: 100
+        sharp: 0
+        wearing_info: [left arm, null, null]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: .4
+            dimensions: [.17, .75, .17, .85]
+            layer_thickness: .001
+pants:
+    char: p
+    color: use_material
+    blocks_mov: 0
+    blocks_vis: 0
+    description: "This is a pair of pants"
+    weapon_component: null
+    wearable: 1
+    components:
+      - name: pant seat
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: null
+        attach_strength: null
+        sharp: 0
+        wearing_info: [torso, null, null]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: .1
+            dimensions: [.36, 53, .20, .9]
+            layer_thickness: .001
+      - name: right pant leg
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: pant seat
+        attach_strength: 100
+        sharp: 0
+        wearing_info: [right leg, null, null]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: .8
+            dimensions: [.15, .8, .15, .85]
+            layer_thickness: .001
+      - name: left pant leg
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: pant seat
+        attach_strength: 100
+        sharp: 0
+        wearing_info: [left leg, null, null]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: .8
+            dimensions: [.15, .8, .15, .85]
+            layer_thickness: .001
+pack:
+    char: T
+    color: use_material
+    blocks_mov: 0
+    blocks_vis: 0
+    description: "This is a pack"
+    weapon_component: null
+    wearable: 1
+    components:
+      - name: pack
+        functions: [storage]
+        attacks: []
+        position: null
+        attaches_to: null
+        attach_strength: null
+        sharp: 0
+        wearing_info: [null, torso, 100]
+        layers: 
+          - material_tokens: [cloth]
+            material_types: []
+            coverage: 1
+            dimensions: [.35, 45, .35, .95]
+            layer_thickness: .05
+            

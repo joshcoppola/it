@@ -5,6 +5,7 @@ sword:
    blocks_vis: 0
    description: "This is a %s "
    weapon_component: null
+   wearable: 0
    components:
       - name: sword
         functions: [attack]
@@ -18,10 +19,8 @@ sword:
           - material_tokens: []
             material_types: [ores]
             coverage: 1
-            width: .08
-            height: 1
-            depth: .01
-            filled: .9
+            dimensions: [.08, .1, .01, .9]
+            layer_thickness: null
 dagger:
    char: "/"
    color: use_material
@@ -29,6 +28,7 @@ dagger:
    blocks_vis: 0
    description: "This is a %s "
    weapon_component: null
+   wearable: 0
    components:
       - name: dagger
         functions: [attack]
@@ -42,10 +42,8 @@ dagger:
           - material_tokens: []
             material_types: [ores]
             coverage: 1
-            width: .05
-            height: .2
-            depth: .01
-            filled: .9
+            dimensions: [.05, .2, .01, .9]
+            layer_thickness: null
 mace:
    char: "/"
    color: use_material
@@ -53,6 +51,7 @@ mace:
    blocks_vis: 0
    description: "This is a %s "
    weapon_component: null
+   wearable: 0
    components:
       - name: mace
         functions: [attack]
@@ -66,10 +65,8 @@ mace:
           - material_tokens: []
             material_types: [ores]
             coverage: 1
-            width: .06
-            height: .7
-            depth: .01
-            filled: .9
+            dimensions: [.06, .7, .01, .9]
+            layer_thickness: null
 spear:
    char: "/"
    color: use_material
@@ -77,6 +74,7 @@ spear:
    blocks_vis: 0
    description: "This is a %s "
    weapon_component: null
+   wearable: 0
    components:
       - name: spear
         functions: [attack]
@@ -90,10 +88,8 @@ spear:
           - material_tokens: [wood]
             material_types: []
             coverage: 1
-            width: .03
-            height: 1.2
-            depth: .03
-            filled: .9
+            dimensions: [.03, 1.2, .03, .9]
+            layer_thickness: null
 axe:
    char: "/"
    color: use_material
@@ -101,6 +97,7 @@ axe:
    blocks_vis: 0
    description: "This is a %s "
    weapon_component: null
+   wearable: 0
    components:
       - name: axe
         functions: [attack]
@@ -114,7 +111,5 @@ axe:
           - material_tokens: []
             material_types: [ores]
             coverage: 1
-            width: .05
-            height: .7
-            depth: .02
-            filled: .9
+            dimensions: [.05, .7, .02, .9]
+            layer_thickness: null

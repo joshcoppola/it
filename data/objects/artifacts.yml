@@ -5,6 +5,7 @@ holy relic:
    blocks_vis: 0
    description: "This is a holy relic"
    weapon_component: null
+   wearable: 0
    components:
       - name: relic
         functions: []
@@ -18,7 +19,5 @@ holy relic:
           - material_tokens: [copper]
             material_types: []
             coverage: 1
-            width: .2
-            height: .5
-            depth: .2
-            filled: .75
+            dimensions: [.2, .5, .2, .75]
+            layer_thickness: null

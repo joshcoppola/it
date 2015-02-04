@@ -7,6 +7,7 @@ human:
     blocks_vis: false
     description: This is a human
     weapon_component: null
+    wearable: 0
     components:
       - name: torso
         attaches_to: null
@@ -20,24 +21,18 @@ human:
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.21
-            height: 0.38
-            depth: 0.05
-            filled: 0.9
+            dimensions: [.21, .38, .05, .9]
+            layer_thickness: null
           - material_tokens: [bone]
             material_types: []
             coverage: 1
-            width: 0.31
-            height: 0.48
-            depth: 0.15
-            filled: 0.9
+            dimensions: [.31, .48, .15, .9]
+            layer_thickness: null
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.36
-            height: 0.53
-            depth: 0.20
-            filled: 0.9
+            dimensions: [.36, .53, .2, .9]
+            layer_thickness: null
       - name: head
         attaches_to: torso
         attach_strength: 100
@@ -50,17 +45,13 @@ human:
           - material_tokens: [bone]
             material_types: []
             coverage: 1
-            width: 0.15
-            height: 0.15
-            depth: 0.15
-            filled: 0.75
+            dimensions: [.15, .15, .15, .75]
+            layer_thickness: null
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.17
-            height: 0.17
-            depth: 0.17
-            filled: 0.75
+            dimensions: [.17, .17, .17, .75]
+            layer_thickness: null
       - name: left arm
         attaches_to: torso
         attach_strength: 100
@@ -73,17 +64,13 @@ human:
           - material_tokens: [bone]
             material_types: []
             coverage: 1
-            width: 0.15
-            height: 0.7
-            depth: 0.15
-            filled: 0.85
+            dimensions: [.15, .7, .15, .85]
+            layer_thickness: null
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.17
-            height: 0.75
-            depth: 0.17
-            filled: 0.85
+            dimensions: [.17, .75, .17, .85]
+            layer_thickness: null
       - name: right arm
         attaches_to: torso
         attach_strength: 100
@@ -96,17 +83,13 @@ human:
           - material_tokens: [bone]
             material_types: []
             coverage: 1
-            width: 0.15
-            height: 0.7
-            depth: 0.15
-            filled: 0.85
+            dimensions: [.15, .7, .15, .85]
+            layer_thickness: null
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.17
-            height: 0.75
-            depth: 0.17
-            filled: 0.85
+            dimensions: [.17, .75, .17, .85]
+            layer_thickness: null
       - name: left leg
         attaches_to: torso
         attach_strength: 100
@@ -119,17 +102,13 @@ human:
           - material_tokens: [bone]
             material_types: []
             coverage: 1
-            width: 0.15
-            height: 0.8
-            depth: 0.15
-            filled: 0.85
+            dimensions: [.15, .8, .15, .85]
+            layer_thickness: null
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.17
-            height: 0.9
-            depth: 0.17
-            filled: 0.85
+            dimensions: [.17, .9, .17, .85]
+            layer_thickness: null
       - name: right leg
         attaches_to: torso
         attach_strength: 100
@@ -142,14 +121,10 @@ human:
           - material_tokens: [bone]
             material_types: []
             coverage: 1
-            width: 0.15
-            height: 0.8
-            depth: 0.15
-            filled: 0.85
+            dimensions: [.15, .8, .15, .85]
+            layer_thickness: null
           - material_tokens: [flesh]
             material_types: []
             coverage: 1
-            width: 0.17
-            height: 0.9
-            depth: 0.17
-            filled: 0.85
+            dimensions: [.17, .9, .17, .85]
+            layer_thickness: null
