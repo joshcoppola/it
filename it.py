@@ -4586,7 +4586,7 @@ class Object:
 
             ## THIS FLAG IS ONLY FOR CLOTHING WHICH ADDS TO THE LAYERS
             if component.bodypart_covered:
-                our_bodypart = self.get_component_by_name(component.name)
+                our_bodypart = self.get_component_by_name(component.bodypart_covered)
 
                 ## This should add the clothing layers to whatever it covers
                 ## TODO - unsure how to handle clothing with multiple components
@@ -4613,7 +4613,7 @@ class Object:
 
             ## THIS FLAG IS ONLY FOR CLOTHING WHICH ADDS TO THE LAYERS
             if component.bodypart_covered:
-                our_bodypart = self.get_component_by_name(component.name)
+                our_bodypart = self.get_component_by_name(component.bodypart_covered)
 
                 ## This should add the clothing layers to whatever it covers
                 ## TODO - unsure how to handle clothing with multiple components
@@ -5209,40 +5209,43 @@ def attack_menu(actor, target):
             can_hit = 'Can hit: {0}'.format(join_list(string_list=[c.name for c in possible_target_components]))
             #######################################
 
-            odds = []
-            # Go through each other combat move and find the odds
-            for other_combat_move in combat.melee_armed_moves:
-                c1, c2 = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
-                c1_total = max(1, sum(c1.values()))
-                c2_total = max(1, sum(c2.values()))
-                total_odds = c1_total/(c1_total + c2_total) * 100
+            if target.creature:
+                odds = []
+                # Go through each other combat move and find the odds
+                for other_combat_move in combat.melee_armed_moves:
+                    c1, c2 = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
+                    c1_total = max(1, sum(c1.values()))
+                    c2_total = max(1, sum(c2.values()))
+                    total_odds = c1_total/(c1_total + c2_total) * 100
 
-                odds_reasons = []
-                # Add the reasons/numbers contributing to the total odds
-                for reason, amt in c1.iteritems():
-                    odds_reasons.append('++ {0} ({1})'.format(reason, amt))
-                for reason, amt in c2.iteritems():
-                    odds_reasons.append('-- {0} ({1})'.format(reason, amt))
-                #odds.append(' ')
+                    odds_reasons = []
+                    # Add the reasons/numbers contributing to the total odds
+                    for reason, amt in c1.iteritems():
+                        odds_reasons.append('++ {0} ({1})'.format(reason, amt))
+                    for reason, amt in c2.iteritems():
+                        odds_reasons.append('-- {0} ({1})'.format(reason, amt))
 
-                #odds.append(' vs {1} ({2:.1f}%)* '.format(combat_move, other_combat_move, total_odds))
-                odds.append([combat_move, other_combat_move, total_odds, odds_reasons])
+                    odds.append([combat_move, other_combat_move, total_odds, odds_reasons])
 
-            # Now sort the odds by the total_odds
-            odds.sort(key=lambda sublist: sublist[2], reverse=True)
+                # Now sort the odds by the total_odds
+                odds.sort(key=lambda sublist: sublist[2], reverse=True)
 
-            #Flatten the odds list into a new list, hover_odds.
-            # Hover_odds needs to just be a list of strings to pass as hover info.
-            hover_odds = []
-            for combat_move, other_combat_move, total_odds, odds_reasons in odds:
-                if other_combat_move not in target.creature.last_turn_moves:
-                    hover_odds.append(' vs {1} ({2:.1f}%)'.format(combat_move.name, other_combat_move.name, total_odds))
-                else:
-                    hover_odds.append('xxx vs {1} ({2:.1f}%) xxx'.format(combat_move.name, other_combat_move.name, total_odds))
+                #Flatten the odds list into a new list, hover_odds.
+                # Hover_odds needs to just be a list of strings to pass as hover info.
+                hover_odds = []
+                for combat_move, other_combat_move, total_odds, odds_reasons in odds:
+                    if other_combat_move not in target.creature.last_turn_moves:
+                        hover_odds.append(' vs {1} ({2:.1f}%)'.format(combat_move.name, other_combat_move.name, total_odds))
+                    else:
+                        hover_odds.append('xxx vs {1} ({2:.1f}%) xxx'.format(combat_move.name, other_combat_move.name, total_odds))
 
-                for reason in odds_reasons:
-                    hover_odds.append(reason)
-                hover_odds.append(' ')
+                    for reason in odds_reasons:
+                        hover_odds.append(reason)
+                    hover_odds.append(' ')
+
+            # Default hover text for when target is not a creature...
+            else:
+                hover_odds = ['{0} cannot fight back'.format(target.fullname())]
 
 
             buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move, combat_move],
@@ -8001,7 +8004,7 @@ class TimeCycle(object):
                 # Track these moves so they can't be used next round
                 entity.creature.set_last_turn_moves([combatant_1_opening, combatant_1_closing])
 
-                if target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
+                if target_entity.creature and target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
                     combatant_2_opening = target_entity.creature.combat_target[1]
                     combatant_2_closing = target_entity.creature.combat_target[2]
                     # Track these moves so they can't be used next round
@@ -8195,14 +8198,6 @@ class Camera:
         return (0 <= mouse.cx <= self.width and 0 <= mouse.cy <= self.height)
 
 
-def create_shirt():
-    shirtcomps = copy.deepcopy(phys.shirtcomps)
-    shirt = Object(name='shirt', char='T', color=libtcod.sepia, components=shirtcomps, blocks_mov=0, blocks_vis=0,
-                       description='Test description', creature=None, sapient=None, weapon=None, wearable=1, x=None, y=None)
-
-    return shirt
-
-
 class Culture:
     def __init__(self, color, language, world, races):
         self.color = color
@@ -8373,11 +8368,17 @@ class Culture:
             human.initial_give_object_to_hold(weapon)
 
         ################################
-        shirt = create_shirt()
+        shirt = assemble_object(object_blueprint=phys.object_dict['shirt'], force_material=None, wx=None, wy=None)
+        pants = assemble_object(object_blueprint=phys.object_dict['pants'], force_material=None, wx=None, wy=None)
+
         human.put_on_clothing(clothing=shirt)
+        human.put_on_clothing(clothing=pants)
         # Let them know who owns it
         shirt.set_current_owner(human)
         shirt.set_current_holder(human)
+        pants.set_current_owner(human)
+        pants.set_current_holder(human)
+
 
         # This function will get anytime there needs to be people generated. They don't always need
         # to be saved in the world - thus, we won't worry too much about them if we don't need to
@@ -8417,7 +8418,8 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, sap
                     world_brain = world_brain,
                     weapon = object_blueprint['weapon_component'],
                     wx = wx,
-                    wy = wy
+                    wy = wy,
+                    wearable = object_blueprint['wearable']
                     )
     return obj
 
@@ -8784,7 +8786,12 @@ def battle_hover_information():
             for obj in other_objects:
                 otext.append(obj.fullname())
                 otext.append(obj.description)
+
+                otext.append('Damage:')
+                for wound in obj.get_wounds():
+                    otext.append(wound)
                 otext.append('')
+
 
             gui.HoverInfo(header=oheader, text=otext, cx=mouse.cx+1, cy=mouse.cy+1, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=interface, xy_corner=1)
 
@@ -9178,16 +9185,8 @@ class Game:
         M.set_initial_dmaps()
         M.add_sapients_from_world()
 
-        # Clothing...
-        ### WEARABLE Wearable
-        #shirtcomps = phys.shirtcomps
-        #shirt = Object(name='shirt', char='T', color=libtcod.sepia, components=shirtcomps, blocks_mov=0, blocks_vis=0,
-        #               description='A shirt.', creature=None, sapient=None, ai=None, weapon=None, wearable=1, x=None, y=None)
-        #player.put_on_clothing(clothing=shirt)
 
-        packcomps = phys.packcomps
-        pack = Object(name='pack', char='T', color=libtcod.sepia, components=packcomps, blocks_mov=0, blocks_vis=0,
-                      description='A pack', creature=None, sapient=None, weapon=None, wearable=1, x=None, y=None)
+        pack = assemble_object(object_blueprint=phys.object_dict['pack'], force_material=None, wx=None, wy=None)
         player.put_on_clothing(clothing=pack)
 
         camera.center(player.x, player.y)
