@@ -263,9 +263,6 @@ class ObjectComponent:
         for layer in layers:
             self.add_material_layer(layer, layer_is_inherent_to_object_component=True)
 
-        # 'sharp' here is really a crude pressure simulator
-        # The force of the weapon swing gets multiplied by the sharp value
-        # Non-weapons have a value of ~1, blunt weapons higher, and pointy bits even higher
         self.sharp = sharp
         # The sharpness will get worn down, so this keeps track of how we can repair it
         self.maxsharp = sharp
@@ -504,7 +501,6 @@ def import_object_yml(file_path):
                 object_dict[obj]['color'] = libtcod.Color(*object_dict[obj]['color'])
 
             for component in object_dict[obj]['components']:
-
                 component['attachment_info'] = (component['attaches_to'], component['attach_strength'])
 
                 imp_layers = component['layers']
@@ -512,14 +508,20 @@ def import_object_yml(file_path):
                 for i, layer in enumerate(imp_layers):
                     ### Bottom layer has no "inner" dimensions,
                     ### Proceeding layers have the outer dimensions of the previous layer
-                    if i == 0: inner_dimensions = (0, 0, 0, 0)
-                    else:      inner_dimensions = component['layers'][i-1]['dimensions']
+                    if i == 0 and layer['layer_thickness'] is None:
+                        inner_dimensions = (0, 0, 0, 0)
+                    # If we've defined a thickness in the yaml, we can find the inner dimensions by subtracking the thickness
+                    elif i == 0 and layer['layer_thickness'] is not None:
+                        w = layer['dimensions'][0] - layer['layer_thickness']
+                        h = layer['dimensions'][1] - layer['layer_thickness']
+                        d = layer['dimensions'][2] - layer['layer_thickness']
+                        f = layer['dimensions'][3]
+                        inner_dimensions = (w, h, d, f)
+                    # If iteration > 0, we can just use the previous layer's outer dimensions
+                    else:
+                        inner_dimensions = component['layers'][i-1]['dimensions']
 
                     component['layers'][i]['inner_dimensions'] = inner_dimensions
-
-                    # Turn the raw info from xml into a legit layer
-                    component['layers'][i]['dimensions'] = (component['layers'][i]['width'], component['layers'][i]['height'], component['layers'][i]['depth'], component['layers'][i]['filled'])
-
 
                 ###### Find possible materials ########
                 material_tokens = []
@@ -594,8 +596,7 @@ def cache_basic_weapon_types():
     return basic_weapon_types
 
 def main():
-    global creature_dict, object_dict, blueprint_dict, wgenerator, basic_weapon_types
-    global shirtcomps, packcomps, doorcomps, materials
+    global creature_dict, object_dict, blueprint_dict, wgenerator, basic_weapon_types, materials
     # Grab yaml file and convert it to a dictionary
     with open(os.path.join(YAML_DIRECTORY, 'materials.yml')) as m:
         loaded_materials = yaml.load(m)
@@ -622,65 +623,6 @@ def main():
 
     basic_weapon_types = cache_basic_weapon_types()
 
-
-    bone = materials['bone']
-    flesh = materials['flesh']
-    wood = materials['wood']
-    cloth = materials['cloth']
-    iron = materials['iron']
-
-
-    bone_layer = MaterialLayer(material=bone, coverage=1, dimensions=(.01, .01, .8, .9), inner_dimensions=(0, 0, 0, 0) )
-    flesh_layer = MaterialLayer(material=flesh, coverage=1, dimensions=(.02, .02, .9, .9), inner_dimensions=(.01, .01, .8, .9) )
-
-    arm = ObjectComponent(name='arm', layers=[bone_layer, flesh_layer], sharp=1, functions=[], attachment_info=(None, None))
-
-
-    iron_layer = MaterialLayer(material=iron, coverage=1, dimensions=(.08, .01, 1, .9), inner_dimensions=(0, 0, 0, 0) )
-    iron_blade = ObjectComponent(name='sword', layers=[iron_layer], sharp=1.1, functions=[], attachment_info=(None, None) )
-    swordcomps = [iron_blade]
-
-    #iron_layer2 = MaterialLayer(material=iron, coverage=1, dimensions=(.08, .01, 1, .9), inner_dimensions=(0, 0, 0, 0) )
-
-    force = iron_blade.get_mass()
-    #print force
-
-    #flesh_layer.apply_force(other_obj_comp=iron_blade, total_force=force)
-    #iron_layer2.apply_force(other_obj_comp=iron_blade, total_force=force)
-
-    #print flesh_layer.mass
-    #print iron_blade.get_mass()
-    #print flesh_layer.health
-    #print ''
-    #print iron_layer2.health
-
-
-    ## stuff
-    wood_layer = [MaterialLayer(material=wood, coverage=1, dimensions=(1, 1, 1, 1), inner_dimensions=(0, 0, 0, 0) )]
-    wood_component = ObjectComponent(name='wood', layers=wood_layer, sharp=1, functions=['wall'], attachment_info=(None, None))
-    wallcomps = [wood_component]
-
-    wood_layer2 = [MaterialLayer(material=wood, coverage=1, dimensions=(1, .1, 1, 1), inner_dimensions=(0, 0, 0, 0) )]
-    wood_component2 = ObjectComponent(name='wood', layers=wood_layer2, sharp=1, functions=['door'], attachment_info=(None, None))
-    doorcomps = [wood_component2]
-
-    ### For testing purposes - a shirt
-    clothing_layer = MaterialLayer(material=cloth, coverage=.6, dimensions=(.45, .8, .25, .75), inner_dimensions=(.4, .7, .2, .75) )
-    clothing_layer2 = MaterialLayer(material=cloth, coverage=.4, dimensions=(.2, .6, .1, .75), inner_dimensions=(.15, .55, .05, .75) )
-    clothing_layer3 = MaterialLayer(material=cloth, coverage=.4, dimensions=(.2, .6, .1, .75), inner_dimensions=(.15, .55, .05, .75) )
-
-    #clothing_layer = MaterialLayer(material=iron, coverage=.6, dimensions=(.45, .8, .25, .75), inner_dimensions=(.4, .7, .2, .75) )
-    #clothing_layer2 = MaterialLayer(material=iron, coverage=.4, dimensions=(.2, .6, .1, .75), inner_dimensions=(.15, .55, .05, .75) )
-    #clothing_layer3 = MaterialLayer(material=iron, coverage=.4, dimensions=(.2, .6, .1, .75), inner_dimensions=(.15, .55, .05, .75) )
-
-    shirt_component = ObjectComponent(name='torso', layers=[clothing_layer], sharp=1, functions=[], attachment_info=(None, None), wearing_info=('torso', None, None) )
-    shirt_component2 = ObjectComponent(name='right arm', layers=[clothing_layer2], sharp=1, functions=[], attachment_info=('torso', 100), wearing_info=('right arm', None, None))
-    shirt_component3 = ObjectComponent(name='left arm', layers=[clothing_layer3], sharp=1, functions=[], attachment_info=('torso', 100), wearing_info=('left arm', None, None) )
-    shirtcomps = [shirt_component, shirt_component2, shirt_component3]
-    ####################################
-    clothing_layer4 = [MaterialLayer(material=cloth, coverage=1, dimensions=(.35, .45, .35, .95), inner_dimensions=(.3, .4, .3, .95) )]
-    pack_component = ObjectComponent(name='pack', layers=clothing_layer4, sharp=1, functions=['storage'], attachment_info=(None, None), wearing_info=(None, 'torso', 100) )
-    packcomps = [pack_component]
 
 if __name__ == '__main__':
     econ.setup_resources()
