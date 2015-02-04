@@ -150,26 +150,12 @@ pants:
     weapon_component: null
     wearable: 1
     components:
-      - name: pant seat
+      - name: right pant leg
         functions: []
         attacks: []
         position: null
         attaches_to: null
         attach_strength: null
-        sharp: 0
-        wearing_info: [torso, null, null]
-        layers: 
-          - material_tokens: [cloth]
-            material_types: []
-            coverage: .1
-            dimensions: [.36, 53, .20, .9]
-            layer_thickness: .001
-      - name: right pant leg
-        functions: []
-        attacks: []
-        position: null
-        attaches_to: pant seat
-        attach_strength: 100
         sharp: 0
         wearing_info: [right leg, null, null]
         layers: 
@@ -182,7 +168,7 @@ pants:
         functions: []
         attacks: []
         position: null
-        attaches_to: pant seat
+        attaches_to: right pant leg
         attach_strength: 100
         sharp: 0
         wearing_info: [left leg, null, null]
