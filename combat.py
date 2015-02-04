@@ -79,28 +79,32 @@ class CombatAttack:
 
 def get_combat_odds(combatant_1, combatant_1_move, combatant_2, combatant_2_move):
 
-    combatant_1_move = combatant_1_move.name
-    combatant_2_move = combatant_2_move.name
-
     c1_dict = {}
     c2_dict = {}
 
-    c1_dict['{0} vs {1}'.format(combatant_1_move, combatant_2_move)] = combat_matrix[combatant_1_move][combatant_2_move][0]
-    c2_dict['{0} vs {1}'.format(combatant_2_move, combatant_1_move)] = combat_matrix[combatant_2_move][combatant_1_move][0]
+    if combatant_2.creature:
+        combatant_1_move = combatant_1_move.name
+        combatant_2_move = combatant_2_move.name
 
-    # Get weapon properties and add any bonus
-    c1_weapon_properties = combatant_1.creature.get_current_weapon().get_weapon_properties()
-    if combatant_1_move in c1_weapon_properties.keys():
-        c1_dict['{0} bonus to {1}'.format(combatant_1.creature.get_current_weapon().name, combatant_1_move)] = c1_weapon_properties[combatant_1_move]
+        c1_dict['{0} vs {1}'.format(combatant_1_move, combatant_2_move)] = combat_matrix[combatant_1_move][combatant_2_move][0]
+        c2_dict['{0} vs {1}'.format(combatant_2_move, combatant_1_move)] = combat_matrix[combatant_2_move][combatant_1_move][0]
 
-    c2_weapon_properties = combatant_2.creature.get_current_weapon().get_weapon_properties()
-    if combatant_2_move in c2_weapon_properties.keys():
-        c2_dict['{0} bonus to {1}'.format(combatant_2.creature.get_current_weapon().name, combatant_2_move)] = c2_weapon_properties[combatant_2_move]
+        # Get weapon properties and add any bonus
+        c1_weapon_properties = combatant_1.creature.get_current_weapon().get_weapon_properties()
+        if combatant_1_move in c1_weapon_properties.keys():
+            c1_dict['{0} bonus to {1}'.format(combatant_1.creature.get_current_weapon().name, combatant_1_move)] = c1_weapon_properties[combatant_1_move]
 
-    # Add participant fighting skills
-    c1_dict['Fighting skill'] = combatant_1.creature.cskills['Fighting']
-    c2_dict['Fighting skill'] = combatant_2.creature.cskills['Fighting']
+        c2_weapon_properties = combatant_2.creature.get_current_weapon().get_weapon_properties()
+        if combatant_2_move in c2_weapon_properties.keys():
+            c2_dict['{0} bonus to {1}'.format(combatant_2.creature.get_current_weapon().name, combatant_2_move)] = c2_weapon_properties[combatant_2_move]
 
+        # Add participant fighting skills
+        c1_dict['Fighting skill'] = combatant_1.creature.cskills['Fighting']
+        c2_dict['Fighting skill'] = combatant_2.creature.cskills['Fighting']
+
+    else:
+        c1_dict['Fighting inanimate object'] = 100
+        c2_dict['Inanimate object'] = 1
 
     return c1_dict, c2_dict
 
