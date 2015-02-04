@@ -130,14 +130,14 @@ class WeaponGenerator:
 
 class Material:
     ''' Basic material instance '''
-    def __init__(self, name, rgb_color, density, hardness, brittleness):
+    def __init__(self, name, rgb_color, density, rigid, force_diffusion, slice_resistance):
         self.name = name
         self.density = density
         self.color = libtcod.Color(*rgb_color)
-        # 1 = soft, higher factors = harder
-        self.hardness = hardness
+        self.rigid = rigid
+        self.force_diffusion = force_diffusion
         # 0 = soft (like flesh), 1 = very likely to shatter
-        self.brittleness = brittleness
+        self.slice_resistance = slice_resistance
 
 
 class MaterialLayer:
@@ -152,9 +152,15 @@ class MaterialLayer:
         self.inner_dimensions = inner_dimensions
 
         self.health = 1
+        # Wounds can be scratches, fractures... anything that needs to be fixed
+        self.wounds = []
 
         # Will be filled in once the layer is added to an object component
         self.owner = None
+
+        self.volume = None
+        self.mass = None
+        self.thickness = None
 
         self.calculate_volume()
         self.calculate_mass()
@@ -180,60 +186,62 @@ class MaterialLayer:
         # Volume is width/height/depth
         self.volume = ( (width * height * depth) * filled ) - ( (iwidth * iheight * idepth) * ifilled )
 
+        # Thickness of the layer = (each inner layer - each outer layer / 3) [[average thickness]] divided by 2 since for each dimension, the layer has 2 sides
+        self.thickness = (sum([width-iwidth, height-iheight, depth-idepth])/3)/2
+
+        ## TODO- fix ugly ugly test code
+        if self.material.rigid:
+            self.blunt_resistance = self.thickness * self.material.density * 10
+        else:
+            self.absorbtion = self.thickness * self.material.density * self.material.force_diffusion
+
     def calculate_mass(self):
         self.mass = self.volume * self.material.density
 
 
-    def apply_force(self, other_obj_comp, total_force):
-        ##############################################
-        #### Apply force for object getting hit ######
-        ##############################################
-        ## total_force is the mass of the object, multiplied
-        ## by the strength of the weilder or the speed at which
-        ## it is travelling
-        #layer_resistance = (BASE_LAYER_RESISTANCE * self.material.density) * (self.mass * self.material.resistance)
-        #layer_resistance = BASE_LAYER_RESISTANCE * (self.material.density * (self.mass/2) * self.material.hardness)
-        layer_resistance = BASE_LAYER_RESISTANCE * (self.material.density * (self.volume/2) * self.material.hardness)
+    def apply_force_to_layer(self, blunt_force, sharpness_force):
 
-        ## "Raw" damage based on mass/force of original weapon
-        blunt_damage = total_force / layer_resistance
-        #blunt_damage = 1
+        wound = '(no wound)'
+        ## Handle blunt damage attempting to break the material
+        if self.material.rigid and blunt_force > self.blunt_resistance:
+            overflow_damage = blunt_force - self.blunt_resistance
 
-        ## Certain objects may be susceptible to additional effects by sharp objects
-        sharpness = other_obj_comp.sharp
+            wound = 'fracture ({0:.01f})'.format(overflow_damage)
+            self.wounds.append(wound)
 
+            remaining_blunt_force = 0
+            remaining_sharpness_force = 0
 
-        self.take_damage(blunt_damage=blunt_damage, sharpness=sharpness)
+            # If this belongs to a creature
+            if self.owner.owner and self.owner.owner.creature:
+                self.owner.owner.creature.increment_pain(.2, 1)
 
-        return total_force, layer_resistance, blunt_damage
+        ## Handle sharpness slicing into the material
+        elif (not self.material.rigid) and sharpness_force > self.material.slice_resistance:
+            overflow_damage = sharpness_force - self.material.slice_resistance
 
+            wound = 'cut ({0:.01f})'.format(overflow_damage)
+            self.wounds.append(wound)
 
-    def take_damage(self, blunt_damage, sharpness):
-        ''' The layer takes damage '''
+            remaining_blunt_force = blunt_force / max(self.absorbtion, 1)
+            remaining_sharpness_force = overflow_damage
 
-        ## Handle blunt damage
-        self.health = max(self.health - blunt_damage, 0) # Original testing ...
-        #total_blunt_damage = blunt_damage * self.material.brittleness  # Never used...
-        # Only apply damage if the material has any degree of brittleness
-        #if self.material.brittleness > 0:
-        #    total_blunt_damage = blunt_damage
-        #    self.health = max(self.health - total_blunt_damage , 0)
-        #####################
+            # If this belongs to a creature
+            if self.owner.owner and self.owner.owner.creature:
+                self.owner.owner.creature.increment_pain(.2, 1)
 
-        # Handle sharpness damage
-        # Sharpness has a big effect if the layer is not brittle
-        # total_sharp_damage = (1 - self.material.brittleness) * sharpness
+        ## Blunt damage doesn't overcome blunt resistance or sharp damage doesn't overcome slice resistance
+        else:
+            remaining_blunt_force = 0
+            remaining_sharpness_force = 0
+            #print 'no damage!'
 
-        # Experimental; for testing purposes
-        #self.strip_coverage(damage)
 
         # A check to see if this object should be destroyed
-        self.owner.check_integrity(blunt_damage, sharpness)
+        #self.owner.check_integrity(blunt_damage, sharpness)
+        #print '{1} ({0}) takes {2},  [ {3:.01f} blunt and {4:.01f} sharpness came in, {5:.01f} blunt and {6:.01f} sharpness remain]'.format(self.owner.owner.fullname(), self.get_name(), wound, blunt_force, sharpness_force, remaining_blunt_force, remaining_sharpness_force)
 
-
-        if self.owner.owner and self.owner.owner.creature:
-            # If it's alive
-            self.owner.owner.creature.increment_pain(blunt_damage, sharpness)
+        return remaining_blunt_force , remaining_sharpness_force
 
 
     def strip_coverage(self, amount):
@@ -288,6 +296,26 @@ class ObjectComponent:
             self.storage = []
 
         self.grasped_item = None
+
+
+    def apply_force(self, other_obj_comp, total_force, targeted_layer):
+        remaining_blunt_force = total_force * other_obj_comp.sharp
+        remaining_sharpness_force = total_force
+
+        begin_applying_force = 0
+        for layer in reversed(self.layers):
+            if layer == targeted_layer:
+                begin_applying_force = 1
+
+            # Once force application is set to begin, keep applying force to layers until there's nothing left to apply
+            if begin_applying_force:
+                #print other_obj_comp.name, 'applying force to', layer.get_name()
+                remaining_blunt_force, remaining_sharpness_force = layer.apply_force_to_layer(remaining_blunt_force, remaining_sharpness_force)
+                #print '- Remaining:', remaining_blunt_force, remaining_sharpness_force
+            # Stop once there's no more force
+            if remaining_blunt_force == 0 and remaining_sharpness_force == 0:
+                break
+        #print ' '
 
     def grasp_item(self, other_object):
         self.grasped_item = other_object
@@ -364,6 +392,22 @@ class ObjectComponent:
                 break
 
         return layers
+
+    def get_chances_to_hit_exposed_layers(self):
+        ''' Originally was written elsewhere, essentially duplicates the get_coverage_layers() method
+            Should refactor to make flow clearer and not need to use the above function '''
+        chances_to_hit = []
+        running_coverage_amt = 0
+        for layer, coverage_amt in self.get_coverage_layers():
+            # Chance to hit is this layer's coverage minus previous layer's coverage
+            # Exception - if this layer's coverage is smaller, it's essentially un-hittable
+            # TODO - ensure that chance_to_hit and running_coverage_amt work correctly with layers with weird cvg amounts
+            chance_to_hit = max(coverage_amt, running_coverage_amt) - running_coverage_amt
+            running_coverage_amt += chance_to_hit
+
+            chances_to_hit.append((layer, chance_to_hit))
+
+        return chances_to_hit
 
     def add_material_layer(self, layer, layer_is_inherent_to_object_component=0):
         ''' layer_is_ ... variable will be false if this is a piece of clothing or something '''
@@ -559,8 +603,9 @@ def main():
     materials = {}
     for material_name in loaded_materials.keys():
         materials[material_name] = Material(name=material_name, rgb_color=loaded_materials[material_name]['rgb_color'],
-                                       density=loaded_materials[material_name]['density'], hardness=loaded_materials[material_name]['hardness'],
-                                       brittleness=loaded_materials[material_name]['brittleness'])
+                                       density=loaded_materials[material_name]['density'], rigid=loaded_materials[material_name]['rigid'],
+                                       force_diffusion=loaded_materials[material_name]['force_diffusion'],
+                                       slice_resistance=loaded_materials[material_name]['slice_resistance'])
 
     #### Load XML ######
     file_path = os.path.join(os.getcwd(), 'data', 'creatures')
@@ -584,6 +629,7 @@ def main():
     cloth = materials['cloth']
     iron = materials['iron']
 
+
     bone_layer = MaterialLayer(material=bone, coverage=1, dimensions=(.01, .01, .8, .9), inner_dimensions=(0, 0, 0, 0) )
     flesh_layer = MaterialLayer(material=flesh, coverage=1, dimensions=(.02, .02, .9, .9), inner_dimensions=(.01, .01, .8, .9) )
 
@@ -599,7 +645,7 @@ def main():
     force = iron_blade.get_mass()
     #print force
 
-    flesh_layer.apply_force(other_obj_comp=iron_blade, total_force=force)
+    #flesh_layer.apply_force(other_obj_comp=iron_blade, total_force=force)
     #iron_layer2.apply_force(other_obj_comp=iron_blade, total_force=force)
 
     #print flesh_layer.mass
