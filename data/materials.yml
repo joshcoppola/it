@@ -1,40 +1,48 @@
 iron:
     rgb_color: [67, 75, 77]
     density: 8000
-    hardness: 5
-    brittleness: 0.3
+    rigid: 1
+    force_diffusion: 1
+    slice_resistance: 5000
 bronze: 
     rgb_color: [205, 127, 50]
     density: 8500
-    hardness: 3
-    brittleness: .2
+    rigid: 1
+    force_diffusion: 1
+    slice_resistance: 5000
 copper:
     rgb_color: [184, 115, 51]
     density: 8900
-    hardness: 2
-    brittleness: 0.2
+    rigid: 1
+    force_diffusion: 1
+    slice_resistance: 5000
 bone:
     rgb_color: [227, 218, 201]
     density: 1000
-    hardness: 3
-    brittleness: 0.5
+    rigid: 1
+    force_diffusion: 1
+    slice_resistance: 1000
 flesh:
     rgb_color: [195, 149, 130]
     density: 900
-    hardness: 1
-    brittleness: 0
+    rigid: 0
+    force_diffusion: .3
+    slice_resistance: 45
 wood:
     rgb_color: [68, 38, 20]
     density: 1000
-    hardness: 5
-    brittleness: 0.6
+    rigid: 1
+    force_diffusion: .3
+    slice_resistance: 500
 cloth:
     rgb_color: [210, 180, 140]
     density: 200
-    hardness: 1
-    brittleness: 0
+    rigid: 0
+    force_diffusion: .1
+    slice_resistance: 10
 clay:
     rgb_color: [126, 60, 45]
     density: 1500
-    hardness: 1
-    brittleness: .5
+    rigid: 1
+    force_diffusion: .5
+    slice_resistance: 1000
