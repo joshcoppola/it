@@ -202,9 +202,9 @@ class GuiPanel:
 
         return player_input
 
-    def add_button(self, func, args, text, topleft, width, height, hover_header=None, hover_text=None, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
+    def add_button(self, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
         ''' Pretty ugly because the panel has multiple button lists for now... '''
-        self.gen_buttons.append(Button(self, func, args, text, topleft, width, height, hover_header, hover_text, color, hcolor, do_draw_box, closes_menu))
+        self.gen_buttons.append(Button(self, func, args, text, topleft, width, height, hover_header, hover_text, hover_text_offset, color, hcolor, do_draw_box, closes_menu))
 
 class Button:
     # A button. Usually has a border, needs to highlight on mouseover, and execute its function on click
