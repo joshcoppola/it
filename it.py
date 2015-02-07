@@ -8694,13 +8694,12 @@ class RenderHandler:
             disp_list = []
             for grasper in player.creature.get_graspers():
                 if grasper.grasped_item is None:
-                    disp_list.append(grasper.name + ': ')
+                    disp_list.append(grasper.name)
                 else:
-                    disp_list.append(grasper.name + ': ' + grasper.grasped_item.name)
+                    disp_list.append('{0}: {1}'.format(grasper.name, grasper.grasped_item.name))
                     #print weapon properties
-                    for wproperty, amt in grasper.grasped_item.get_weapon_properties().iteritems():
-                        disp_list.append(' -%s: %i' %(wproperty, amt) )
-
+                    #for wproperty, amt in grasper.grasped_item.get_weapon_properties().iteritems():
+                    #    disp_list.append(' -%s: %i' %(wproperty, amt) )
 
 
             ## Display the list ##
@@ -9614,7 +9613,8 @@ def show_civs(world):
             show_cultures(world=world, spec_culture=city.culture)
         elif key_pressed == 'r':
             world.cities[city_number].econ.run_simulation()
-
+        elif key_pressed == 'a':
+            city.econ.graph_results(solid=city.econ.get_all_available_commodity_tokens(), dot=[])
 
 
         #### General ######
@@ -9907,10 +9907,6 @@ def show_civs(world):
 
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
         key_pressed = game.get_key(key)
-
-        if key_pressed == 'a':
-            city.econ.graph_results(solid=city.econ.get_all_available_commodity_tokens(), dot=[])
-
 
 def economy_tab(world):
     global mouse, key
