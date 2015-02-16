@@ -6,6 +6,7 @@ holy relic:
    description: "This is a holy relic"
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: relic
         functions: []

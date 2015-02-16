@@ -6,6 +6,7 @@ door:
    description: "This is a %s door"
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: door
         functions: [door]
@@ -29,6 +30,7 @@ pottery:
    description: "This is a %s pottery"
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: pottery
         functions: [storage]
@@ -52,6 +54,7 @@ barrel:
    description: "This is a %s barrel"
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: barrel
         functions: [storage]
@@ -75,6 +78,7 @@ crate:
    description: "This is a %s crate"
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: crate
         functions: [storage]
@@ -98,6 +102,7 @@ shirt:
     description: "This is a shirt"
     weapon_component: null
     wearable: 1
+    creature: null
     components:
       - name: shirt
         functions: []
@@ -149,6 +154,7 @@ pants:
     description: "This is a pair of pants"
     weapon_component: null
     wearable: 1
+    creature: null
     components:
       - name: right pant leg
         functions: []
@@ -186,6 +192,7 @@ pack:
     description: "This is a pack"
     weapon_component: null
     wearable: 1
+    creature: null
     components:
       - name: pack
         functions: [storage]

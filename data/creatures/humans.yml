@@ -1,6 +1,5 @@
 
 human:
-    sentient: true
     char: 255
     color: [231, 158, 109]
     blocks_mov: true
@@ -8,6 +7,26 @@ human:
     description: This is a human
     weapon_component: null
     wearable: 0
+    creature:
+        intelligence_level: 3
+        skills:
+            fighting: 10
+            brawling: 10
+            dodging: 10
+            blocking: 10
+            parrying: 10
+            tracking: 10
+            stealth: 10
+            throwing: 10
+            archery: 10
+            riding: 10
+        attributes:
+            strength: 10
+            reflexes: 10
+            toughness: 10
+            stamina: 10
+            agility: 10
+            willpower: 10        
     components:
       - name: torso
         attaches_to: null

@@ -6,6 +6,7 @@ sword:
    description: "This is a %s "
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: sword
         functions: [attack]
@@ -19,7 +20,7 @@ sword:
           - material_tokens: []
             material_types: [ores]
             coverage: 1
-            dimensions: [.08, .1, .01, .9]
+            dimensions: [.08, .8, .01, .9]
             layer_thickness: null
 dagger:
    char: "/"
@@ -29,6 +30,7 @@ dagger:
    description: "This is a %s "
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: dagger
         functions: [attack]
@@ -52,6 +54,7 @@ mace:
    description: "This is a %s "
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: mace
         functions: [attack]
@@ -75,6 +78,7 @@ spear:
    description: "This is a %s "
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: spear
         functions: [attack]
@@ -98,6 +102,7 @@ axe:
    description: "This is a %s "
    weapon_component: null
    wearable: 0
+   creature: null
    components:
       - name: axe
         functions: [attack]
