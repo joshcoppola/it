@@ -4771,8 +4771,10 @@ class Object:
 
         for component in self.components:
             for layer in component.layers:
-                for wound in layer.wounds:
-                    wounds.append('{0} ({1}) {2}'.format(component.name, layer.get_name(), wound))
+                if len(layer.wounds):
+                    wounds.append('{0} ({1}) - {2}'.format(component.name, layer.get_name(), layer.get_wound_descriptions()))
+                #for wound in layer.wounds:
+                #    wounds.append('{0} ({1}) {2}'.format(component.name, layer.get_name(), wound))
 
         return wounds
 
@@ -8368,12 +8370,13 @@ class Culture:
 
         if dynasty is not None:
             dynasty.members.append(human)
-        ###### Give them a weapon #######
-        material = phys.materials['iron']
-        if len(faction.weapons):    wname = random.choice(faction.weapons)
-        else:                       wname = random.choice(self.weapons)
 
+        ###### Give them a weapon #######
         if armed:
+            material = phys.materials['iron']
+            if len(faction.weapons):    wname = random.choice(faction.weapons)
+            else:                       wname = random.choice(self.weapons)
+
             weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=material, wx=wx, wy=wy)
             human.initial_give_object_to_hold(weapon)
 
@@ -9151,8 +9154,8 @@ class Game:
         faction1.set_enemy_faction(faction=faction2)
 
         ### Make the player ###
-        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1, wx=1, wy=1, save_being=1)
-        player.creature.skills['fighting'] += 100
+        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
+        #player.creature.skills['fighting'] += 100
         player.char = '@'
         player.local_brain = None
 
@@ -9173,6 +9176,11 @@ class Game:
         # Weapons for variety
         faction1.create_faction_weapons()
         faction2.create_faction_weapons()
+
+        # Give weapon to player
+        wname = random.choice(faction1.weapons)
+        weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=phys.materials['iron'], wx=None, wy=None)
+        player.initial_give_object_to_hold(weapon)
         #WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
         #WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
         #WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))

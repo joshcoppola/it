@@ -7,6 +7,7 @@ import yaml
 import random
 from random import randint as roll
 import libtcodpy as libtcod
+from helpers import join_list
 
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
@@ -127,6 +128,13 @@ class WeaponGenerator:
         return weapon_info_dict
 
 
+class Wound:
+    def __init__(self, owner, damage_type, damage):
+        self.owner = owner
+        self.damage_type = damage_type
+        self.damage = damage
+
+
 
 class Material:
     ''' Basic material instance '''
@@ -206,8 +214,8 @@ class MaterialLayer:
         if self.material.rigid and blunt_force > self.blunt_resistance:
             overflow_damage = blunt_force - self.blunt_resistance
 
-            wound = 'fracture ({0:.01f})'.format(overflow_damage)
-            self.wounds.append(wound)
+            #wound = 'fracture ({0:.01f})'.format(overflow_damage)
+            self.wounds.append(Wound(owner=self, damage_type='blunt', damage=overflow_damage))
 
             remaining_blunt_force = 0
             remaining_sharpness_force = 0
@@ -220,8 +228,8 @@ class MaterialLayer:
         elif (not self.material.rigid) and sharpness_force > self.material.slice_resistance:
             overflow_damage = sharpness_force - self.material.slice_resistance
 
-            wound = 'cut ({0:.01f})'.format(overflow_damage)
-            self.wounds.append(wound)
+            #wound = 'cut ({0:.01f})'.format(overflow_damage)
+            self.wounds.append(Wound(owner=self, damage_type='slash', damage=overflow_damage))
 
             remaining_blunt_force = blunt_force / max(self.absorbtion, 1)
             remaining_sharpness_force = overflow_damage
@@ -242,6 +250,34 @@ class MaterialLayer:
         #print '{1} ({0}) takes {2},  [ {3:.01f} blunt and {4:.01f} sharpness came in, {5:.01f} blunt and {6:.01f} sharpness remain]'.format(self.owner.owner.fullname(), self.get_name(), wound, blunt_force, sharpness_force, remaining_blunt_force, remaining_sharpness_force)
 
         return remaining_blunt_force , remaining_sharpness_force
+
+    def get_wound_descriptions(self):
+        light_wounds = 0
+        medium_wounds = 0
+        serious_wounds = 0
+        grievous_wounds = 0
+
+        for wound in self.wounds:
+            if wound.damage <= 20:
+                light_wounds += 1
+            elif wound.damage <= 50:
+                medium_wounds += 1
+            elif wound.damage <= 80:
+                serious_wounds += 1
+            else:
+                grievous_wounds += 1
+
+        wound_list = []
+        if light_wounds > 0:
+            wound_list.append('{0} light wounds'.format(light_wounds))
+        if medium_wounds > 0:
+            wound_list.append('{0} medium wounds'.format(medium_wounds))
+        if serious_wounds > 0:
+            wound_list.append('{0} serious wounds'.format(serious_wounds))
+        if grievous_wounds > 0:
+            wound_list.append('{0} grievous wounds'.format(grievous_wounds))
+
+        return join_list(wound_list)
 
 
     def strip_coverage(self, amount):
