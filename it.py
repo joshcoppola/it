@@ -17,7 +17,7 @@ from collections import Counter
 
 import economy
 import physics as phys
-from traits import CULTURE_TRAIT_INFO, TRAIT_INFO, TRAITS, tdesc
+from traits import *
 from dijkstra import Dijmap
 import gen_languages as lang
 import gen_creatures
@@ -6285,7 +6285,6 @@ class SapientComponent:
         self.profession = None
 
         self.traits = {}
-        self.skills = {'Charisma': 5, 'Command': 5, 'Management': 5, 'Piety': 5, 'Subterfuge': 5}
         self.goals = []
 
         self.targeted_plots = [] # List of dicts for plots targeting us, key = plot, val = 0 or 1, whether we know about it or not
@@ -6817,10 +6816,6 @@ class SapientComponent:
                 multiplier = random.choice((.5, .5, 1, 1, 1, 1, 2))
                 self.traits[trait] = multiplier
                 trait_num -= 1
-                #t_ind = TRAITS.index(trait)
-                ## Some traits modify skills
-                #for skill in TRAIT_INFO[t_ind].skill_modifiers.keys():
-                #    self.modify_skill(skill, TRAIT_INFO[t_ind].skill_modifiers[skill])
 
     def set_opinions(self):
         # Set opinions on various things according to our profession and personality
@@ -6903,12 +6898,6 @@ class SapientComponent:
                                         'goals':None
                                         }
 
-    def modify_skill(self, skill, amount):
-        if skill in self.skills.keys():
-            self.skills[skill] += amount
-        else:
-            self.skills[skill] = amount
-
     def meet(self, other):
         # Use to set recipricol relations with another person
         self.modify_relations(other, 'Knows personally', 2)
@@ -6940,11 +6929,16 @@ class Creature:
                              'kick': 100
                              }
 
-        self.cskills = {'Mobility': 10,
-                        'Fighting': 10,
-                        'Reflexes': 10,
-                        'Hand-Eye Coordination':10
-        }
+
+        self.skills = {}
+        for skill, value in phys.creature_dict['human']['creature']['skills'].iteritems():
+            self.skills[skill] = value
+
+
+        self.experience = {}
+        for skill, value in self.skills.iteritems():
+            self.experience[skill] = EXPERIENCE_PER_SKILL_LEVEL[value] - 1
+
 
         self.catts = {'Fortitude':10,
                        'Stamina':10,
@@ -6975,6 +6969,17 @@ class Creature:
 
         # To be set when it is added to the object component
         self.owner = None
+
+    def modify_experience(self, skill, amount):
+        self.experience[skill] += amount
+
+        # If the amount of experience is greater than the amount of xp needed to get to the next level
+        if self.experience[skill] >= EXPERIENCE_PER_SKILL_LEVEL[self.skills[skill]] and self.skills[skill] <= MAX_SKILL_LEVEL:
+            self.skills[skill] += 1
+
+            # Notify player
+            if self.owner == player:
+                game.add_message(new_msg="{0} has increased {1} to {2}".format(self.owner.fulltitle(), skill, self.skills[skill]), color=libtcod.green)
 
     def check_to_perceive(self, other_creature):
 
@@ -7043,9 +7048,9 @@ class Creature:
     def get_defense_score(self):
 
         return_dict = {
-                       'Mobility skill':self.cskills['Mobility'],
-                       'Fighting skill':self.cskills['Fighting'],
-                       'Reflexes skill':self.cskills['Reflexes']
+                       'fighting skill':self.skills['fighting'],
+                       'parrying skill':self.skills['parrying'],
+                       'dodging skill':self.skills['dodging']
                        }
 
         return return_dict
@@ -7054,7 +7059,7 @@ class Creature:
     def get_attack_score(self, verbose=0):
 
         return_dict = {self.stance + ' stance':STANCES[self.stance]['attack_bonus'],
-                       'Fighting skill':self.cskills['Fighting']
+                       'fighting skill':self.skills['fighting']
                        }
 
         return return_dict
@@ -7227,6 +7232,11 @@ class Creature:
         # Attack didn't connect
         else:
             combat_log.append(('{0} dodged {1}\'s attack!'.format(target.fullname(), self.owner.fullname()), target.color))
+
+
+        ## Modify creature's XP
+        self.modify_experience(skill='fighting', amount=5)
+        target.creature.modify_experience(skill='fighting', amount=5)
 
         return combat_log
 
@@ -8708,15 +8718,15 @@ class RenderHandler:
                 y += 1
                 libtcod.console_print(panel3.con, 2, y, text)
                 ## Bar showing current energy amount ##
-            panel3.render_bar(x=2, y=panel3.height - 3, total_width=panel3.width - 4, name='Energy',
-                       value=player.creature.energy, maximum=player.creature.catts['Stamina'],
-                       bar_color=ENERGY_FRONT, back_color=ENERGY_BACK, text_color=libtcod.black, show_values=True,
-                       title_inset=True)
+            #panel3.render_bar(x=2, y=panel3.height - 3, total_width=panel3.width - 4, name='Energy',
+            #           value=player.creature.energy, maximum=player.creature.catts['Stamina'],
+            #           bar_color=ENERGY_FRONT, back_color=ENERGY_BACK, text_color=libtcod.black, show_values=True,
+            #           title_inset=True)
             ## bar showing current pain amount ##
-            panel3.render_bar(x=2, y=panel3.height - 4, total_width=panel3.width - 4, name='Pain',
-                       value=player.creature.get_pain(), maximum=player.creature.get_max_pain(),
-                       bar_color=PAIN_FRONT, back_color=PAIN_BACK, text_color=libtcod.black, show_values=True,
-                       title_inset=True)
+            #panel3.render_bar(x=2, y=panel3.height - 4, total_width=panel3.width - 4, name='Pain',
+            #           value=player.creature.get_pain(), maximum=player.creature.get_max_pain(),
+            #           bar_color=PAIN_FRONT, back_color=PAIN_BACK, text_color=libtcod.black, show_values=True,
+            #           title_inset=True)
             ### Done rendering player info ###
 
             if game.map_scale == 'human':
@@ -8807,7 +8817,7 @@ def battle_hover_information():
             header.append('Holding ' + ', '.join([item.name for item in inventory['grasped'] ]))
             header.append('Storing ' + ', '.join([item.name for item in inventory['stored'] ]))
 
-            text = [skill + ': ' + str(value) for skill, value in target.creature.cskills.iteritems()]
+            text = [skill + ': ' + str(value) for skill, value in target.creature.skills.iteritems()]
             text.insert(0, target.creature.stance + ' stance')
 
             description = textwrap.wrap(target.description, 40)
@@ -9142,16 +9152,16 @@ class Game:
 
         ### Make the player ###
         player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=1, wx=1, wy=1, save_being=1)
-        player.creature.cskills['Fighting'] += 100
+        player.creature.skills['fighting'] += 100
         player.char = '@'
         player.local_brain = None
 
-        sentients = {cult:{random.choice(cult.races):{'Adventurers':20}}}
+        sentients = {cult:{random.choice(cult.races):{'Adventurers':10}}}
         player_party = WORLD.create_population(char='@', name="player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=player)
 
 
         leader = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
-        sentients = {cult:{random.choice(cult.races):{'Bandits':20}}}
+        sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
         enemy_party = WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
 
@@ -9425,11 +9435,7 @@ def show_people(world):
         s_att = selected_person.sapient
         ## Traits ##
         y = 7
-        libtcod.console_print(0, x_att_offset, y - 1, 'Skills')
-        for skill, amount in selected_person.sapient.skills.iteritems():
-            y += 1
-            libtcod.console_print(0, x_att_offset, y, skill + ': ' + str(amount))
-            ## Skills ##
+        ## Skills ##
         y += 2
         libtcod.console_print(0, x_att_offset, y, 'Traits')
         y += 1

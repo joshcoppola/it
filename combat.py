@@ -99,8 +99,8 @@ def get_combat_odds(combatant_1, combatant_1_move, combatant_2, combatant_2_move
             c2_dict['{0} bonus to {1}'.format(combatant_2.creature.get_current_weapon().name, combatant_2_move)] = c2_weapon_properties[combatant_2_move]
 
         # Add participant fighting skills
-        c1_dict['Fighting skill'] = combatant_1.creature.cskills['Fighting']
-        c2_dict['Fighting skill'] = combatant_2.creature.cskills['Fighting']
+        c1_dict['Fighting skill'] = combatant_1.creature.skills['fighting']
+        c2_dict['Fighting skill'] = combatant_2.creature.skills['fighting']
 
     else:
         c1_dict['Fighting inanimate object'] = 100
