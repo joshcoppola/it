@@ -4771,12 +4771,24 @@ class Object:
 
         for component in self.components:
             for layer in component.layers:
-                if len(layer.wounds):
-                    wounds.append('{0} ({1}) - {2}'.format(component.name, layer.get_name(), layer.get_wound_descriptions()))
-                #for wound in layer.wounds:
-                #    wounds.append('{0} ({1}) {2}'.format(component.name, layer.get_name(), wound))
+                ## Ignores layers wihich aren't owned by the component (like cloth clothes are not owned by a creature's arm)
+                if len(layer.wounds) and layer.owner == component:
+                    for wound in layer.wounds:
+                        wounds.append(wound)
 
         return wounds
+
+    def get_wound_descriptions(self):
+        wound_descripions = []
+
+        for component in self.components:
+            for layer in component.layers:
+                ## Ignores layers wihich aren't owned by the component (like cloth clothes are not owned by a creature's arm)
+                if len(layer.wounds) and layer.owner == component:
+                    wound_descripions.append('{0} ({1}) - {2}'.format(component.name, layer.get_name(), layer.get_wound_descriptions()))
+
+        return wound_descripions
+
 
     def get_mass(self):
         mass = 0
@@ -6943,9 +6955,7 @@ class Creature:
 
 
         self.catts = {'Fortitude':10,
-                       'Stamina':10,
-                       'Move Speed':1,
-                       'Attack Speed':1
+                       'Move Speed':1
                        }
 
 
@@ -7254,10 +7264,33 @@ class Creature:
         self.bleeding = max(self.bleeding - self.clotting, 0)
 
         # Do we die?
-        if self.blood < 2 and self.status == 'alive':
+        if self.blood < 3 and self.status == 'alive':
             self.pass_out(reason='loss of blood')
-        elif self.blood < 1:
+        elif self.blood < 2:
             self.map_death(reason='blood loss')
+
+    def evaluate_wounds(self):
+        max_number_of_grievous_wounds = 2
+
+        total_number_of_grievous_wounds = 0
+
+        # Bad way to check wound seriousness
+        for wound in self.owner.get_wounds():
+            if wound.damage < 20:
+                total_number_of_grievous_wounds += .1
+            elif wound.damage < 50:
+                total_number_of_grievous_wounds += .25
+            elif wound.damage < 80:
+                total_number_of_grievous_wounds += .5
+            else:
+                total_number_of_grievous_wounds += 1
+
+        # Pass out from wounds
+        if total_number_of_grievous_wounds >= max_number_of_grievous_wounds:
+            self.pass_out(reason='overwhelming damage infliction')
+
+        # TODO - replace this useless function with sane damage modeling
+        self.increment_pain(damage=.2, sharpness=1.1)
 
 
     def increment_pain(self, damage, sharpness):
@@ -8037,8 +8070,9 @@ class TimeCycle(object):
                 combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_opening=combatant_1_opening, combatant_1_closing=combatant_1_closing,
                                                      combatant_2=target_entity, combatant_2_opening=combatant_2_opening, combatant_2_closing=combatant_2_closing)
 
-                for line, color in combat_log:
-                    game.add_message(line, color)
+                if entity == player or target_entity == player:
+                    for line, color in combat_log:
+                        game.add_message(line, color)
 
             # If not needing to calculate moves, clear the tracking of moves we used last round so we can use them without restriction
             else:
@@ -8699,27 +8733,20 @@ class RenderHandler:
                     panel4.recalculate_wmap_dyn_buttons = 0
 
             ## Panel 3 - player info ##
-            libtcod.console_print_ex(panel3.con, int(round(PANEL3_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER,
-                                     ''.join(['-* ', player.fullname(), ' *-']))
+            libtcod.console_print_ex(panel3.con, int(round(PANEL3_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, '-* {0} *-'.format(player.fullname()))
 
-
+            libtcod.console_print(panel3.con, 2, 3, player.creature.status)
             # A list of things to display
-            disp_list = []
+            y = 4
             for grasper in player.creature.get_graspers():
-                if grasper.grasped_item is None:
-                    disp_list.append(grasper.name)
-                else:
-                    disp_list.append('{0}: {1}'.format(grasper.name, grasper.grasped_item.name))
-                    #print weapon properties
-                    #for wproperty, amt in grasper.grasped_item.get_weapon_properties().iteritems():
-                    #    disp_list.append(' -%s: %i' %(wproperty, amt) )
+                if grasper.grasped_item:
+                    y += 1
+                    libtcod.console_print(panel3.con, 2, y, '{0} ({1})'.format(grasper.grasped_item.name, grasper.name))
 
+            y += 2
+            wearing_info = join_list([c.name for c in player.wearing])
+            libtcod.console_print_rect(panel3.con, 2, y, panel3.width-2, panel3.height-y, 'Wearing {0}'.format(wearing_info))
 
-            ## Display the list ##
-            y = 2
-            for text in disp_list:
-                y += 1
-                libtcod.console_print(panel3.con, 2, y, text)
                 ## Bar showing current energy amount ##
             #panel3.render_bar(x=2, y=panel3.height - 3, total_width=panel3.width - 4, name='Energy',
             #           value=player.creature.energy, maximum=player.creature.catts['Stamina'],
@@ -8800,7 +8827,7 @@ def battle_hover_information():
                 otext.append(obj.description)
 
                 otext.append('Damage:')
-                for wound in obj.get_wounds():
+                for wound in obj.get_wound_descriptions():
                     otext.append(wound)
                 otext.append('')
 
@@ -8831,7 +8858,7 @@ def battle_hover_information():
 
             text.append(' ')
             text.append('Wounds:')
-            for wound in target.get_wounds():
+            for wound in target.get_wound_descriptions():
                 text.append(wound)
             text.append(' ')
 

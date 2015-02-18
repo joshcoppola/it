@@ -215,28 +215,20 @@ class MaterialLayer:
             overflow_damage = blunt_force - self.blunt_resistance
 
             #wound = 'fracture ({0:.01f})'.format(overflow_damage)
-            self.wounds.append(Wound(owner=self, damage_type='blunt', damage=overflow_damage))
+            self.add_wound(damage_type='blunt', damage=overflow_damage)
 
             remaining_blunt_force = 0
             remaining_sharpness_force = 0
-
-            # If this belongs to a creature
-            if self.owner.owner and self.owner.owner.creature:
-                self.owner.owner.creature.increment_pain(.2, 1)
 
         ## Handle sharpness slicing into the material
         elif (not self.material.rigid) and sharpness_force > self.material.slice_resistance:
             overflow_damage = sharpness_force - self.material.slice_resistance
 
             #wound = 'cut ({0:.01f})'.format(overflow_damage)
-            self.wounds.append(Wound(owner=self, damage_type='slash', damage=overflow_damage))
+            self.add_wound(damage_type='slash', damage=overflow_damage)
 
             remaining_blunt_force = blunt_force / max(self.absorbtion, 1)
             remaining_sharpness_force = overflow_damage
-
-            # If this belongs to a creature
-            if self.owner.owner and self.owner.owner.creature:
-                self.owner.owner.creature.increment_pain(.2, 1)
 
         ## Blunt damage doesn't overcome blunt resistance or sharp damage doesn't overcome slice resistance
         else:
@@ -250,6 +242,16 @@ class MaterialLayer:
         #print '{1} ({0}) takes {2},  [ {3:.01f} blunt and {4:.01f} sharpness came in, {5:.01f} blunt and {6:.01f} sharpness remain]'.format(self.owner.owner.fullname(), self.get_name(), wound, blunt_force, sharpness_force, remaining_blunt_force, remaining_sharpness_force)
 
         return remaining_blunt_force , remaining_sharpness_force
+
+    def add_wound(self, damage_type, damage):
+
+        wound = Wound(owner=self, damage_type=damage_type, damage=damage)
+        self.wounds.append(wound)
+
+        # If this belongs to a creature
+        if self.owner.owner and self.owner.owner.creature:
+            #self.owner.owner.creature.increment_pain(.2, 1)
+            self.owner.owner.creature.evaluate_wounds()
 
     def get_wound_descriptions(self):
         light_wounds = 0
