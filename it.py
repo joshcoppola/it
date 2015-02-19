@@ -6954,10 +6954,9 @@ class Creature:
             self.experience[skill] = EXPERIENCE_PER_SKILL_LEVEL[value] - 1
 
 
-        self.catts = {'Fortitude':10,
-                       'Move Speed':1
-                       }
-
+        self.attributes = {}
+        for attribute, value in phys.creature_dict['human']['creature']['attributes'].iteritems():
+            self.attributes[attribute] = value
 
         self.alert_sight_radius = 60
         self.unalert_sight_radius = 30
@@ -7305,7 +7304,7 @@ class Creature:
         return self.pain
 
     def get_max_pain(self):
-        return 1 + int(self.catts['Fortitude']/10)
+        return 1 + int(self.attributes['willpower']/10)
 
     def get_pain_ratio(self):
         return self.get_pain() / self.get_max_pain()
@@ -8021,7 +8020,7 @@ class TimeCycle(object):
             creature.creature.handle_tick()
 
             if creature.local_brain and creature.creature.next_tick <= self.current_tick:
-                next_tick = creature.creature.next_tick + creature.creature.catts['Move Speed']
+                next_tick = creature.creature.next_tick + creature.creature.attributes['movespeed']
                 if next_tick >= self.ticks_per_hour:
                     next_tick = next_tick - self.ticks_per_hour
                 creature.creature.next_tick = next_tick
@@ -8036,7 +8035,7 @@ class TimeCycle(object):
 
             #if actor.ai and actor.creature.next_tick == self.current_tick:
             if actor.local_brain and actor.creature.next_tick <= self.current_tick:
-                next_tick = actor.creature.next_tick + actor.creature.catts['Move Speed']
+                next_tick = actor.creature.next_tick + actor.creature.attributes['movespeed']
                 if next_tick >= self.ticks_per_hour:
                     next_tick = next_tick - self.ticks_per_hour
                 actor.creature.next_tick = next_tick
@@ -8963,7 +8962,7 @@ def show_object_info(obj):
     objlist.append('Density: ' + str(round(obj.get_density(), 2)) + 'kg/m^3')
 
     if obj.creature:
-        objlist.append('Movespeed: ' + str(obj.creature.catts['Move Speed']))
+        objlist.append('Movespeed: ' + str(obj.creature.attributes['movespeed']))
         objlist.append('Blood: ' + str(obj.creature.blood))
         objlist.append('Bleeding: ' + str(obj.creature.bleeding))
 
@@ -9388,7 +9387,7 @@ class Game:
                 else:
                     player.move_and_face(dx, dy)
                 # Advance time!
-                self.player_advance_time(player.creature.catts['Move Speed'])
+                self.player_advance_time(player.creature.attributes['movespeed'])
 
                 camera.center(player.x, player.y)
 

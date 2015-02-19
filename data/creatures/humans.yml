@@ -26,7 +26,8 @@ human:
             toughness: 10
             stamina: 10
             agility: 10
-            willpower: 10        
+            willpower: 10
+            movespeed: 1
     components:
       - name: torso
         attaches_to: null
