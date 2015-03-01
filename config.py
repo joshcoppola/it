@@ -1,9 +1,8 @@
 
 
 def init():
-    global WORLD, player, M, time_cycle, camera
+    global WORLD, player, M, camera
     WORLD = None
     player = None
     M = None
-    time_cycle = None
     camera = None

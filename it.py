@@ -46,7 +46,7 @@ MAP_HEIGHT = 250
 CITY_MAP_WIDTH = 300
 CITY_MAP_HEIGHT = 300
 
-#size of the g.WORLD
+#size of the WORLD
 g.WORLD_WIDTH = 240
 g.WORLD_HEIGHT = 220
 
@@ -1022,10 +1022,10 @@ class Wmap:
 
         if obj.sapient:
             self.sapients.append(obj)
-            obj.creature.next_tick = g.time_cycle.current_tick + 1
+            obj.creature.next_tick = g.WORLD.time_cycle.current_tick + 1
         elif obj.creature:
             self.creatures.append(obj)
-            obj.creature.next_tick = g.time_cycle.current_tick + 1
+            obj.creature.next_tick = g.WORLD.time_cycle.current_tick + 1
         else:
             self.objects.append(obj)
 
@@ -1553,13 +1553,14 @@ class Wmap:
 
 class World:
     def __init__(self, width, height):
-        #global g.camera, g.time_cycle
 
         self.height = height
         self.width = width
 
         game.world_map_display_type = 'normal'
         game.map_scale = 'world'
+
+        self.time_cycle = TimeCycle()
 
         #self.travelers = []
         self.sites = []
@@ -1595,8 +1596,6 @@ class World:
         economy.setup_resources()
         #### load phys info ####
         phys.main()
-        # Need to set up time cycle
-        g.time_cycle = TimeCycle()
 
         #self.generate()
 
@@ -2448,7 +2447,7 @@ class World:
             x, y = random.choice(self.play_tiles)
 
             faction = Faction(leader_prefix=None, faction_name="Neutrals", color=libtcod.black, succession='strongman', defaultly_hostile=1)
-            lehur = self.default_mythic_culture.create_being(sex=1, born=-100, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race="lehur", save_being=1, intelligence_level=2)
+            lehur = self.default_mythic_culture.create_being(sex=1, age=100, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race="lehur", save_being=1, intelligence_level=2)
 
 
     def gen_sentient_races(self):
@@ -2948,10 +2947,10 @@ class World:
         ## Some history...
         #begin = time.time()
         for i in xrange(weeks * 7):
-            g.time_cycle.day_tick(1)
+            self.time_cycle.day_tick(1)
         #game.add_message('History run in %.2f seconds' %(time.time() - begin))
         # List the count of site types
-        game.add_message(', '.join(['{0} {1}s'.format(len(self.site_index[site_type]), site_type) for site_type in self.site_index.keys()]))
+        game.add_message(join_list(['{0} {1}s'.format(len(self.site_index[site_type]), site_type) for site_type in self.site_index.keys()]))
 
 
     def initialize_fov(self):
@@ -3274,7 +3273,7 @@ class World:
             faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
-            leader = culture.create_being(sex=1, born=g.time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
+            leader = culture.create_being(sex=1, age=roll(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
             sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
@@ -3315,7 +3314,7 @@ class World:
         bandit_faction.set_headquarters(hideout_building)
 
         # Create a bandit leader from nearby city
-        leader = closest_city.create_inhabitant(sex=1, born=g.time_cycle.years_ago(18, 35), char='o', dynasty=None, important=1, house=None)
+        leader = closest_city.create_inhabitant(sex=1, age=roll(18, 35), char='o', dynasty=None, important=1, house=None)
         bandit_faction.set_leader(leader)
         # Set profession, weirdly enough
         profession = Profession(name='Bandit', category='bandit')
@@ -3331,7 +3330,7 @@ class World:
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
-        #prisoner = closest_city.create_inhabitant(sex=1, born=g.time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
+        #prisoner = closest_city.create_inhabitant(sex=1, born=WORLD.time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
         #bandits.add_captive(figure=prisoner)
         ############
 
@@ -3462,7 +3461,7 @@ class Site:
         else:
             return self.site_type
 
-    def create_inhabitant(self, sex, born, char, dynasty, important, race=None, armed=0, house=None):
+    def create_inhabitant(self, sex, age, char, dynasty, important, race=None, armed=0, house=None):
         ''' Add an inhabitant to the site '''
 
         # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our hometown)
@@ -3474,7 +3473,7 @@ class Site:
             culture = self.culture
             hometown = self
 
-        human = culture.create_being(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=armed, race=race, save_being=1)
+        human = culture.create_being(sex=sex, age=age, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=armed, race=race, save_being=1)
 
         # Make sure our new inhabitant has a house
         if house is None:
@@ -3688,7 +3687,7 @@ class City(Site):
 
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
-        human = self.create_inhabitant(sex=1, born=g.time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
+        human = self.create_inhabitant(sex=1, age=roll(20, 60), char='o', dynasty=None, important=0, house=None)
         human.set_world_brain(BasicWorldBrain())
 
         ## Actually give profession to the person ##
@@ -3730,7 +3729,7 @@ class City(Site):
             # Add back to civ, world, and region armies
             #g.WORLD.travelers.append(caravan_leader)
             # g.WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
-            caravan_leader.world_brain.next_tick = g.time_cycle.next_day()
+            caravan_leader.world_brain.next_tick = g.WORLD.time_cycle.next_day()
             # Tell the ai where to go
             #caravan_leader.world_brain.set_destination(origin=self, destination=destination)
             caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
@@ -3859,8 +3858,8 @@ class City(Site):
         else:
             wife_dynasty = None
 
-        leader = self.create_inhabitant(sex=1, born=g.time_cycle.years_ago(28, 40), char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
-        wife = self.create_inhabitant(sex=0, born=g.time_cycle.years_ago(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.sapient.house)
+        leader = self.create_inhabitant(sex=1, age=roll(28, 40), char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
+        wife = self.create_inhabitant(sex=0, age=roll(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.sapient.house)
         # Make sure wife takes husband's name
         wife.sapient.lastname = new_dynasty.lastname
 
@@ -3874,8 +3873,7 @@ class City(Site):
         leader_siblings = []
         for i in xrange(roll(2, 5)):
             sex = roll(0, 1)
-            sibling = self.create_inhabitant(sex=sex, born=leader.sapient.born + roll(-8, 8), char='o', dynasty=new_dynasty,
-                                             race=new_dynasty.race, important=1, house=None)
+            sibling = self.create_inhabitant(sex=sex, age=roll(28, 40), char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=None)
             leader_siblings.append(sibling)
             all_new_figures.append(sibling)
 
@@ -3884,8 +3882,7 @@ class City(Site):
             wife_siblings = []
             for i in xrange(roll(2, 5)):
                 sex = roll(0, 1)
-                sibling = self.create_inhabitant(sex=sex, born=wife.sapient.born + roll(8, 8), char='o',
-                                                 dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
+                sibling = self.create_inhabitant(sex=sex, age=roll(28, 40), char='o', dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
                 wife_siblings.append(sibling)
                 all_new_figures.append(sibling)
 
@@ -3897,8 +3894,7 @@ class City(Site):
         children = []
         for i in xrange(roll(1, 3)):
             sex = roll(0, 1)
-            child = self.create_inhabitant(sex=sex, born=g.time_cycle.years_ago(1, 10), char='o', dynasty=new_dynasty,
-                                           race=new_dynasty.race, important=1, house=leader.sapient.house)
+            child = self.create_inhabitant(sex=sex, age=roll(1, 10), char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=leader.sapient.house)
             children.append(child)
             all_new_figures.append(child)
 
@@ -4095,7 +4091,7 @@ class Building:
                 all_new_figures = [human]
             # Otherwise, create a new person
             else:
-                human = self.site.create_inhabitant(sex=1, born=g.time_cycle.years_ago(18, 40), char='o', dynasty=None, important=0, house=None)
+                human = self.site.create_inhabitant(sex=1, age=roll(18, 40), char='o', dynasty=None, important=0, house=None)
                 all_new_figures = [human]
 
         ## Actually give profession to the person ##
@@ -4225,7 +4221,7 @@ class Faction:
 
         self.leader = None
         # Eventually will be more precide? Just a way to keep track of when the current leader became leader
-        self.leader_change_year = g.time_cycle.current_year
+        self.leader_change_year = g.WORLD.time_cycle.current_year
         # So far:
         # 'dynasty' for a city type faction
         # 'strongman' for bandit factions
@@ -4314,7 +4310,7 @@ class Faction:
         self.leader = leader
         self.leader.sapient.set_as_faction_leader(self)
         # Keep track of when leader became leader
-        self.leader_change_year = g.time_cycle.current_year
+        self.leader_change_year = g.WORLD.time_cycle.current_year
 
     def get_leader(self):
         return self.leader
@@ -4414,8 +4410,7 @@ class Faction:
 
                 heir = random.choice(self.members)
                 if heir is None:
-                    heir = self.headquarters.site.culture.create_being(sex=1, born=g.time_cycle.years_ago(20, 45), char='o', dynasty=None,
-                                                                       important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
+                    heir = self.headquarters.site.culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
                     self.set_heir(heir=heir, number_in_line=1)
 
                 return [heir]
@@ -5914,8 +5909,7 @@ class Population:
             for race in self.sentients[culture].keys():
                 for profession_name in self.sentients[culture][race].keys():
                     for i in xrange(self.sentients[culture][race][profession_name]):
-                        born = roll(g.time_cycle.current_year - 45, g.time_cycle.current_year - 20)
-                        human = culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1)
+                        human = culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1)
                         # TODO - this should be improved
                         human.sapient.commander = self.commander
 
@@ -6018,9 +6012,9 @@ class Meeting:
 
         self.attending = [self.leader]
 
-        (future_year, future_month, future_day) = g.time_cycle.days_to_date(days_in_advance=days_ahead)
+        (future_year, future_month, future_day) = g.WORLD.time_cycle.days_to_date(days_in_advance=days_ahead)
         self.date = (future_year, future_month, future_day)
-        g.time_cycle.add_event(date=(future_year, future_month, future_day), event=self.hold_meeting)
+        g.WORLD.time_cycle.add_event(date=(future_year, future_month, future_day), event=self.hold_meeting)
         ## Add to the leader's calendar too
         self.leader.sapient.add_event(date=(future_year, future_month, future_day), event=self)
 
@@ -6759,7 +6753,7 @@ class SapientComponent:
         if possible_successors != []:
             return possible_successors[0]
         else:
-            return self.current_citizenship.create_inhabitant(sex=1, born=g.time_cycle.years_ago(18, 35), char='o', dynasty=None, important=self.important)
+            return self.current_citizenship.create_inhabitant(sex=1, age=roll(18, 35), char='o', dynasty=None, important=self.important)
 
     def add_event(self, date, event):
         ''' Should add an event to our memory'''
@@ -6852,7 +6846,7 @@ class SapientComponent:
                 game.add_message(figure.fulltitle(), 'was not in his house!')
 
     def get_age(self):
-        return g.time_cycle.current_year - self.born
+        return g.WORLD.time_cycle.current_year - self.born
 
     def get_profession(self):
         if self.profession:
@@ -6871,8 +6865,7 @@ class SapientComponent:
 
     def have_child(self):
 
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=g.time_cycle.current_year, char='o',
-                                                           dynasty=self.spouse.sapient.dynasty, race=self.owner.creature.creature_type, important=self.important)
+        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), age=0, char='o', dynasty=self.spouse.sapient.dynasty, race=self.owner.creature.creature_type, important=self.important)
 
         self.children.append(child)
         self.spouse.sapient.children.append(child)
@@ -7640,15 +7633,15 @@ class DijmapSapient:
             # This will clear the target, in case they happen to be following someone or whatever
             self.unset_target()
 
-            #for faction in g.M.factions_on_map.keys():
-            for faction in actor.creature.dijmap_desires.keys():
+            for faction in g.M.factions_on_map.keys():
+            #for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
 
-            #for faction in g.M.factions_on_map.keys():
-            for faction in actor.creature.dijmap_desires.keys():
+            for faction in g.M.factions_on_map.keys():
+            #for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = -4
 
@@ -7864,8 +7857,7 @@ class BasicWorldBrain:
             if len(potential_spouses) == 0 and sapient.current_citizenship:
                 # Make a person out of thin air to marry
                 sex = abs(self.owner.creature.sex-1)
-                s_born = g.time_cycle.years_ago(sapient.get_age()-5, sapient.get_age()+5)
-                potential_spouses = [sapient.current_citizenship.create_inhabitant(sex=sex, born=s_born, char='o', dynasty=None, race=self.owner.creature.creature_type, important=sapient.important, house=sapient.house)]
+                potential_spouses = [sapient.current_citizenship.create_inhabitant(sex=sex, age=sapient.get_age()+roll(-5, 5), char='o', dynasty=None, race=self.owner.creature.creature_type, important=sapient.important, house=sapient.house)]
             elif sapient.current_citizenship is None:
                 game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
                 return
@@ -7960,7 +7952,7 @@ class BasicWorldBrain:
         if self.goals:
             self.handle_goal_behavior()
 
-
+    '''
     def make_decision(self, decision_name):
         weighed_options = {}
         for option in decisions[decision_name]:
@@ -7975,7 +7967,7 @@ class BasicWorldBrain:
 
             for misc_reason in option['misc']:
                 weighed_options[option][misc_reason] = decisions[decision_name][option][misc_reason]
-
+    '''
 
 class TimeCycle(object):
     ''' Code adapted from Paradox Inversion on libtcod forums '''
@@ -8110,7 +8102,7 @@ class TimeCycle(object):
     def years_ago(self, *args):
         ''' Calculates X years again if 1 arg, randint between X and Y years ago if 2 args '''
         if len(args) == 1:
-            return self.curent_year - args[0]
+            return self.current_year - args[0]
         elif len(args) == 2:
             return self.current_year - (roll(args[0], args[1]))
 
@@ -8448,7 +8440,7 @@ class Culture:
 
 
 
-    def create_being(self, sex, born, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3):
+    def create_being(self, sex, age, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3):
         ''' Create a human, using info loaded from xml in the physics module '''
         # If race=None then we'll need to pick a random race from this culture
         if not race:
@@ -8467,6 +8459,8 @@ class Culture:
         if dynasty is not None:   lastname = dynasty.lastname
         else:                     lastname = lang.spec_cap(random.choice(self.language.vocab_n.values()))
 
+
+        born = g.WORLD.time_cycle.years_ago(age)
         sapient_comp = SapientComponent(firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
         human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, sapient=sapient_comp, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
@@ -8546,7 +8540,7 @@ def get_info_under_mouse():
     (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)
     info = []
     if game.map_scale == 'human' and g.M.is_val_xy((x, y)):
-        info.append(('Tick: {0}'.format(g.time_cycle.current_tick), PANEL_FRONT))
+        info.append(('Tick: {0}'.format(g.WORLD.time_cycle.current_tick), PANEL_FRONT))
         info.append(('at coords {0}, {1} height is {2}'.format(x, y, g.M.tiles[x][y].height), PANEL_FRONT))
         ### This will spit out some info about the unit we've selected (debug stuff)
         if render_handler.debug_active_unit_dijmap and not g.M.tiles[x][y].blocks_mov:
@@ -8728,10 +8722,10 @@ class RenderHandler:
 
         if game.state == 'playing':
             # Current date and time info
-            libtcod.console_print(panel2.con, 2, 2, g.time_cycle.get_current_date())
+            libtcod.console_print(panel2.con, 2, 2, g.WORLD.time_cycle.get_current_date())
             if game.map_scale == 'world':
-                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.time_cycle.current_year - g.player.sapient.faction.leader_change_year), g.player.sapient.faction.leader.fullname() ))
-                libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(g.time_cycle.current_year, len(g.WORLD.all_figures), len(g.WORLD.important_figures)))
+                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.WORLD.time_cycle.current_year - g.player.sapient.faction.leader_change_year), g.player.sapient.faction.leader.fullname() ))
+                libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(g.WORLD.time_cycle.current_year, len(g.WORLD.all_figures), len(g.WORLD.important_figures)))
 
             ##### PANEL 4 - ECONOMY STUFF
             if g.player.sapient.economy_agent is not None:
@@ -9167,17 +9161,17 @@ class Game:
 
     def save_game(self):
         #open a new empty shelve (possibly overwriting an old one) to write the game data
-        save_file = shelve.open('savegame', 'n')
+        #save_file = shelve.open('savegame', 'n')
         save_file['g.WORLD'] = g.WORLD
-        save_file['time_cyle'] = g.time_cycle
+        #save_file['time_cyle'] = g.time_cycle
         save_file.close()
 
     def load_game(self):
         #open the previously saved shelve and load the game data
         #global M, g.WORLD, g.player, g.time_cycle
-        file = shelve.open('savegame', 'r')
+        #file = shelve.open('savegame', 'r')
         g.WORLD = file['g.WORLD']
-        g.time_cycle = file['time_cyle']
+        #g.time_cycle = file['time_cyle']
         file.close()
 
 
@@ -9198,7 +9192,7 @@ class Game:
         self.switch_map_scale(map_scale='world')
 
         g.playerciv = g.WORLD.cities[0]
-        g.player = g.playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        g.player = g.playerciv.culture.create_being(sex=1, age=roll(30, 40), char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
         g.WORLD.tiles[g.player.wx][g.player.wy].entities.append(g.player)
         g.player.color = libtcod.cyan
         g.player.local_brain = None
@@ -9251,7 +9245,7 @@ class Game:
         #faction1.set_enemy_faction(faction=faction2)
 
         ### Make the g.player ###
-        g.player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
+        g.player = cult.create_being(sex=1, age=roll(20, 40), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
         #g.player.creature.skills['fighting'] += 100
         g.player.char = '@'
         g.player.local_brain = None
@@ -9260,7 +9254,7 @@ class Game:
         g.player_party = g.WORLD.create_population(char='@', name="g.player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=g.player)
 
 
-        leader = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
+        leader = cult.create_being(sex=1, age=roll(20, 40), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
         enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
@@ -9427,7 +9421,7 @@ class Game:
 
 
     def player_advance_time(self, ticks):
-        g.time_cycle.rapid_tick(ticks)
+        g.WORLD.time_cycle.rapid_tick(ticks)
 
         # TODO - make much more efficient
         self.handle_fov_recompute()
@@ -9465,7 +9459,7 @@ class Game:
         elif self.map_scale == 'world':
             # Change back to allow blocked movement and non-glitchy battlemap
             g.player.w_move(dx, dy)
-            g.time_cycle.day_tick(1)
+            g.WORLD.time_cycle.day_tick(1)
             g.camera.center(g.player.wx, g.player.wy)
 
 
@@ -9827,7 +9821,7 @@ def show_civs(world):
                         panel4.render = True
                         pcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.light_green, .5)
                         hcolor = pcolor * 2
-                        panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=g.time_cycle.goto_next_week, args=[],
+                        panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=g.WORLD.time_cycle.goto_next_week, args=[],
                                                               text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, hcolor=hcolor, do_draw_box=True) )
 
                 else:
