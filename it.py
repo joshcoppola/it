@@ -576,14 +576,16 @@ class Region:
             return join_list(site_names)
         else:
             city, dist = WORLD.get_closest_city(self.x, self.y)
-            if 0 < dist <= 3:
-                return 'to the {0}s just to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+            if dist == 0:
+                return '{0}'.format(city.name)
+            elif 0 < dist <= 3:
+                return 'the {0}s just to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist <= 15:
-                return 'to the {0}s to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0}s to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist > 15:
-                return 'to the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist > 30:
-                return 'to the {0}s far, far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0}s far, far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             else:
                 return 'the unknown {0}s'.format(self.region)
 
@@ -745,16 +747,25 @@ class Wmap:
         for faction, member_set in self.factions_on_map.iteritems():
             self.add_dmap(key=faction.faction_name, target_nodes=[(obj.x, obj.y) for obj in member_set], dmrange=DIJMAP_CREATURE_DISTANCE)
 
+
             # Make sure all sapients know who their enemies are
-            for enemy_faction in faction.enemy_factions:
-                if enemy_faction in self.factions_on_map.keys():
-                    game.add_message('%s: setting enemy - %s'%(faction.faction_name, enemy_faction.faction_name), libtcod.color_lerp(faction.color, PANEL_FRONT, .5) )
-                    for obj in member_set:
-                        obj.sapient.add_enemy_faction(enemy_faction)
+            #for other_faction, other_member_set in self.factions_on_map.iteritems():
+            #    if faction.is_hostile_to(other_faction):
+            #        game.add_message('%s: setting enemy - %s'%(faction.faction_name, other_faction.faction_name), libtcod.color_lerp(faction.color, PANEL_FRONT, .5) )
+            #        for obj in member_set:
+            #            obj.sapient.add_enemy_faction(other_faction)
+
+            #for enemy_faction in faction.enemy_factions:
+            #    if enemy_faction in self.factions_on_map.keys():
+            #        game.add_message('%s: setting enemy - %s'%(faction.faction_name, enemy_faction.faction_name), libtcod.color_lerp(faction.color, PANEL_FRONT, .5) )
+            #        for obj in member_set:
+            #            obj.sapient.add_enemy_faction(enemy_faction)
 
         for figure in self.sapients:
             if figure.local_brain:
                 figure.local_brain.set_enemy_perceptions_from_cached_factions()
+
+        return self.factions_on_map
 
 
     def update_dmaps(self):
@@ -1040,10 +1051,10 @@ class Wmap:
             population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[])
 
         ## DIJMAPS
-        self.cache_factions_for_dmap()
+        factions_on_map = self.cache_factions_for_dmap()
 
         for obj in self.sapients:
-            obj.creature.set_initial_desires()
+            obj.creature.set_initial_desires(factions_on_map)
 
         game.add_message('%i objs; %i saps' %(len(self.objects), len(self.sapients)) )
 
@@ -1757,7 +1768,7 @@ class World:
 
         for city in self.cities:
             dist = self.get_astar_distance_to(x, y, city.x, city.y)
-            if 0 < dist < closest_dist: #it's closer, so remember it
+            if  dist < closest_dist: #it's closer, so remember it
                 closest_city = city
                 closest_dist = dist
         return closest_city, closest_dist
@@ -2367,6 +2378,7 @@ class World:
 				'''
 
     def divide_into_regions(self):
+        ''' Divides the world into regions, and chooses the biggest one (continent) to start civilization on '''
         current_region_number = 0
 
         biggest_region_size = 0
@@ -2393,6 +2405,7 @@ class World:
 
 
     def gen_history(self, years):
+        self.gen_mythological_creatures()
         self.gen_sentient_races()
         self.gen_cultures()
         self.create_civ_cradle()
@@ -2406,6 +2419,23 @@ class World:
         else:
             panel2.wmap_buttons.append(gui.Button(gui_panel=panel2, func=game.new_game, args=[],
                                     text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+
+
+    def gen_mythological_creatures(self):
+        # Create a language for the culture to use
+        language = lang.Language()
+        self.languages.append(language)
+        self.default_mythic_culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=['lehur'])
+
+        num_placed_beings = 0
+        while num_placed_beings < 50:
+
+            num_placed_beings += 1
+
+            x, y = random.choice(self.play_tiles)
+
+            faction = Faction(leader_prefix=None, faction_name="Neutrals", color=libtcod.black, succession='strongman', defaultly_hostile=1)
+            lehur = self.default_mythic_culture.create_being(sex=1, born=-100, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race="lehur", save_being=1, intelligence_level=2)
 
 
     def gen_sentient_races(self):
@@ -3229,7 +3259,7 @@ class World:
         if 0 < self.get_astar_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
             race_name = random.choice(self.brutish_races)
             name = '{0} raiders'.format(race_name)
-            faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman')
+            faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
             leader = culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
@@ -3261,12 +3291,7 @@ class World:
             print 'Bandits could not find closest city'
 
         bname = lang.spec_cap(closest_city.culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
-        bandit_faction = Faction(leader_prefix='Bandit', faction_name=bname, color=libtcod.black, succession='strongman')
-
-        # Make enemies with all other factions
-        for faction in self.factions:
-            if faction != bandit_faction:
-                faction.set_enemy_faction(faction=bandit_faction)
+        bandit_faction = Faction(leader_prefix='Bandit', faction_name=bname, color=libtcod.black, succession='strongman', defaultly_hostile=1)
 
         ## Choose building for site
         if hideout_site is None:
@@ -3291,7 +3316,7 @@ class World:
         leader.w_teleport(wx, wy)
 
         sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Bandit':10}}}
-        self.create_population(char='u', name='Bandit band', faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
+        self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
         #prisoner = closest_city.create_inhabitant(sex=1, born=time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
@@ -4180,8 +4205,9 @@ class Profession:
         figure.sapient.set_opinions()
 
 class Faction:
-    def __init__(self, leader_prefix, faction_name, color, succession):
-        self.leader_prefix = leader_prefix # What the person will be referred to as, "Mayor" "governor" etc
+    def __init__(self, leader_prefix, faction_name, color, succession, defaultly_hostile=0):
+        # What the person will be referred to as, "Mayor" "governor" etc (None for no leader
+        self.leader_prefix = leader_prefix
         self.faction_name = faction_name
         self.color = color
 
@@ -4193,6 +4219,9 @@ class Faction:
         # 'strongman' for bandit factions
         self.succession = succession
         self.heirs = []
+
+        # Controls whether we're hostile by default (e.g. bandit gangs)
+        self.defaultly_hostile = defaultly_hostile
 
         self.faction_leader = None
         self.headquarters = None
@@ -4210,6 +4239,29 @@ class Faction:
         # Factions whom we would openly fight
         self.enemy_factions = set([])
 
+        # Only used for defaultly hostiles - Factions who we would not openly fight
+        self.friendly_factions = set([])
+
+
+    def is_hostile_to(self, faction):
+        ''' Figure out whether we are hostile to another faction '''
+        return (faction != self) and ( (faction in self.enemy_factions) or (self.defaultly_hostile and not faction in self.friendly_factions) or (faction.defaultly_hostile and not faction in self.friendly_factions) )
+
+
+    def set_friendly_faction(self, faction):
+        if self.defaultly_hostile:
+            self.friendly_factions.add(faction)
+
+        if faction.defaultly_hostile:
+            faction.friendly_factions.add(self)
+
+    def unset_friendly_faction(self, faction):
+        if self.defaultly_hostile:
+            self.friendly_factions.remove(faction)
+        if faction.defaultly_hostile:
+            faction.friendly_factions.remove(self)
+
+
     def set_enemy_faction(self, faction):
         self.enemy_factions.add(faction)
         faction.enemy_factions.add(self)
@@ -4217,6 +4269,7 @@ class Faction:
     def unset_enemy_faction(self, faction):
         self.ememy_factions.remove(faction)
         faction.enemy_factions.remove(self)
+
 
     def set_headquarters(self, building):
         self.headquarters = building
@@ -4318,45 +4371,46 @@ class Faction:
 
     def get_heirs(self, number):
         # First, make sure to clear the knowledge of inheritance from all heirs
-        for heir in self.heirs:
-            self.unset_heir(heir)
+        if self.leader_prefix is not None:
+            for heir in self.heirs:
+                self.unset_heir(heir)
 
-        if self.leader and self.succession == 'dynasty':
-            self.heirs = []
+            if self.leader and self.succession == 'dynasty':
+                self.heirs = []
 
-            child_heirs = [child for child in self.leader.sapient.children if child.creature.sex == 1 and not child.creature.status == 'dead']
-            child_heirs = sorted(child_heirs, key=lambda child: child.sapient.born)
-            ## Look at other heirs - make sure it does not include the title holder himself or his children, since they're already accounted for
-            if self.leader.sapient.dynasty is not None:
-                other_heirs = [member for member in self.leader.sapient.dynasty.members if member.creature.sex == 1 and member != self.leader and member not in child_heirs and not member.creature.status == 'dead']
-                other_heirs = sorted(other_heirs, key=lambda member: member.sapient.born)
+                child_heirs = [child for child in self.leader.sapient.children if child.creature.sex == 1 and not child.creature.status == 'dead']
+                child_heirs = sorted(child_heirs, key=lambda child: child.sapient.born)
+                ## Look at other heirs - make sure it does not include the title holder himself or his children, since they're already accounted for
+                if self.leader.sapient.dynasty is not None:
+                    other_heirs = [member for member in self.leader.sapient.dynasty.members if member.creature.sex == 1 and member != self.leader and member not in child_heirs and not member.creature.status == 'dead']
+                    other_heirs = sorted(other_heirs, key=lambda member: member.sapient.born)
+
+                else:
+                    print 'BUG:', self.leader.fullname(), ' has no dynasty'
+                    other_heirs = []
+                # Child heirs will be given priority
+                merged_list = child_heirs + other_heirs
+
+                for i, heir in enumerate(merged_list[:number]):
+                    self.set_heir(heir=heir, number_in_line=i+1)
+
+                return merged_list[:number]
+
+
+            elif self.leader and self.succession == 'strongman':
+                self.heirs = []
+
+                heir = random.choice(self.members)
+                if heir is None:
+                    heir = self.headquarters.site.culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='o', dynasty=None,
+                                                                       important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
+                    self.set_heir(heir=heir, number_in_line=1)
+
+                return [heir]
 
             else:
-                print 'BUG:', self.leader.fullname(), ' has no dynasty'
-                other_heirs = []
-            # Child heirs will be given priority
-            merged_list = child_heirs + other_heirs
-
-            for i, heir in enumerate(merged_list[:number]):
-                self.set_heir(heir=heir, number_in_line=i+1)
-
-            return merged_list[:number]
-
-
-        elif self.leader and self.succession == 'strongman':
-            self.heirs = []
-
-            heir = random.choice(self.members)
-            if heir is None:
-                heir = self.headquarters.site.culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='o', dynasty=None,
-                                                                   important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
-                self.set_heir(heir=heir, number_in_line=1)
-
-            return [heir]
-
-        else:
-            print self.faction_name, 'was queried for heirs but has no holder'
-            return []
+                print self.faction_name, 'was queried for heirs but has no holder'
+                return []
 
 
 
@@ -5008,7 +5062,7 @@ class Object:
 
         if target_faction == 'enemies':
             for actor in M.sapients:
-                if actor.creature.status == 'alive' and actor.sapient.faction in self.sapient.enemy_factions: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
+                if actor.creature.status == 'alive' and self.sapient.faction.is_hostile_to(actor.sapient.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     dist = self.distance_to(actor)
                     if dist < closest_dist:
                         closest_enemy = actor
@@ -5090,8 +5144,7 @@ class Object:
             x, y = libtcod.path_walk(WORLD.path_map, True)
 
             dx, dy = x - self.wx, y - self.wy
-
-            self.move(dx, dy)
+            self.w_move(dx, dy)
 
     def w_move_along_path(self, path):
         ''' Move along a predefined path (like roads between cities) '''
@@ -6009,7 +6062,7 @@ class Plot:
         if success:
             game.add_message(''.join([self.name, ' was successful!']), libtcod.light_red)
             if self.action == 'kill':
-                self.target.sapient.die()
+                self.target.sapient.die(reason='a successful plot')
 
         else:
             game.add_message(''.join([self.name, ' was unsuccessful']), libtcod.red)
@@ -6155,11 +6208,12 @@ class MovTargBehavior:
 
     def take_behavior_action(self):
         # TODO - not magically knowing where the target is....
-        path = libtcod.path_compute(p=WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.target.wx, dy=self.target.wy)
+        #path = libtcod.path_compute(p=WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.target.wx, dy=self.target.wy)
+        #libtcod.path_compute(p, ox, oy, dx, dy)
 
-        x, y = libtcod.path_walk(WORLD.path_map, True)
-        if x != None:
-            self.figure.w_move_to(x, y)
+        #x, y = libtcod.path_walk(WORLD.path_map, True)
+        #if x is not None and y is not None:
+        self.figure.w_move_to(self.target.wx, self.target.wy)
 
 class UnloadGoodsBehavior:
     def __init__(self, target_city, figure):
@@ -6187,16 +6241,23 @@ class KillTargBehavior:
         self.figure = figure
 
         self.is_active = 0
+        self.has_battled = 0
 
     def initialize_behavior(self):
         self.is_active= 1
 
     def is_completed(self):
-        return self.target.creature.status == 'dead'
+        # return self.target.creature.status == 'dead'
+        return self.has_battled
 
     def take_behavior_action(self):
-        if roll(0, 1):
-            self.target.sapient.die()
+
+        battle = combat.WorldBattle(faction1_named=[self.figure], faction1_population=None, faction2_named=[self.target], faction2_population=None)
+
+        self.has_battled = 1
+
+        #if roll(0, 1):
+        #    self.target.sapient.die()
 
 
 class CaptureTargBehavior:
@@ -6276,8 +6337,6 @@ class SapientComponent:
 
         self.economy_agent = None
 
-        self.enemy_factions = set([])
-
         self.hometown = None # Where we originally were from
         self.current_citizenship = None # The city where our house is currently located
         self.current_lodging = None # The place where we are currently staying - will be None when travelling,
@@ -6317,11 +6376,11 @@ class SapientComponent:
         ## Set initial opinions - this is without having a profession
         self.set_opinions()
 
-    def add_enemy_faction(self, faction):
-        self.enemy_factions.add(faction)
+    #def add_enemy_faction(self, faction):
+    #    self.enemy_factions.add(faction)
 
-    def remove_enemy_faction(self, faction):
-        self.enemy_factions.remove(faction)
+    #def remove_enemy_faction(self, faction):
+    #    self.enemy_factions.remove(faction)
 
     def set_as_faction_leader(self, faction):
         self.is_faction_leader = faction
@@ -6699,15 +6758,14 @@ class SapientComponent:
             self.events[(year, month, day)] = [event]
 
 
-    def die(self):
+    def die(self, reason):
         figure = self.owner
-        figure.creature.status = 'dead'
-        #print figure.fulltitle(), ', gen', str(self.generation), 'has died'
-        if WORLD.tiles[figure.wx][figure.wy].site:  location = WORLD.tiles[figure.wx][figure.wy].site.name
-        else:                                       location = 'the wilderness'
+        figure.creature.set_status('dead')
+        #if WORLD.tiles[figure.wx][figure.wy].site:  location = WORLD.tiles[figure.wx][figure.wy].site.name
+        location = WORLD.tiles[figure.wx][figure.wx].get_location_description()
 
         # Notify world!
-        game.add_message('{0} has died in {1}!'.format(figure.fulltitle(), location), libtcod.red)
+        game.add_message('{0} has died in {1}! ({2}, {3})'.format(figure.fulltitle(), location, figure.wx, figure.wy), libtcod.red)
 
         # Remo
         if figure.sapient.current_citizenship:
@@ -7011,7 +7069,7 @@ class Creature:
 
         return perceived, threat_level
 
-    def set_initial_desires(self):
+    def set_initial_desires(self, factions_on_map):
 
         ## TODO - more elegant way to become aware of all factions
         ## !! currently doesn't know about any factions other than ourselves and enemies
@@ -7021,7 +7079,7 @@ class Creature:
                                   }
 
 
-        for faction in self.owner.sapient.enemy_factions:
+        for faction in factions_on_map.keys():
             self.dijmap_desires[faction.faction_name] = 0
 
 
@@ -7325,10 +7383,10 @@ class Creature:
         self.set_stance('Prone')
 
         # Drop any things we have
-        for component in self.get_graspers():
-            if component.grasped_item is not None:
+        # for component in self.get_graspers():
+            #if component.grasped_item is not None:
                 # Drop the object (and release hold on it)
-                self.owner.drop_object(own_component=component, obj=component.grasped_item)
+                #self.owner.drop_object(own_component=component, obj=component.grasped_item)
 
         self.owner.set_display_color(self.owner.pass_out_color)
         self.owner.sapient.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
@@ -7365,6 +7423,7 @@ class DijmapSapient:
     ''' AI using summed dij maps '''
     def __init__(self):
         self.astar_refresh_period = 7
+        self.ai_initialize()
 
     def ai_initialize(self):
         self.ai_state = 'idle'  # Should go here - moving temporarily
@@ -7389,13 +7448,24 @@ class DijmapSapient:
 
 
     def set_enemy_perceptions_from_cached_factions(self):
-        # Make sure We are not a captive (later, if freed, captives will need to run this routine)
+        ''' Make sure We are not a captive (later, if freed, captives will need to run this routine) '''
         if not self.owner.sapient.is_captive():
 
-            for enemy_faction in self.owner.sapient.enemy_factions:
-                for member in M.factions_on_map[enemy_faction]:
-                    if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
-                        self.unperceived_enemies.append(member)
+            for faction, members in M.factions_on_map.iteritems():
+                game.add_message('{0}'.format(faction.faction_name), faction.color)
+
+                if self.owner.sapient.faction.is_hostile_to(faction):
+                    game.add_message('{0} hostile to {1}'.format(self.owner.sapient.faction.faction_name, faction), self.owner.sapient.faction.color)
+
+                    for member in members:
+                        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
+                            self.unperceived_enemies.append(member)
+                            #game.add_message(new_msg="{0} adding {1} to enemies".format(self.owner.fullname(), member.fullname()), color=self.owner.color)
+
+            #for enemy_faction in self.owner.sapient.enemy_factions:
+            #    for member in M.factions_on_map[enemy_faction]:
+            #        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
+            #            self.unperceived_enemies.append(member)
 
 
     def take_turn(self):
@@ -7558,12 +7628,15 @@ class DijmapSapient:
             # This will clear the target, in case they happen to be following someone or whatever
             self.unset_target()
 
-            for faction in actor.sapient.enemy_factions:
-                actor.creature.dijmap_desires[faction.faction_name] = 2
+            for faction in M.factions_on_map.keys():
+                if actor.sapient.faction.is_hostile_to(faction):
+                    actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
-            for faction in actor.sapient.enemy_factions:
-                actor.creature.dijmap_desires[faction.faction_name] = -4
+
+            for faction in M.factions_on_map.keys():
+                if actor.sapient.faction.is_hostile_to(faction):
+                    actor.creature.dijmap_desires[faction.faction_name] = -4
 
             actor.creature.dijmap_desires['map_center'] = -2
 
@@ -7747,6 +7820,9 @@ class BasicWorldBrain:
                 moving = self.check_for_move_city()
 
                 if not moving:
+                    moving = self.check_for_adventure()
+
+                if not moving:
                     self.check_for_liesure_travel()
 
         ## Lesser intelligent creatures
@@ -7797,6 +7873,20 @@ class BasicWorldBrain:
                 spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
 
             return spouse
+
+    def check_for_adventure(self):
+
+        targets = [e for e in WORLD.all_figures if e.creature.creature_type  == "lehur"]
+        if roll(1, 10) == 1 and targets != []:
+            target = random.choice(targets)
+
+            self.add_goal(priority=1, goal_type='kill person', reason='I lust for blood', target=target)
+            game.add_message(new_msg="Going on kill mission to kill {0} at {1}, {2}".format(target.fullname(), target.wx, target.wy), color=libtcod.red)
+
+        elif targets == []:
+            print '{0} checked for adventure but found no targets'.format(self.owner.fullname())
+            game.add_message('{0} checked for adventure but found no targets'.format(self.owner.fullname()))
+
 
     def check_for_move_city(self):
         sapient = self.owner.sapient
@@ -8042,42 +8132,10 @@ class TimeCycle(object):
                 actor.local_brain.take_turn()
 
         # Now that entities have made their moves, calculate the outcome of any combats
-        for entity in M.creatures + M.sapients[:]:
-            if entity.creature.needs_to_calculate_combat:
-                target_entity, combatant_1_opening, combatant_1_closing = entity.creature.combat_target
-                # Track these moves so they can't be used next round
-                entity.creature.set_last_turn_moves([combatant_1_opening, combatant_1_closing])
-
-                if target_entity.creature and target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
-                    combatant_2_opening = target_entity.creature.combat_target[1]
-                    combatant_2_closing = target_entity.creature.combat_target[2]
-                    # Track these moves so they can't be used next round
-                    entity.creature.set_last_turn_moves([combatant_2_opening, combatant_2_closing])
-
-                    # Only reset the flag if they're attacking back; since they could be attacking someone else
-                    target_entity.creature.needs_to_calculate_combat = 0
-                    target_entity.creature.combat_target = []
-                else:
-                    combatant_2_opening = None
-                    combatant_2_closing = None
-
-                # Reset combat flags
-                entity.creature.needs_to_calculate_combat = 0
-                entity.creature.combat_target = []
-
-                # Regardless of whether the opponent fights back, calculate the outcome
-                combat_log = combat.calculate_combat(combatant_1=entity, combatant_1_opening=combatant_1_opening, combatant_1_closing=combatant_1_closing,
-                                                     combatant_2=target_entity, combatant_2_opening=combatant_2_opening, combatant_2_closing=combatant_2_closing)
-
-                if entity == player or target_entity == player:
-                    for line, color in combat_log:
-                        game.add_message(line, color)
-
-            # If not needing to calculate moves, clear the tracking of moves we used last round so we can use them without restriction
-            else:
-                entity.creature.set_last_turn_moves([])
+        combat.handle_combat_round(actors=M.creatures + M.sapients)
 
         M.update_dmaps()
+
 
     def day_tick(self, num_days):
         for iteration in xrange(num_days):
@@ -8126,8 +8184,8 @@ class TimeCycle(object):
         #game.add_message('It is now ' + str(self.current_year), libtcod.light_sea)
         for figure in WORLD.all_figures[:]:
             # Die from old age
-            if figure.sapient.get_age() > 70:
-                figure.sapient.die()
+            if figure.sapient.get_age() > phys.creature_dict[figure.creature.creature_type]['creature']['lifespan']:
+                figure.sapient.die(reason='old age')
 
     def rapid_tick(self, ticks):
         ticks = ticks
@@ -8141,7 +8199,6 @@ class TimeCycle(object):
     def rapid_month_tick(self, months):
         for x in xrange(months):
             self.month_tick()
-
 
 class Camera:
     def __init__(self, width, height):
@@ -9175,9 +9232,9 @@ class Game:
 
         ########### Factions ################
         faction1 = Faction(leader_prefix='King', faction_name='Player faction', color=random.choice(civ_colors), succession='dynasty')
-        faction2 = Faction(leader_prefix='King', faction_name='Enemy faction', color=random.choice(civ_colors), succession='dynasty')
+        faction2 = Faction(leader_prefix='King', faction_name='Enemy faction', color=random.choice(civ_colors), succession='dynasty', defaultly_hostile=1)
         # Set them as enemies (function will do so reciprocally)
-        faction1.set_enemy_faction(faction=faction2)
+        #faction1.set_enemy_faction(faction=faction2)
 
         ### Make the player ###
         player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
@@ -9371,7 +9428,7 @@ class Game:
                 #try to find an attackable object there
                 target = None
                 for obj in M.tiles[x][y].objects:
-                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and obj.sapient.faction in player.sapient.faction.enemy_factions):
+                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and player.sapient.faction.is_hostile_to(obj.sapient.faction) ):
                         target = obj
                         break
                 #attack if target found, move otherwise

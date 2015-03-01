@@ -9,6 +9,7 @@ human:
     wearable: 0
     creature:
         intelligence_level: 3
+        lifespan: 70
         skills:
             fighting: 10
             brawling: 10

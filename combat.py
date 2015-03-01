@@ -76,6 +76,76 @@ class CombatAttack:
         self.distance = distance
 
 
+class WorldBattle:
+    def __init__(self, faction1_named, faction1_population, faction2_named, faction2_population):
+        self.faction1_named = faction1_named
+        self.faction1_population = faction1_population
+        self.faction2_named = faction2_named
+        self.faction2_population = faction2_population
+
+        self.battle_type = None
+        self.determine_battle_type_and_execute_battle()
+
+    def determine_battle_type_and_execute_battle(self):
+        if self.faction1_population is None and self.faction2_population is None:
+            self.battle_type = 'small-scale'
+
+            self.small_scale_battle()
+
+    def small_scale_battle(self):
+
+
+        for f1_member in self.faction1_named:
+            target = random.choice(self.faction2_named)
+
+            while f1_member.creature.status not in ('dead', 'unconscious') and target.creature.status not in ('dead', 'unconscious'):
+
+                f1_member.local_brain.attack_enemy(enemy=target)
+                target.local_brain.attack_enemy(enemy=f1_member)
+
+                print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
+                handle_combat_round(actors=[f1_member, target])
+
+
+
+
+
+def handle_combat_round(actors):
+    for entity in actors[:]:
+        if entity.creature.needs_to_calculate_combat:
+            target_entity, combatant_1_opening, combatant_1_closing = entity.creature.combat_target
+            # Track these moves so they can't be used next round
+            entity.creature.set_last_turn_moves([combatant_1_opening, combatant_1_closing])
+
+            if target_entity.creature and target_entity.creature.combat_target != [] and target_entity.creature.combat_target[0] == entity:
+                combatant_2_opening = target_entity.creature.combat_target[1]
+                combatant_2_closing = target_entity.creature.combat_target[2]
+                # Track these moves so they can't be used next round
+                entity.creature.set_last_turn_moves([combatant_2_opening, combatant_2_closing])
+
+                # Only reset the flag if they're attacking back; since they could be attacking someone else
+                target_entity.creature.needs_to_calculate_combat = 0
+                target_entity.creature.combat_target = []
+            else:
+                combatant_2_opening = None
+                combatant_2_closing = None
+
+            # Reset combat flags
+            entity.creature.needs_to_calculate_combat = 0
+            entity.creature.combat_target = []
+
+            # Regardless of whether the opponent fights back, calculate the outcome
+            combat_log = calculate_combat(combatant_1=entity, combatant_1_opening=combatant_1_opening, combatant_1_closing=combatant_1_closing,
+                                                 combatant_2=target_entity, combatant_2_opening=combatant_2_opening, combatant_2_closing=combatant_2_closing)
+
+            #if entity == player or target_entity == player:
+            #    for line, color in combat_log:
+            #        game.add_message(line, color)
+
+        # If not needing to calculate moves, clear the tracking of moves we used last round so we can use them without restriction
+        else:
+            entity.creature.set_last_turn_moves([])
+
 
 def get_combat_odds(combatant_1, combatant_1_move, combatant_2, combatant_2_move):
 
