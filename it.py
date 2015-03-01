@@ -27,6 +27,7 @@ import building_templates
 import map_generation as mgen
 import combat
 from helpers import *
+import config as g
 
 # Code to detect screen resolution (libtcod's doesn't work for some reason?)
 try:
@@ -45,9 +46,9 @@ MAP_HEIGHT = 250
 CITY_MAP_WIDTH = 300
 CITY_MAP_HEIGHT = 300
 
-#size of the WORLD
-WORLD_WIDTH = 240
-WORLD_HEIGHT = 220
+#size of the g.WORLD
+g.WORLD_WIDTH = 240
+g.WORLD_HEIGHT = 220
 
 WATER_HEIGHT = 100
 MOUNTAIN_HEIGHT = 190
@@ -483,21 +484,33 @@ MCFG = {
                      'unique_ground_tiles':(),
                      'map_pad':0,
                      'map_pad_type':0
-                     }
+                     },
+
+           'ocean':{
+            'initial_blocks_mov_chance':300,
+             'repetitions':1,
+             'walls_to_floor':3,
+             'walls_to_wall':5,
+             'blocks_mov_color':libtcod.darker_grey,
+             'blocks_mov_surface':'rocky outcrop',
+             'shade':1,
+             'blocks_mov_height':189,
+
+             'base_color':'use_world_map',
+             'small_tree_chance':0,
+             'small_stump_chance':1,
+             'large_tree_chance':0,
+             'large_stump_chance':0,
+             'shrub_chance':2,
+             'unique_ground_tiles':(),
+             'map_pad':0,
+             'map_pad_type':0
+             }
            }
 
 
 mouse = libtcod.Mouse()
 key = libtcod.Key()
-
-
-WORLD = None
-player = None
-M = None
-time_cycle = None
-camera = None
-
-
 
 
 class Region:
@@ -575,7 +588,7 @@ class Region:
             site_names = [site.name for site in self.minor_sites + self.caves]
             return join_list(site_names)
         else:
-            city, dist = WORLD.get_closest_city(self.x, self.y)
+            city, dist = g.WORLD.get_closest_city(self.x, self.y)
             if dist == 0:
                 return '{0}'.format(city.name)
             elif 0 < dist <= 3:
@@ -774,7 +787,7 @@ class Wmap:
         #    self.dijmaps[faction.faction_name].update_map(target_nodes)
 
         for faction, member_set in self.factions_on_map.iteritems():
-            target_nodes = [(obj.x, obj.y) for obj in member_set if obj.creature.status == 'alive' and (obj == player or (obj != player and obj.local_brain.ai_state != 'idle'))]
+            target_nodes = [(obj.x, obj.y) for obj in member_set if obj.creature.status == 'alive' and (obj == g.player or (obj != g.player and obj.local_brain.ai_state != 'idle'))]
             self.dijmaps[faction.faction_name].update_map(target_nodes=target_nodes)
             #update_map_test(self.dijmaps[faction.faction_name], target_nodes)
 
@@ -862,7 +875,7 @@ class Wmap:
         hwd = int(self.width/2)
 
 
-        surrounding_heights = WORLD.get_surrounding_heights(coords=(self.wx, self.wy))
+        surrounding_heights = g.WORLD.get_surrounding_heights(coords=(self.wx, self.wy))
         this_tile_height = min(surrounding_heights[4], MOUNTAIN_HEIGHT-10)
 
         # Which map tiles to use from surrounding_heights variable
@@ -872,7 +885,7 @@ class Wmap:
                                       (0, self.height-1), (hwd, self.height-1), (self.width-1, self.height-1)
                                       )
 
-        surrounding_rivers = WORLD.get_surrounding_rivers(coords=(self.wx, self.wy))
+        surrounding_rivers = g.WORLD.get_surrounding_rivers(coords=(self.wx, self.wy))
 
         # Which map tiles to use from the river_dirs variable
         world_to_wmap_rivers =  {
@@ -980,7 +993,7 @@ class Wmap:
 
     def make_city_map(self, city_class, num_nodes, min_dist, disorg):
         #Make a city on this tile
-        self.cit = mgen.CityMap(self, city_class, WORLD.tiles[city_class.x][city_class.y].entities)
+        self.cit = mgen.CityMap(self, city_class, g.WORLD.tiles[city_class.x][city_class.y].entities)
         self.cit.generate_city_map(num_nodes=num_nodes, min_dist=min_dist, disorg=disorg, render_handler=render_handler)
 
 
@@ -1009,10 +1022,10 @@ class Wmap:
 
         if obj.sapient:
             self.sapients.append(obj)
-            obj.creature.next_tick = time_cycle.current_tick + 1
+            obj.creature.next_tick = g.time_cycle.current_tick + 1
         elif obj.creature:
             self.creatures.append(obj)
-            obj.creature.next_tick = time_cycle.current_tick + 1
+            obj.creature.next_tick = g.time_cycle.current_tick + 1
         else:
             self.objects.append(obj)
 
@@ -1035,18 +1048,18 @@ class Wmap:
                             }
 
 
-        for entity in WORLD.tiles[self.wx][self.wy].entities:
+        for entity in g.WORLD.tiles[self.wx][self.wy].entities:
             figure_start = world_last_dir_to_rect[entity.world_last_dir]
             # Find a non-blocked tile
             while 1:
                 x = roll(figure_start.x1, figure_start.x2)
                 y=roll(figure_start.y1, figure_start.y2)
-                if M.is_val_xy(coords=(x, y)) and not M.tile_blocks_mov(x, y):
+                if g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y):
                     break
             # Add the entity to the map
-            M.add_object_to_map(x=x, y=y, obj=entity)
+            g.M.add_object_to_map(x=x, y=y, obj=entity)
 
-        for population in WORLD.tiles[self.wx][self.wy].populations:
+        for population in g.WORLD.tiles[self.wx][self.wy].populations:
             population_start = world_last_dir_to_rect[population.world_last_dir]
             population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[])
 
@@ -1083,38 +1096,38 @@ class Wmap:
 
 
     def display(self, debug_active_unit_dijmap):
-        #recompute FOV if needed (the player moved or something)
+        #recompute FOV if needed (the g.player moved or something)
         self.fov_recompute = False
-        libtcod.map_compute_fov(self.fov_map, player.x, player.y, player.creature.alert_sight_radius, FOV_LIGHT_WALLS, FOV_ALGO)
+        libtcod.map_compute_fov(self.fov_map, g.player.x, g.player.y, g.player.creature.alert_sight_radius, FOV_LIGHT_WALLS, FOV_ALGO)
         libtcod.console_clear(map_con.con)
 
         # NORMAL RENDERING
         if not debug_active_unit_dijmap:
             #go through all tiles, and set their background color according to the FOV
-            for cam_y in xrange(camera.height):
-                for cam_x in xrange(camera.width):
-                    (x, y) = camera.cam2map(cam_x, cam_y)
+            for cam_y in xrange(g.camera.height):
+                for cam_x in xrange(g.camera.width):
+                    (x, y) = g.camera.cam2map(cam_x, cam_y)
                     if self.is_val_xy((x, y)):
                         visible = libtcod.map_is_in_fov(self.fov_map, x, y)
 
                         if visible:
-                            #libtcod.console_set_char_background(con.con, x, y, M.tiles[map_x][map_y].color, libtcod.BKGND_SET)
+                            #libtcod.console_set_char_background(con.con, x, y, g.M.tiles[map_x][map_y].color, libtcod.BKGND_SET)
                             libtcod.console_put_char_ex(map_con.con, cam_x, cam_y, self.tiles[x][y].char, self.tiles[x][y].char_color, self.tiles[x][y].color)
                             #since it's visible, explore it
                             self.tiles[x][y].explored = True
 
                         elif self.tiles[x][y].explored:
-                            #if it's not visible right now, the player can only see it if it's explored
-                            #libtcod.console_set_char_background(con.con, x, y, M.tiles[map_x][map_y].color * .5, libtcod.BKGND_SET)
+                            #if it's not visible right now, the g.player can only see it if it's explored
+                            #libtcod.console_set_char_background(con.con, x, y, g.M.tiles[map_x][map_y].color * .5, libtcod.BKGND_SET)
                             libtcod.console_put_char_ex(map_con.con, cam_x, cam_y, self.tiles[x][y].char, self.tiles[x][y].shadow_char_color, self.tiles[x][y].shadow_color)
 
 
         ## UNOPTIMIZED DIJMAP RENDERING
         elif debug_active_unit_dijmap:
-            for cam_y in xrange(camera.height):
-                for cam_x in xrange(camera.width):
-                    #(map_x, map_y) = (camera.x + x, camera.y + y)
-                    (x, y) = camera.cam2map(cam_x, cam_y)
+            for cam_y in xrange(g.camera.height):
+                for cam_x in xrange(g.camera.width):
+                    #(map_x, map_y) = (g.camera.x + x, g.camera.y + y)
+                    (x, y) = g.camera.cam2map(cam_x, cam_y)
                     if self.is_val_xy((x, y)):
                         if not self.tiles[x][y].blocks_mov:
                             intensity = 0
@@ -1129,7 +1142,7 @@ class Wmap:
         #########################################
 
 
-        #draw all objects in the list, except the player.
+        #draw all objects in the list, except the g.player.
         for obj in self.objects:
             if self.tiles[obj.x][obj.y].explored:
                 obj.draw()
@@ -1139,9 +1152,9 @@ class Wmap:
                 creature.draw()
 
         for sapient in self.sapients:
-            if self.tiles[sapient.x][sapient.y].explored and sapient != player:
+            if self.tiles[sapient.x][sapient.y].explored and sapient != g.player:
                 sapient.draw()
-        player.draw()
+        g.player.draw()
 
         #blit the contents of map_con to the root console
         map_con.blit()
@@ -1272,7 +1285,7 @@ class Wmap:
                           }
 
 
-        if WORLD.tiles[x][y].has_feature('road'):
+        if g.WORLD.tiles[x][y].has_feature('road'):
             # Find whether there are nearby roads
             road_dirs = []
 
@@ -1303,19 +1316,19 @@ class Wmap:
 
 
         ## Add cave entrances
-        for cave in WORLD.tiles[x][y].caves:
+        for cave in g.WORLD.tiles[x][y].caves:
             ## find some tiles that border rock for each cave
             borders_rock = False
             while not borders_rock:
                 cx, cy = roll(20, self.width-21), roll(20, self.height-21)
                 if not self.tile_blocks_mov(x=cx, y=cy):
                     for nx, ny in get_border_tiles(x=cx, y=cy):
-                        if M.tile_blocks_mov(x=nx, y=ny):
+                        if g.M.tile_blocks_mov(x=nx, y=ny):
                             borders_rock = True
                             break
             #cx, cy = random.choice(self.rock_border_cells)
             self.tiles[cx][cy].char = 'O'
-            self.tiles[cx][cy].interactable = {'func':WORLD.make_cave_map, 'args':[x, y, cave], 'text':'Enter cave', 'hover_text':['Cave entrance']}
+            self.tiles[cx][cy].interactable = {'func':g.WORLD.make_cave_map, 'args':[x, y, cave], 'text':'Enter cave', 'hover_text':['Cave entrance']}
 
             game.add_message(new_msg='cave at %i, %i' %(cx, cy), color=libtcod.green)
 
@@ -1540,7 +1553,7 @@ class Wmap:
 
 class World:
     def __init__(self, width, height):
-        global camera, time_cycle
+        #global g.camera, g.time_cycle
 
         self.height = height
         self.width = width
@@ -1583,7 +1596,7 @@ class World:
         #### load phys info ####
         phys.main()
         # Need to set up time cycle
-        time_cycle = TimeCycle()
+        g.time_cycle = TimeCycle()
 
         #self.generate()
 
@@ -1643,18 +1656,18 @@ class World:
 
     def draw_world_objects(self):
         # Just have all world objects represent themselves
-        for figure in WORLD.all_figures:
+        for figure in g.WORLD.all_figures:
             if not self.tiles[figure.wx][figure.wy].site:
                 figure.w_draw()
         #for traveler in self.travelers:
-        #    if traveler != player:
+        #    if traveler != g.player:
         #        traveler.w_draw()
 
         for site in self.sites:
             site.draw()
 
-        if player is not None:
-            player.w_draw()
+        if g.player is not None:
+            g.player.w_draw()
 
     #####################################
     def get_astar_distance_to(self, x, y, target_x, target_y):
@@ -1809,7 +1822,7 @@ class World:
         return nearby_resources, nearby_resource_locations
 
     def setup_world(self):
-        #fill WORLD with dummy regions
+        #fill g.WORLD with dummy regions
         self.tiles = [
             [Region(region=None, x=x, y=y, color=None, blocks_mov=False, char=' ', char_color=libtcod.black, blocks_vis=False)
              for y in xrange(self.height)]
@@ -2183,9 +2196,9 @@ class World:
                     self.tiles[x][y].blocks_mov = True
                     self.tiles[x][y].blocks_vis = True
                     self.tiles[x][y].region = 'mountain'
-                    #WORLD.tiles[x][y].color = libtcod.Color(117+roll(-a,a), 130+roll(-a,a), 104+roll(-a,a))
-                    #WORLD.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 40+roll(-a,a), 34+roll(-a,a))
-                    #WORLD.tiles[x][y].color = libtcod.Color(118+roll(-a,a), 90+roll(-a,a), 80+roll(-a,a))
+                    #g.WORLD.tiles[x][y].color = libtcod.Color(117+roll(-a,a), 130+roll(-a,a), 104+roll(-a,a))
+                    #g.WORLD.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 40+roll(-a,a), 34+roll(-a,a))
+                    #g.WORLD.tiles[x][y].color = libtcod.Color(118+roll(-a,a), 90+roll(-a,a), 80+roll(-a,a))
 
                     ############################ Latest backup #######################################
                     #self.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 45+roll(-a,a), 34+roll(-a,a))
@@ -2311,8 +2324,8 @@ class World:
 
         ## Try to shade the map
         max_alpha = .9
-        for y in xrange(2, WORLD_HEIGHT-2):
-            for x in xrange(2, WORLD_WIDTH-2):
+        for y in xrange(2, g.WORLD_HEIGHT-2):
+            for x in xrange(2, g.WORLD_WIDTH-2):
                 if self.tiles[x][y].region != 'ocean' and self.tiles[x+1][y].region != 'ocean':
                     hdif = self.tiles[x][y].height / self.tiles[x+1][y].height
 
@@ -2349,7 +2362,7 @@ class World:
             for x in xrange(2, self.width - 2):
                 if not self.tiles[x][y].region in exclude_smooth:
                     neighbors = ((x - 1, y - 1), (x - 1, y), (x, y - 1), (x + 1, y), (x, y + 1), (x + 1, y + 1), (x + 1, y - 1), (x - 1, y + 1))
-                    #colors = [WORLD.tiles[nx][ny].color for (nx, ny) in neighbors]
+                    #colors = [g.WORLD.tiles[nx][ny].color for (nx, ny) in neighbors]
                     if not self.tiles[x][y].region == 'mountain':
                         smooth_coef = .25
                     else:
@@ -2565,7 +2578,7 @@ class World:
             nx, ny = random.choice(city_sites)
             city_sites.remove((nx, ny))
 
-            for resource in WORLD.tiles[nx][ny].res.keys():
+            for resource in g.WORLD.tiles[nx][ny].res.keys():
                 if resource in city_blocker_resources:
                     (nx, ny) = random.choice([t for t in get_border_tiles(nx, ny) if self.is_valid_site(t[0], t[1]) ])
                     break
@@ -2935,7 +2948,7 @@ class World:
         ## Some history...
         #begin = time.time()
         for i in xrange(weeks * 7):
-            time_cycle.day_tick(1)
+            g.time_cycle.day_tick(1)
         #game.add_message('History run in %.2f seconds' %(time.time() - begin))
         # List the count of site types
         game.add_message(', '.join(['{0} {1}s'.format(len(self.site_index[site_type]), site_type) for site_type in self.site_index.keys()]))
@@ -2969,24 +2982,24 @@ class World:
         if game.world_map_display_type == 'normal':
             #buffer = libtcod.ConsoleBuffer(CAMERA_WIDTH, CAMERA_HEIGHT)
 
-            for y in xrange(camera.height):
-                for x in xrange(camera.width):
-                    (wmap_x, wmap_y) = camera.cam2map(x, y)
+            for y in xrange(g.camera.height):
+                for x in xrange(g.camera.width):
+                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
                     libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
-                    #bc = WORLD.tiles[wmap_x][wmap_y].color
-                    #fc = WORLD.tiles[wmap_x][wmap_y].char_color
-                    #buffer.set(x=x, y=y, back_r=WORLD.tiles[wmap_x][wmap_y].color.r, back_g=WORLD.tiles[wmap_x][wmap_y].color.g, back_b=WORLD.tiles[wmap_x][wmap_y].color.b, \
-                    #            fore_r=WORLD.tiles[wmap_x][wmap_y].char_color.r, fore_g=WORLD.tiles[wmap_x][wmap_y].char_color.g, fore_b=WORLD.tiles[wmap_x][wmap_y].char_color.b, char=WORLD.tiles[wmap_x][wmap_y].char)
+                    #bc = g.WORLD.tiles[wmap_x][wmap_y].color
+                    #fc = g.WORLD.tiles[wmap_x][wmap_y].char_color
+                    #buffer.set(x=x, y=y, back_r=g.WORLD.tiles[wmap_x][wmap_y].color.r, back_g=g.WORLD.tiles[wmap_x][wmap_y].color.g, back_b=g.WORLD.tiles[wmap_x][wmap_y].color.b, \
+                    #            fore_r=g.WORLD.tiles[wmap_x][wmap_y].char_color.r, fore_g=g.WORLD.tiles[wmap_x][wmap_y].char_color.g, fore_b=g.WORLD.tiles[wmap_x][wmap_y].char_color.b, char=g.WORLD.tiles[wmap_x][wmap_y].char)
 
             #buffer.blit(con.con)
 
         elif game.world_map_display_type == 'culture':
-            for y in xrange(camera.height):
-                for x in xrange(camera.width):
-                    (wmap_x, wmap_y) = camera.cam2map(x, y)
+            for y in xrange(g.camera.height):
+                for x in xrange(g.camera.width):
+                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
                     if self.tiles[wmap_x][wmap_y].culture is not None:
                         color = self.tiles[wmap_x][wmap_y].culture.color
-                        #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, WORLD.tiles[wmap_x][wmap_y].color)
+                        #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, g.WORLD.tiles[wmap_x][wmap_y].color)
                         libtcod.console_put_char_ex(map_con.con, x, y, chr(177), color, color * 1.2)
 
                     else:
@@ -2994,21 +3007,21 @@ class World:
 
         ######################### Territories ##################################
         elif game.world_map_display_type == 'territory':
-            for y in xrange(camera.height):
-                for x in xrange(camera.width):
-                    (wmap_x, wmap_y) = camera.cam2map(x, y)
+            for y in xrange(g.camera.height):
+                for x in xrange(g.camera.width):
+                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
                     if self.tiles[wmap_x][wmap_y].territory is not None:
                         color = self.tiles[wmap_x][wmap_y].territory.color
-                        #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, WORLD.tiles[wmap_x][wmap_y].color)
+                        #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, g.WORLD.tiles[wmap_x][wmap_y].color)
                         libtcod.console_put_char_ex(map_con.con, x, y, chr(177), color, color * 1.5)
 
                     else:
                         libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
         ######################### Resources ##################################
         elif game.world_map_display_type == 'resource':
-            for y in xrange(camera.height):
-                for x in xrange(camera.width):
-                    (wmap_x, wmap_y) = camera.cam2map(x, y)
+            for y in xrange(g.camera.height):
+                for x in xrange(g.camera.width):
+                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
                     libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
 
                     if len(self.tiles[wmap_x][wmap_y].res.keys()) and not 'wood' in self.tiles[wmap_x][wmap_y].res.keys():
@@ -3046,54 +3059,53 @@ class World:
 
 
     def goto_scale_map(self):
-        ''' Create battle map from player's world coords '''
+        ''' Create battle map from g.player's world coords '''
         global M
         game.switch_map_scale(map_scale='human')
 
-        x, y = player.wx, player.wy
+        x, y = g.player.wx, g.player.wy
 
         ## Set size of map
         if self.tiles[x][y].site and self.tiles[x][y].site.site_type == 'city':
-            M = Wmap(world=self, wx=x, wy=y, width=CITY_MAP_WIDTH, height=CITY_MAP_HEIGHT)
+            g.M = Wmap(world=self, wx=x, wy=y, width=CITY_MAP_WIDTH, height=CITY_MAP_HEIGHT)
         else:
-            M = Wmap(world=self, wx=x, wy=y, width=MAP_WIDTH, height=MAP_HEIGHT)
+            g.M = Wmap(world=self, wx=x, wy=y, width=MAP_WIDTH, height=MAP_HEIGHT)
 
 
 
         # Make map
         if self.tiles[x][y].site and self.tiles[x][y].site.site_type == 'city':
-            hm = M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
+            hm = g.M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
             base_color = self.tiles[x][y].get_base_color()
-            M.create_map_tiles(hm, base_color, explored=1)
+            g.M.create_map_tiles(hm, base_color, explored=1)
 
-            M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=30, disorg=6)
+            g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=30, disorg=6)
 
         else:
-            hm = M.create_heightmap_from_surrounding_tiles()
+            hm = g.M.create_heightmap_from_surrounding_tiles()
             base_color = self.tiles[x][y].get_base_color()
-            M.create_map_tiles(hm, base_color, explored=1)
+            g.M.create_map_tiles(hm, base_color, explored=1)
 
 
 
-        M.run_cellular_automata(cfg=MCFG[self.tiles[x][y].region])
-        M.add_minor_sites_to_map()
+        g.M.run_cellular_automata(cfg=MCFG[self.tiles[x][y].region])
+        g.M.add_minor_sites_to_map()
 
         if not self.tiles[x][y].site:
-            M.add_world_features(x, y)
+            g.M.add_world_features(x, y)
 
         ########### NATURE #################
-        M.color_blocked_tiles(cfg=MCFG[self.tiles[x][y].region])
-        M.add_vegetation(cfg=MCFG[self.tiles[x][y].region])
-        M.set_initial_dmaps()
+        g.M.color_blocked_tiles(cfg=MCFG[self.tiles[x][y].region])
+        g.M.add_vegetation(cfg=MCFG[self.tiles[x][y].region])
+        g.M.set_initial_dmaps()
 
-        M.add_sapients_from_world()
+        g.M.add_sapients_from_world()
 
-        camera.center(player.x, player.y)
+        g.camera.center(g.player.x, g.player.y)
         game.handle_fov_recompute()
 
 
     def make_cave_map(self, wx, wy, cave):
-        global M
 
         base_color = libtcod.color_lerp(libtcod.darkest_grey, libtcod.darker_sepia, .5)
 
@@ -3127,31 +3139,31 @@ class World:
         while num_remaining_open_tiles < target_unfilled_cells:
             rejections += 1
 
-            M = None
-            M = Wmap(world=self, wx=wx, wy=wy, width=width, height=height)
-            hm = M.create_and_vary_heightmap(initial_height=110, mborder=20, minr=20, maxr=35, minh=-6, maxh=8, iterations=50)
-            M.create_map_tiles(hm=hm, base_color=base_color, explored=0)
+            g.M = None
+            g.M = Wmap(world=self, wx=wx, wy=wy, width=width, height=height)
+            hm = g.M.create_and_vary_heightmap(initial_height=110, mborder=20, minr=20, maxr=35, minh=-6, maxh=8, iterations=50)
+            g.M.create_map_tiles(hm=hm, base_color=base_color, explored=0)
 
-            M.run_cellular_automata(cfg=cfg)
+            g.M.run_cellular_automata(cfg=cfg)
 
             ## Add some drunk walkers!
             dcfg = {'bias':None, 'color':base_color, 'empty_stop':False, 'tile_limit':1000}
             for i in xrange(5):
-                walker = DrunkWalker(umap=M, x=roll(20, M.width-21), y=roll(20, M.height-21), cfg=dcfg)
+                walker = DrunkWalker(umap=M, x=roll(20, g.M.width-21), y=roll(20, g.M.height-21), cfg=dcfg)
                 walker.drunk_walk()
 
             ### This step fills in every pocket of open ground that's not connected to the largest open pocket
-            remaining_open_tiles, fill_counter = M.fill_open_pockets(target_unfilled_cells)
+            remaining_open_tiles, fill_counter = g.M.fill_open_pockets(target_unfilled_cells)
             num_remaining_open_tiles = len(remaining_open_tiles)
 
         game.add_message('%i rejections; filled %i openings' %(rejections, fill_counter), libtcod.dark_green)
 
         ############ Cave entrance - generated by drunk walker ######################
         entry_dict = {
-                      'n':{'coords':(roll(10, M.width-11), 1), 'bias_dir':0},
-                      'e':{'coords':(M.width-2, roll(10, M.height-11) ), 'bias_dir':3},
-                      's':{'coords':(roll(10, M.width-11), M.height-2), 'bias_dir':2},
-                      'w':{'coords':(1, roll(10, M.height-11) ), 'bias_dir':1}
+                      'n':{'coords':(roll(10, g.M.width-11), 1), 'bias_dir':0},
+                      'e':{'coords':(g.M.width-2, roll(10, g.M.height-11) ), 'bias_dir':3},
+                      's':{'coords':(roll(10, g.M.width-11), g.M.height-2), 'bias_dir':2},
+                      'w':{'coords':(1, roll(10, g.M.height-11) ), 'bias_dir':1}
                       }
 
         entry_dir = random.choice(entry_dict.keys())
@@ -3162,7 +3174,7 @@ class World:
         walker = DrunkWalker(umap=M, x=x, y=y, cfg=dcfg)
         walker.drunk_walk()
         ##############################################################################
-        M.add_dmap(key='exit', target_nodes=[(x, y)], dmrange=5000)
+        g.M.add_dmap(key='exit', target_nodes=[(x, y)], dmrange=5000)
 
         distance_from_exit = 100
 
@@ -3171,8 +3183,8 @@ class World:
         for building in cave.buildings:
             # Pick a random area until one is not blocks_mov and at least distance_from_exit from the exit
             while 1:
-                bx, by = roll(5, M.width-6), roll(5, M.height-6)
-                if (not M.tile_blocks_mov(bx, by)) and M.dijmaps['exit'].dmap[bx][by] > distance_from_exit :
+                bx, by = roll(5, g.M.width-6), roll(5, g.M.height-6)
+                if (not g.M.tile_blocks_mov(bx, by)) and g.M.dijmaps['exit'].dmap[bx][by] > distance_from_exit :
 
                     def do_fill(tile, building):
                         tile.building = building
@@ -3192,17 +3204,17 @@ class World:
             building.add_housed_objects_to_map()
 
         ########### NATURE #################
-        M.color_blocked_tiles(cfg=cfg)
-        M.add_vegetation(cfg=cfg)
-        M.set_initial_dmaps()
-        M.add_object_to_map(x=x, y=y, obj=player)
+        g.M.color_blocked_tiles(cfg=cfg)
+        g.M.add_vegetation(cfg=cfg)
+        g.M.set_initial_dmaps()
+        g.M.add_object_to_map(x=x, y=y, obj=g.player)
 
         ## DIJMAP
-        M.cache_factions_for_dmap()
+        g.M.cache_factions_for_dmap()
         ######################################
 
-        M.initialize_fov()
-        camera.center(player.x, player.y)
+        g.M.initialize_fov()
+        g.camera.center(g.player.x, g.player.y)
         game.handle_fov_recompute()
 
     def make_city(self, cx, cy, char, color, name, faction):
@@ -3262,7 +3274,7 @@ class World:
             faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
-            leader = culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
+            leader = culture.create_being(sex=1, born=g.time_cycle.years_ago(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
             sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
@@ -3303,7 +3315,7 @@ class World:
         bandit_faction.set_headquarters(hideout_building)
 
         # Create a bandit leader from nearby city
-        leader = closest_city.create_inhabitant(sex=1, born=time_cycle.years_ago(18, 35), char='o', dynasty=None, important=1, house=None)
+        leader = closest_city.create_inhabitant(sex=1, born=g.time_cycle.years_ago(18, 35), char='o', dynasty=None, important=1, house=None)
         bandit_faction.set_leader(leader)
         # Set profession, weirdly enough
         profession = Profession(name='Bandit', category='bandit')
@@ -3319,7 +3331,7 @@ class World:
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
-        #prisoner = closest_city.create_inhabitant(sex=1, born=time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
+        #prisoner = closest_city.create_inhabitant(sex=1, born=g.time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
         #bandits.add_captive(figure=prisoner)
         ############
 
@@ -3455,7 +3467,7 @@ class Site:
 
         # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our hometown)
         if self.culture is None:
-            city = WORLD.get_closest_city(x=self.x, y=self.y, max_range=1000)[0]
+            city = g.WORLD.get_closest_city(x=self.x, y=self.y, max_range=1000)[0]
             culture = city.culture
             hometown = city
         else:
@@ -3486,9 +3498,9 @@ class Site:
         return math.sqrt((x - self.x) ** 2 + (y - self.y) ** 2)
 
     def draw(self):
-        #only show if it's visible to the player
+        #only show if it's visible to the g.player
         #if libtcod.map_is_in_fov(fov_map, self.x, self.y):
-        (x, y) = camera.map2cam(self.x, self.y)
+        (x, y) = g.camera.map2cam(self.x, self.y)
 
         if x is not None:
             #set the color and then draw the character that represents this object at its position
@@ -3499,7 +3511,7 @@ class Site:
 
     def clear(self):
         #erase the character that represents this object
-        (x, y) = camera.map2cam(self.x, self.y)
+        (x, y) = g.camera.map2cam(self.x, self.y)
         if x is not None:
             libtcod.console_put_char(map_con.con, x, y, ' ', libtcod.BKGND_NONE)
 
@@ -3543,7 +3555,7 @@ class City(Site):
                 self.warehouses[token.name] = warehouse
 
         # Add resources to the city, for the purposes of the economy
-        for resource, amount in WORLD.tiles[self.x][self.y].res.iteritems():
+        for resource, amount in g.WORLD.tiles[self.x][self.y].res.iteritems():
             self.obtain_resource(resource, amount - 10)
 
         self.increase_radius()
@@ -3655,28 +3667,28 @@ class City(Site):
 
 
     def build_road_to(self, x, y, color=libtcod.darkest_sepia):
-        road_path = libtcod.path_compute(WORLD.rook_path_map, self.x, self.y, x, y)
+        road_path = libtcod.path_compute(g.WORLD.rook_path_map, self.x, self.y, x, y)
 
         x, y = self.x, self.y
         old_x, old_y = None, None
         while x != None:
             # Update the road path map to include this road
-            libtcod.map_set_properties(WORLD.road_fov_map, x, y, 1, 1)
+            libtcod.map_set_properties(g.WORLD.road_fov_map, x, y, 1, 1)
 
             if old_x:
                 road_count = 0
                 for xx, yy in ( (old_x + 1, old_y), (old_x - 1, old_y), (old_x, old_y + 1), (old_x, old_y - 1) ):
-                    if WORLD.tiles[xx][yy].has_feature('road'):
+                    if g.WORLD.tiles[xx][yy].has_feature('road'):
                         road_count += 1
 
                 if road_count <= 3 :
-                    WORLD.make_world_road(old_x, old_y)
+                    g.WORLD.make_world_road(old_x, old_y)
             old_x, old_y = x, y
-            x, y = libtcod.path_walk(WORLD.rook_path_map, True)
+            x, y = libtcod.path_walk(g.WORLD.rook_path_map, True)
 
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
-        human = self.create_inhabitant(sex=1, born=time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
+        human = self.create_inhabitant(sex=1, born=g.time_cycle.years_ago(20, 60), char='o', dynasty=None, important=0, house=None)
         human.set_world_brain(BasicWorldBrain())
 
         ## Actually give profession to the person ##
@@ -3698,7 +3710,7 @@ class City(Site):
         ## Now add the caravan to a list
         #caravan_goods = Counter(merchant.buy_inventory)
         sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':20}}}
-        WORLD.create_population(char='M', name=self.name + ' caravan', faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=self.x, wy=self.y, commander=human)
+        g.WORLD.create_population(char='M', name=self.name + ' caravan', faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=self.x, wy=self.y, commander=human)
 
         self.caravans.append(human)
 
@@ -3716,9 +3728,9 @@ class City(Site):
             if caravan_leader in self.caravans:
                 self.caravans.remove(caravan_leader)
             # Add back to civ, world, and region armies
-            #WORLD.travelers.append(caravan_leader)
-            # WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
-            caravan_leader.world_brain.next_tick = time_cycle.next_day()
+            #g.WORLD.travelers.append(caravan_leader)
+            # g.WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
+            caravan_leader.world_brain.next_tick = g.time_cycle.next_day()
             # Tell the ai where to go
             #caravan_leader.world_brain.set_destination(origin=self, destination=destination)
             caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
@@ -3743,8 +3755,8 @@ class City(Site):
                 ## cheap trick for now - add a little of the resource to the city stockpile
                 if figure.sapient.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
                     self.warehouses[figure.sapient.economy_agent.traded_item].add(figure.sapient.economy_agent.traded_item, 2)
-        #WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
-        #WORLD.travelers.remove(caravan_leader)
+        #g.WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
+        #g.WORLD.travelers.remove(caravan_leader)
         self.caravans.append(caravan_leader)
 
     def increase_radius(self):
@@ -3752,11 +3764,11 @@ class City(Site):
         self.territory_radius += 1
         for x in range(self.x - self.territory_radius, self.x + self.territory_radius + 1):
             for y in range(self.y - self.territory_radius, self.y + self.territory_radius + 1):
-                if in_circle(center_x=self.x, center_y=self.y, radius=self.territory_radius, x=x, y=y) and not WORLD.tiles[x][y].blocks_mov:
-                    if WORLD.tiles[x][y].territory is None:
+                if in_circle(center_x=self.x, center_y=self.y, radius=self.territory_radius, x=x, y=y) and not g.WORLD.tiles[x][y].blocks_mov:
+                    if g.WORLD.tiles[x][y].territory is None:
                         self.acquire_tile(x, y)
                 # Force-acquire any tile within 2 distance of us
-                elif WORLD.tiles[x][y].territory != self and self.distance(x, y) < 2:
+                elif g.WORLD.tiles[x][y].territory != self and self.distance(x, y) < 2:
                     self.acquire_tile(x, y)
 
     def obtain_resource(self, resource, amount):
@@ -3765,22 +3777,22 @@ class City(Site):
 
     def acquire_tile(self, x, y):
         # acquire a single tile for the city
-        if WORLD.tiles[x][y].culture is None:
-            WORLD.tiles[x][y].culture = self.culture
+        if g.WORLD.tiles[x][y].culture is None:
+            g.WORLD.tiles[x][y].culture = self.culture
 
-        if WORLD.tiles[x][y].territory is not None:
+        if g.WORLD.tiles[x][y].territory is not None:
             # If owned, add to civ/city's memory of territory, and remove from actual territory
-            oldcity = WORLD.tiles[x][y].territory
+            oldcity = g.WORLD.tiles[x][y].territory
 
             oldcity.old_territory.append((x, y))
             oldcity.territory.remove((x, y))
 
-        WORLD.tiles[x][y].territory = self
+        g.WORLD.tiles[x][y].territory = self
         if (x, y) not in self.territory:
             self.territory.append((x, y))
 
         # Add any resources
-        for resource, amount in WORLD.tiles[x][y].res.iteritems():
+        for resource, amount in g.WORLD.tiles[x][y].res.iteritems():
             self.obtain_resource(resource=resource, amount=amount)
 
     def abandon_site(self):
@@ -3790,14 +3802,14 @@ class City(Site):
         if len(self.owner.cities) == 0:
             self.owner.collapse()
 
-        WORLD.cities.remove(self)
+        g.WORLD.cities.remove(self)
         self.owner = None
 
         self.color = libtcod.dark_grey
         self.name = self.name + ' (abandoned)'
         # Clear up the territory, and save info about the territory it used to own
         for (x, y) in self.territory:
-            WORLD.tiles[x][y].territory = None
+            g.WORLD.tiles[x][y].territory = None
             self.old_territory.append((x, y))
         self.territory = []
 
@@ -3847,8 +3859,8 @@ class City(Site):
         else:
             wife_dynasty = None
 
-        leader = self.create_inhabitant(sex=1, born=time_cycle.years_ago(28, 40), char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
-        wife = self.create_inhabitant(sex=0, born=time_cycle.years_ago(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.sapient.house)
+        leader = self.create_inhabitant(sex=1, born=g.time_cycle.years_ago(28, 40), char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
+        wife = self.create_inhabitant(sex=0, born=g.time_cycle.years_ago(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.sapient.house)
         # Make sure wife takes husband's name
         wife.sapient.lastname = new_dynasty.lastname
 
@@ -3885,7 +3897,7 @@ class City(Site):
         children = []
         for i in xrange(roll(1, 3)):
             sex = roll(0, 1)
-            child = self.create_inhabitant(sex=sex, born=time_cycle.years_ago(1, 10), char='o', dynasty=new_dynasty,
+            child = self.create_inhabitant(sex=sex, born=g.time_cycle.years_ago(1, 10), char='o', dynasty=new_dynasty,
                                            race=new_dynasty.race, important=1, house=leader.sapient.house)
             children.append(child)
             all_new_figures.append(child)
@@ -4025,10 +4037,10 @@ class Building:
             # Choose a tile that is not blocked
         while 1:
             x, y = random.choice(self.physical_property)
-            if not M.tiles[x][y].blocks_mov:
+            if not g.M.tiles[x][y].blocks_mov:
                 break
 
-        M.add_object_to_map(x=x, y=y, obj=obj)
+        g.M.add_object_to_map(x=x, y=y, obj=obj)
 
 
     def set_name(self):
@@ -4070,7 +4082,7 @@ class Building:
 
     def fill_position(self, profession):
         # Give temples and nobles and stuff an initial dynasty to begin with
-        potential_employees = [figure for figure in WORLD.tiles[self.site.x][self.site.y].entities if
+        potential_employees = [figure for figure in g.WORLD.tiles[self.site.x][self.site.y].entities if
                                figure.sapient.profession == None and figure.creature.sex == 1 and figure.sapient.get_age() > MIN_MARRIAGE_AGE]
         if profession.name in ('High Priest', 'General'):
             # Create new dynasty
@@ -4083,7 +4095,7 @@ class Building:
                 all_new_figures = [human]
             # Otherwise, create a new person
             else:
-                human = self.site.create_inhabitant(sex=1, born=time_cycle.years_ago(18, 40), char='o', dynasty=None, important=0, house=None)
+                human = self.site.create_inhabitant(sex=1, born=g.time_cycle.years_ago(18, 40), char='o', dynasty=None, important=0, house=None)
                 all_new_figures = [human]
 
         ## Actually give profession to the person ##
@@ -4103,17 +4115,17 @@ class Building:
         ## Make a nice rectangle, with walls at the corners
         for q in xrange(building_center[0], building_center[0] + building_size[0] + 1):
             for r in xrange(building_center[1], building_center[1] + building_size[1] + 1):
-                M.tiles[q][r].building = self
+                g.M.tiles[q][r].building = self
                 self.physical_property.append((q, r))
                 ## Add wall or floor
                 if q in [building_center[0], building_center[0] + building_size[0]] or r in [building_center[1], building_center[1] + building_size[1]]:
-                    M.tiles[q][r].make_wall(libtcod.darkest_grey)
+                    g.M.tiles[q][r].make_wall(libtcod.darkest_grey)
                 else:
-                    M.tiles[q][r].make_floor(floor_type='dirt')
+                    g.M.tiles[q][r].make_floor(floor_type='dirt')
 
         door_coords = (int(building_center[0] + (building_size[0] / 2)), building_center[1] + building_size[1])
 
-        M.make_door(x=door_coords[0], y=door_coords[1], floor_type='dirt')
+        g.M.make_door(x=door_coords[0], y=door_coords[1], floor_type='dirt')
         '''
         bx, by = building_center[0], building_center[1]
         for i, row in enumerate(building_templates.buildings[self.template]):
@@ -4122,11 +4134,11 @@ class Building:
                 self.physical_property.append((x, y))
 
                 if tile == '#':
-                    M.tiles[x][y].make_wall(libtcod.darkest_grey)
+                    g.M.tiles[x][y].make_wall(libtcod.darkest_grey)
                 elif tile == ' ':
-                    M.tiles[x][y].make_floor(floor_type='stone')
+                    g.M.tiles[x][y].make_floor(floor_type='stone')
                 elif tile in ('d', '-'):
-                    M.make_door(x=x, y=y, floor_type='stone')
+                    g.M.make_door(x=x, y=y, floor_type='stone')
 
 
     def add_building_from_rect_lot(self, rect, building_color, floor, door_dir):
@@ -4142,11 +4154,11 @@ class Building:
                     self.physical_property.append((x, y))
 
                     if tile == '#':
-                        M.tiles[x][y].make_wall(libtcod.darkest_sepia)
+                        g.M.tiles[x][y].make_wall(libtcod.darkest_sepia)
                     elif tile == ' ':
-                        M.tiles[x][y].make_floor(floor_type='dirt')
+                        g.M.tiles[x][y].make_floor(floor_type='dirt')
                     elif tile in ('d', '-'):
-                        M.make_door(x=x, y=y, floor_type='dirt')
+                        g.M.make_door(x=x, y=y, floor_type='dirt')
 
         else:
             for x in xrange(rect.x1, rect.x2 + 1):
@@ -4213,7 +4225,7 @@ class Faction:
 
         self.leader = None
         # Eventually will be more precide? Just a way to keep track of when the current leader became leader
-        self.leader_change_year = time_cycle.current_year
+        self.leader_change_year = g.time_cycle.current_year
         # So far:
         # 'dynasty' for a city type faction
         # 'strongman' for bandit factions
@@ -4226,7 +4238,7 @@ class Faction:
         self.faction_leader = None
         self.headquarters = None
 
-        WORLD.factions.append(self)
+        g.WORLD.factions.append(self)
 
         # Information about ranking
         self.parent = None
@@ -4302,7 +4314,7 @@ class Faction:
         self.leader = leader
         self.leader.sapient.set_as_faction_leader(self)
         # Keep track of when leader became leader
-        self.leader_change_year = time_cycle.current_year
+        self.leader_change_year = g.time_cycle.current_year
 
     def get_leader(self):
         return self.leader
@@ -4402,7 +4414,7 @@ class Faction:
 
                 heir = random.choice(self.members)
                 if heir is None:
-                    heir = self.headquarters.site.culture.create_being(sex=1, born=time_cycle.years_ago(20, 45), char='o', dynasty=None,
+                    heir = self.headquarters.site.culture.create_being(sex=1, born=g.time_cycle.years_ago(20, 45), char='o', dynasty=None,
                                                                        important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
                     self.set_heir(heir=heir, number_in_line=1)
 
@@ -4613,22 +4625,22 @@ class Object:
         ''' For when objs need to be removed from rendering info, but still exist.
         Mostly useful with clothing, and storing items, for now '''
         if self.x:
-            M.tiles[self.x][self.y].objects.remove(self)
+            g.M.tiles[self.x][self.y].objects.remove(self)
 
         self.x = None
         self.y = None
 
-        if self in M.objects:
-            M.objects.remove(self)
+        if self in g.M.objects:
+            g.M.objects.remove(self)
 
-        if self in M.sapients:
-            M.sapients.remove(self)
+        if self in g.M.sapients:
+            g.M.sapients.remove(self)
 
     def put_on_clothing(self, clothing):
         ''' Add this clothing to a parent object '''
         # Remove it from the map and handle some info about it
         ## TODO - fix awkward check about M
-        if M is not None and clothing in M.objects:
+        if g.M is not None and clothing in g.M.objects:
             clothing.remove_from_map()
 
         clothing.being_worn = 1
@@ -4684,7 +4696,7 @@ class Object:
                     component.disattach_from(our_bodypart)
 
         # Add it to the map
-        M.add_object_to_map(x=self.x, y=self.y, obj=clothing)
+        g.M.add_object_to_map(x=self.x, y=self.y, obj=clothing)
 
 
     def get_component_by_name(self, component_name):
@@ -4718,7 +4730,7 @@ class Object:
         ''' Drop an item, it will show up on the map '''
         own_component.remove_grasp_on_item(obj)
         # Add to the map wherever the owner is
-        M.add_object_to_map(x=self.x, y=self.y, obj=obj)
+        g.M.add_object_to_map(x=self.x, y=self.y, obj=obj)
 
         obj.clear_current_holder()
 
@@ -4763,7 +4775,7 @@ class Object:
     def get_storage_items(self):
         ''' Returns a list of all items on our character which can store something '''
         storage_items = []
-        for component in player.components:
+        for component in g.player.components:
             for attached_obj_comp in component.attachments:
                 # Loop through objs to find components with storage
                 if attached_obj_comp.storage is not None:
@@ -4889,7 +4901,7 @@ class Object:
 
         # After creating the new object, destroy ourself
         # Some objects like wearable ones aren't in the list of objects on the map, so ignore those
-        if self in M.objects and len(self.components) == 0:
+        if self in g.M.objects and len(self.components) == 0:
             self.remove_from_map()
 
 
@@ -4956,7 +4968,7 @@ class Object:
             obj.components.append(component)
             component.owner = obj
 
-        M.add_object_to_map(x=x, y=y, obj=obj)
+        g.M.add_object_to_map(x=x, y=y, obj=obj)
 
 
     def move(self, dx, dy): #DON'T USE WITH A*,
@@ -5003,16 +5015,16 @@ class Object:
     def abs_pos_move(self, x, y): #USE WITH A*
         ''' The x and y vals here are actual x and y vals on the map '''
         blocks_mov = 1
-        if not M.tile_blocks_mov(x, y):
+        if not g.M.tile_blocks_mov(x, y):
             blocks_mov = 0
 
-            M.tiles[self.x][self.y].objects.remove(self)
-            libtcod.map_set_properties(M.fov_map, self.x, self.y, True, True)
+            g.M.tiles[self.x][self.y].objects.remove(self)
+            libtcod.map_set_properties(g.M.fov_map, self.x, self.y, True, True)
             self.x = x
             self.y = y
-            libtcod.map_set_properties(M.fov_map, self.x, self.y, True, False)
+            libtcod.map_set_properties(g.M.fov_map, self.x, self.y, True, False)
             #libtcod.map_set_properties(M.fov_map, next_step[0], next_step[1], True, False)
-            M.tiles[self.x][self.y].objects.append(self)
+            g.M.tiles[self.x][self.y].objects.append(self)
 
             ## For now, give other objects X and Y vals
             # TODO - make sure these are set when initially added to map
@@ -5027,11 +5039,11 @@ class Object:
         ''' Sets a target using A*, includes flipping the target tile to unblocks_mov if it's a creature '''
         flip_target_tile = False
         # If the target is blocked, we need to temporarily set it to unblocked so A* can work
-        if M.tile_blocks_mov(target_x, target_y) and get_distance_to(self.x, self.y, target_x, target_y) > 1:
+        if g.M.tile_blocks_mov(target_x, target_y) and get_distance_to(self.x, self.y, target_x, target_y) > 1:
             flip_target_tile = True
-            libtcod.map_set_properties(M.fov_map, target_x, target_y, True, True)
+            libtcod.map_set_properties(g.M.fov_map, target_x, target_y, True, True)
 
-        ai_move_path = libtcod.path_compute(M.path_map, self.x, self.y, target_x, target_y)
+        ai_move_path = libtcod.path_compute(g.M.path_map, self.x, self.y, target_x, target_y)
         ## v Old code from when this method actually moved the object
         #if ai_move_path and not libtcod.path_is_empty(M.path_map):
         #    x, y = libtcod.path_walk(M.path_map, True)
@@ -5039,9 +5051,9 @@ class Object:
 
         if flip_target_tile:
             # Flip the target's cell back to normal
-            libtcod.map_set_properties(M.fov_map, target_x, target_y, True, False)
+            libtcod.map_set_properties(g.M.fov_map, target_x, target_y, True, False)
 
-        self.cached_astar_path = libtcod_path_to_list(path_map=M.path_map)
+        self.cached_astar_path = libtcod_path_to_list(path_map=g.M.path_map)
 
     def move_with_stored_astar_path(self, path):
         #next_step = path.pop(0)
@@ -5061,7 +5073,7 @@ class Object:
         closest_dist = max_range + 1  #start with (slightly more than) maximum range
 
         if target_faction == 'enemies':
-            for actor in M.sapients:
+            for actor in g.M.sapients:
                 if actor.creature.status == 'alive' and self.sapient.faction.is_hostile_to(actor.sapient.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     dist = self.distance_to(actor)
                     if dist < closest_dist:
@@ -5069,9 +5081,9 @@ class Object:
                         closest_dist = dist
 
         else:
-            for actor in M.sapients:
+            for actor in g.M.sapients:
                 if actor.creature.status == 'alive' and actor.creature and actor.sapient.faction == target_faction: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
-                    #calculate distance between this object and the player
+                    #calculate distance between this object and the g.player
                     dist = self.distance_to(actor)
                     if dist < closest_dist:  #it's closer, so remember it
                         closest_enemy = actor
@@ -5101,10 +5113,10 @@ class Object:
         return math.sqrt((x - self.wx) ** 2 + (y - self.wy) ** 2)
 
     def w_teleport(self, x, y):
-        WORLD.tiles[self.wx][self.wy].entities.remove(self)
+        g.WORLD.tiles[self.wx][self.wy].entities.remove(self)
         self.wx = x
         self.wy = y
-        WORLD.tiles[self.wx][self.wy].entities.append(self)
+        g.WORLD.tiles[self.wx][self.wy].entities.append(self)
 
         # Army status stuff
         self.world_last_dir = (0, 0)
@@ -5120,11 +5132,11 @@ class Object:
         #self.check_for_army_dispatch()
 
         #move by the given amount, if the destination is not blocked
-        if not WORLD.tile_blocks_mov(self.wx + dx, self.wy + dy):
-            WORLD.tiles[self.wx][self.wy].entities.remove(self)
+        if not g.WORLD.tile_blocks_mov(self.wx + dx, self.wy + dy):
+            g.WORLD.tiles[self.wx][self.wy].entities.remove(self)
             self.wx += dx
             self.wy += dy
-            WORLD.tiles[self.wx][self.wy].entities.append(self)
+            g.WORLD.tiles[self.wx][self.wy].entities.append(self)
 
             # Army status stuff
             self.world_last_dir = (-dx, -dy)
@@ -5139,9 +5151,9 @@ class Object:
 
     def w_move_to(self, target_x, target_y):
         ''' Computes A* path and makes move '''
-        ai_move_path = libtcod.path_compute(WORLD.path_map, self.wx, self.wy, target_x, target_y)
-        if ai_move_path and not libtcod.path_is_empty(WORLD.path_map):
-            x, y = libtcod.path_walk(WORLD.path_map, True)
+        ai_move_path = libtcod.path_compute(g.WORLD.path_map, self.wx, self.wy, target_x, target_y)
+        if ai_move_path and not libtcod.path_is_empty(g.WORLD.path_map):
+            x, y = libtcod.path_walk(g.WORLD.path_map, True)
 
             dx, dy = x - self.wx, y - self.wy
             self.w_move(dx, dy)
@@ -5155,9 +5167,9 @@ class Object:
         self.w_move(dx, dy)
 
     def w_draw(self):
-        #only show if it's visible to the player
+        #only show if it's visible to the g.player
         #if libtcod.map_is_in_fov(fov_map, self.x, self.y):
-        (x, y) = camera.map2cam(self.wx, self.wy)
+        (x, y) = g.camera.map2cam(self.wx, self.wy)
 
         if x is not None:
             #set the color and then draw the character that represents this object at its position
@@ -5167,9 +5179,9 @@ class Object:
     #### End moving world-coords style ########
 
     def draw(self):
-        #only show if it's visible to the player
-        if libtcod.map_is_in_fov(M.fov_map, self.x, self.y):
-            (x, y) = camera.map2cam(self.x, self.y)
+        #only show if it's visible to the g.player
+        if libtcod.map_is_in_fov(g.M.fov_map, self.x, self.y):
+            (x, y) = g.camera.map2cam(self.x, self.y)
 
             if x is not None:
                 #set the color and then draw the character that represents this object at its position
@@ -5177,7 +5189,7 @@ class Object:
                 libtcod.console_put_char(map_con.con, x, y, self.char, libtcod.BKGND_NONE)
 
         elif not self.local_brain:
-            (x, y) = camera.map2cam(self.x, self.y)
+            (x, y) = g.camera.map2cam(self.x, self.y)
 
             if x is not None:
                 libtcod.console_set_default_foreground(map_con.con, self.shadow_color)
@@ -5186,7 +5198,7 @@ class Object:
 
     def clear(self):
         #erase the character that represents this object
-        (x, y) = camera.map2cam(self.x, self.y)
+        (x, y) = g.camera.map2cam(self.x, self.y)
         if x is not None:
             libtcod.console_put_char(map_con.con, x, y, ' ', libtcod.BKGND_NONE)
 
@@ -5260,7 +5272,7 @@ def attack_menu(actor, target):
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         ########## New simultaneous combat system preview ############
-        weapon = player.creature.get_current_weapon()
+        weapon = g.player.creature.get_current_weapon()
         component = target.components[0] ##temp
 
         yval = 8
@@ -5268,7 +5280,7 @@ def attack_menu(actor, target):
             yval += 3
             xval = 2
 
-            if combat_move not in player.creature.last_turn_moves:  button_color = PANEL_FRONT
+            if combat_move not in g.player.creature.last_turn_moves:  button_color = PANEL_FRONT
             else:                                                   button_color = libtcod.dark_red
 
             #### Find parts which we can hit ####
@@ -5280,7 +5292,7 @@ def attack_menu(actor, target):
                 odds = []
                 # Go through each other combat move and find the odds
                 for other_combat_move in combat.melee_armed_moves:
-                    c1, c2 = combat.get_combat_odds(combatant_1=player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
+                    c1, c2 = combat.get_combat_odds(combatant_1=g.player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
                     c1_total = max(1, sum(c1.values()))
                     c2_total = max(1, sum(c2.values()))
                     total_odds = c1_total/(c1_total + c2_total) * 100
@@ -5315,7 +5327,7 @@ def attack_menu(actor, target):
                 hover_odds = ['{0} cannot fight back'.format(target.fullname())]
 
 
-            buttons.append(gui.Button(gui_panel=wpanel, func=player.creature.set_combat_attack, args=[target, combat_move, combat_move],
+            buttons.append(gui.Button(gui_panel=wpanel, func=g.player.creature.set_combat_attack, args=[target, combat_move, combat_move],
                                    text=combat_move.name, topleft=(xval, yval), width=20, height=3, color=button_color, hcolor=libtcod.white, do_draw_box=True,
                                    hover_header=[combat_move.name, can_hit], hover_text=hover_odds, hover_text_offset=(30, 0)) )
         ######### End new simultaneous combat system preview #########
@@ -5331,8 +5343,8 @@ def attack_menu(actor, target):
         atx, aty = 4, 18
         ## Target and curent weapon info
 
-        weapon = player.creature.get_current_weapon()
-        attack_mods, defend_mods = player.creature.get_attack_odds(attacking_object_component=weapon.components[0],
+        weapon = g.player.creature.get_current_weapon()
+        attack_mods, defend_mods = g.player.creature.get_attack_odds(attacking_object_component=weapon.components[0],
                                                                     force=weapon.get_base_attack_value(), target=target, target_component=None)
 
 
@@ -5385,20 +5397,20 @@ def talk_screen(actor, target):
         buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
-        talk_options = player.sapient.get_valid_questions(target)
+        talk_options = g.player.sapient.get_valid_questions(target)
 
         for option in talk_options:
-            button = gui.Button(gui_panel=wpanel, func=player.sapient.ask_question, args=(target, option),
+            button = gui.Button(gui_panel=wpanel, func=g.player.sapient.ask_question, args=(target, option),
                                 text=option, topleft=(atx, aty), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
 
             buttons.append(button)
             aty += 3
 
         #buttons.append(gui.Button(gui_panel=wpanel, func=recruit, args=[target], text='Recruit', origin=(atx, aty), width=6, tall=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
-        buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[player, target],
+        buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, target],
                                   text='Attack!', topleft=(atx, aty+3), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
-        buttons.append(gui.Button(gui_panel=wpanel, func=order_menu, args=[player, target],
+        buttons.append(gui.Button(gui_panel=wpanel, func=order_menu, args=[g.player, target],
                                   text='Order', topleft=(atx, aty+6), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         buttons.append(gui.Button(gui_panel=wpanel, func=render_handler.debug_dijmap_view, args=[target],
@@ -5454,8 +5466,8 @@ def order_menu(player, target):
     wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
 
-    wpanel.add_button(func=player_give_order, args=[target, 'move_to'], text='Move to...', topleft=(atx, aty), width=bwidth, height=3, closes_menu=1)
-    wpanel.add_button(func=player_give_order, args=[target, 'follow'], text='Follow me', topleft=(atx, aty+3), width=bwidth, height=3 , closes_menu=1)
+    wpanel.add_button(func=g.player_give_order, args=[target, 'move_to'], text='Move to...', topleft=(atx, aty), width=bwidth, height=3, closes_menu=1)
+    wpanel.add_button(func=g.player_give_order, args=[target, 'follow'], text='Follow me', topleft=(atx, aty+3), width=bwidth, height=3 , closes_menu=1)
 
 
 def player_give_order(target, order):
@@ -5464,7 +5476,7 @@ def player_give_order(target, order):
         while 1:
             event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
             mx, my = mouse.cx, mouse.cy
-            x, y = camera.cam2map(mx, my)
+            x, y = g.camera.cam2map(mx, my)
 
             render_handler.render_all(do_flush=False)
 
@@ -5472,14 +5484,14 @@ def player_give_order(target, order):
             ## Draw the path that the guy will take
             path = libtcod.path_compute(p=M.path_map, ox=target.x, oy=target.y, dx=x, dy=y)
             while not libtcod.path_is_empty(p=M.path_map):
-                px, py = libtcod.path_walk(M.path_map, True)
-                cpx, cpy = camera.map2cam(px, py)
+                px, py = libtcod.path_walk(g.M.path_map, True)
+                cpx, cpy = g.camera.map2cam(px, py)
                 libtcod.console_put_char_ex(con=map_con.con, x=cpx, y=cpy, c='*', fore=libtcod.light_grey, back=libtcod.BKGND_NONE)
             # Draw the final location
             libtcod.console_put_char_ex(con=map_con.con, x=mx, y=my, c='X', fore=libtcod.grey, back=libtcod.black)
 
             if mouse.lbutton:
-                player.sapient.say('%s, move over there'%target.fullname())
+                g.player.sapient.say('%s, move over there'%target.fullname())
                 target.local_brain.set_state('moving', target_location=(x, y))
                 break
             elif mouse.rbutton:
@@ -5491,25 +5503,25 @@ def player_give_order(target, order):
             game.handle_fov_recompute()
 
     elif order == 'follow':
-        target.local_brain.set_state('following', target_figure=player)
-        player.sapient.say('%s, follow me!'%target.fullname())
+        target.local_brain.set_state('following', target_figure=g.player)
+        g.player.sapient.say('%s, follow me!'%target.fullname())
 
 def player_order_follow():
     ''' Player orders all nearby allies to follow him '''
-    player.sapient.say('Everyone, follow me!')
-    for figure in filter(lambda figure: figure.sapient.commander == player and figure != player and figure.distance_to(player) <= 50 and figure.local_brain.perception_info['closest_enemy'] is None, M.sapients):
-        figure.local_brain.set_state('following', target_figure=player)
+    g.player.sapient.say('Everyone, follow me!')
+    for figure in filter(lambda figure: figure.sapient.commander == g.player and figure != g.player and figure.distance_to(g.player) <= 50 and figure.local_brain.perception_info['closest_enemy'] is None, g.M.sapients):
+        figure.local_brain.set_state('following', target_figure=g.player)
 
 def player_order_move():
 
-    figures = filter(lambda figure: figure.local_brain and figure.creature.status == 'alive' and figure.sapient.commander == player, M.sapients)
+    figures = filter(lambda figure: figure.local_brain and figure.creature.status == 'alive' and figure.sapient.commander == g.player, g.M.sapients)
     sq_size = int(round(math.sqrt(len(figures))))
     offset = int(sq_size/2)
 
     while 1:
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
         mx, my = mouse.cx, mouse.cy
-        x, y = camera.cam2map(mx, my)
+        x, y = g.camera.cam2map(mx, my)
 
         render_handler.render_all(do_flush=False)
 
@@ -5519,13 +5531,13 @@ def player_order_move():
         locs = []
         for i in xrange(mx-offset, mx+sq_size+1):
             for j in xrange(my-offset, my+sq_size+1):
-                ii, jj = camera.cam2map(i, j)
-                if not M.tile_blocks_mov(ii, jj):
+                ii, jj = g.camera.cam2map(i, j)
+                if not g.M.tile_blocks_mov(ii, jj):
                     locs.append((ii, jj))
                     libtcod.console_put_char_ex(con=map_con.con, x=i, y=j, c='X', fore=libtcod.grey, back=libtcod.black)
 
         if mouse.lbutton_pressed and len(locs) >= len(figures):
-            player.sapient.say('Everyone, move over there')
+            g.player.sapient.say('Everyone, move over there')
             for i, figure in enumerate(figures):
                 figure.local_brain.set_state('moving', target_location=locs[i])
             break
@@ -5543,7 +5555,7 @@ def player_order_move():
 
 def pick_up_menu():
 
-    objs = [obj for obj in M.tiles[player.x][player.y].objects if obj != player]
+    objs = [obj for obj in g.M.tiles[g.player.x][g.player.y].objects if obj != g.player]
 
     if len(objs) == 0:
         game.add_message('No objects to pick up at your location')
@@ -5571,18 +5583,18 @@ def pick_up_menu():
         wpanel.add_button(func=storage_menu, args=[obj], text='Store ' + obj.name + '...',
                                           topleft=(atx, i), width=bwidth, height=4, closes_menu=1)
         # Hold in one of the hands
-        for grasper in player.creature.get_graspers():
+        for grasper in g.player.creature.get_graspers():
             if grasper.grasped_item is None:
                 i += 5
 
-                wpanel.add_button(func=player.pick_up_object, args=[grasper, obj], text='Hold ' + obj.name + ' in ' + grasper.name,
+                wpanel.add_button(func=g.player.pick_up_object, args=[grasper, obj], text='Hold ' + obj.name + ' in ' + grasper.name,
                                           topleft=(atx, i), width=bwidth, height=4, closes_menu=1)
 
         # Wear it, if possible
         if obj.wearable:
             i += 5
 
-            wpanel.add_button(func=player.put_on_clothing, args=[obj], text='Wear the ' + obj.name,
+            wpanel.add_button(func=g.player.put_on_clothing, args=[obj], text='Wear the ' + obj.name,
                                       topleft=(atx, i), width=bwidth, height=4, closes_menu=1)
 
 
@@ -5601,7 +5613,7 @@ def manage_inventory():
     def update_button_func():
         wpanel.gen_buttons = []
 
-        inventory = player.get_inventory()
+        inventory = g.player.get_inventory()
 
         # Setup buttons
         wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=b_width, height=3)
@@ -5610,7 +5622,7 @@ def manage_inventory():
         i = 0
         for obj in inventory['clothing']:
             i += 3
-            wpanel.add_button(func=player.take_off_clothing, args=[obj], text='Take off ' + obj.name, topleft=(bx, by+i), width=b_width, height=3)
+            wpanel.add_button(func=g.player.take_off_clothing, args=[obj], text='Take off ' + obj.name, topleft=(bx, by+i), width=b_width, height=3)
 
         #draw_box(panel=root_con.con, x=bx-2, x2=bx+7+2, y=by-1, y2=i+1, color=libtcod.red)
 
@@ -5619,14 +5631,14 @@ def manage_inventory():
             i += 3
             wpanel.add_button(func=storage_menu, args=[obj], text='Store ' + obj.name + '...', topleft=(bx, by+i), width=b_width, height=3)
             i += 3
-            wpanel.add_button(func=player.drop_object, args=[obj.being_grasped_by, obj], text='Drop ' + obj.name, topleft=(bx, by+i), width=b_width, height=3)
+            wpanel.add_button(func=g.player.drop_object, args=[obj.being_grasped_by, obj], text='Drop ' + obj.name, topleft=(bx, by+i), width=b_width, height=3)
 
         i += 3
         for obj in inventory['stored']:
-            for grasper in player.creature.get_graspers():
+            for grasper in g.player.creature.get_graspers():
                 if grasper.grasped_item is None:
                     i += 3
-                    wpanel.add_button(func=player.take_out_of_storage, args=[obj, grasper], text='Hold ' + obj.name + '\n in ' + grasper.name, topleft=(bx, by+i), width=b_width, height=3)
+                    wpanel.add_button(func=g.player.take_out_of_storage, args=[obj, grasper], text='Hold ' + obj.name + '\n in ' + grasper.name, topleft=(bx, by+i), width=b_width, height=3)
 
         # Update gui panel buttons
         #wpanel.gen_buttons = buttons
@@ -5646,8 +5658,8 @@ def storage_menu(obj):
 
     wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
 
-    ### Get a list of storage devices player might have
-    storage_items = player.get_storage_items()
+    ### Get a list of storage devices g.player might have
+    storage_items = g.player.get_storage_items()
 
     buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel], text='Done',
                           topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
@@ -5670,18 +5682,18 @@ def choose_object_to_interact_with(objs, x, y):
     This function handles that. '''
 
     # If there's only one object, either talk to it or attack it (for now)
-    if len(objs) == 1 and (not M.tiles[x][y].interactable):
+    if len(objs) == 1 and (not g.M.tiles[x][y].interactable):
 
         obj = objs[0]
         if obj.creature and obj.sapient and obj.creature.status == 'alive':
-            talk_screen(actor=player, target=obj)
+            talk_screen(actor=g.player, target=obj)
         else:
-            attack_menu(actor=player, target=obj)
+            attack_menu(actor=g.player, target=obj)
 
     # Else, a button menu which shows the interactions
     elif len(objs) > 1:
 
-        (x, y) = camera.map2cam(x, y)
+        (x, y) = g.camera.map2cam(x, y)
 
         height = 30
         width = 28
@@ -5703,24 +5715,24 @@ def choose_object_to_interact_with(objs, x, y):
             i += 4
 
             if obj.creature and obj.creature.status == 'alive':
-                buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[player, obj],
+                buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
                                   text='Talk to ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
             else:
-                buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[player, obj],
+                buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
                                   text='Interact with ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         wpanel.gen_buttons = buttons
 
     # Specific tile interaction...
-    if M.tiles[x][y].interactable:
+    if g.M.tiles[x][y].interactable:
 
-        func = M.tiles[x][y].interactable['func']
-        args = M.tiles[x][y].interactable['args']
-        text = M.tiles[x][y].interactable['text']
+        func = g.M.tiles[x][y].interactable['func']
+        args = g.M.tiles[x][y].interactable['args']
+        text = g.M.tiles[x][y].interactable['text']
 
-        (x, y) = camera.map2cam(x, y)
+        (x, y) = g.camera.map2cam(x, y)
 
         height = 12
         width = 22
@@ -5782,7 +5794,7 @@ def list_people():
              text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     y = 5
-    for faction in WORLD.factions:
+    for faction in g.WORLD.factions:
 
         leader = faction.get_leader()
         if leader is not None:
@@ -5803,7 +5815,7 @@ def list_factions():
              text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     y = 5
-    for faction in WORLD.factions:
+    for faction in g.WORLD.factions:
 
         y += 1
         buttons.append(gui.Button(gui_panel=wpanel, func=dbg_faction_relations, args=[faction],
@@ -5827,7 +5839,7 @@ def dbg_faction_relations(faction):
         libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=faction.faction_name)
 
         y += 3
-        for other_faction in WORLD.factions:
+        for other_faction in g.WORLD.factions:
             y += 1
             libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=' - ' + other_faction.faction_name + ' - ')
 
@@ -5860,7 +5872,7 @@ class Population:
 
         self.wx = wx
         self.wy = wy
-        WORLD.tiles[wx][wy].populations.append(self)
+        g.WORLD.tiles[wx][wy].populations.append(self)
 
         self.world_last_dir = (0, 0)
         self.turns_since_move = 0
@@ -5871,10 +5883,10 @@ class Population:
             self.commander.sapient.add_commanded_population(self)
 
     def w_teleport(self, x, y):
-        WORLD.tiles[self.wx][self.wy].populations.remove(self)
+        g.WORLD.tiles[self.wx][self.wy].populations.remove(self)
         self.wx = x
         self.wy = y
-        WORLD.tiles[self.wx][self.wy].populations.append(self)
+        g.WORLD.tiles[self.wx][self.wy].populations.append(self)
         # Army status stuff
         self.world_last_dir = (0, 0)
         self.turns_since_move = 0
@@ -5883,11 +5895,11 @@ class Population:
     def w_move(self, dx, dy):
         ''' Moves the population by the given xy coords, and handles updating the map info '''
         #move by the given amount, if the destination is not blocked
-        if not WORLD.tile_blocks_mov(self.wx + dx, self.wy + dy):
-            WORLD.tiles[self.wx][self.wy].populations.remove(self)
+        if not g.WORLD.tile_blocks_mov(self.wx + dx, self.wy + dy):
+            g.WORLD.tiles[self.wx][self.wy].populations.remove(self)
             self.wx += dx
             self.wy += dy
-            WORLD.tiles[self.wx][self.wy].populations.append(self)
+            g.WORLD.tiles[self.wx][self.wy].populations.append(self)
 
             # Army status stuff
             self.world_last_dir = (-dx, -dy)
@@ -5902,7 +5914,7 @@ class Population:
             for race in self.sentients[culture].keys():
                 for profession_name in self.sentients[culture][race].keys():
                     for i in xrange(self.sentients[culture][race][profession_name]):
-                        born = roll(time_cycle.current_year - 45, time_cycle.current_year - 20)
+                        born = roll(g.time_cycle.current_year - 45, g.time_cycle.current_year - 20)
                         human = culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1)
                         # TODO - this should be improved
                         human.sapient.commander = self.commander
@@ -5917,7 +5929,7 @@ class Population:
         ####### PATROLS ####################
         for (lx, ly) in patrol_locations:
             radius = roll(35, 50)
-            patrol_route = M.get_points_for_circular_patrol_route(center_x=lx, center_y=ly, radius=radius)
+            patrol_route = g.M.get_points_for_circular_patrol_route(center_x=lx, center_y=ly, radius=radius)
             game.add_message('Patrol route with radius of %i and length of %i generated'%(radius, len(patrol_route)), libtcod.orange)
             px, py = patrol_route[0]
 
@@ -5927,11 +5939,11 @@ class Population:
                 unblocked_locations = []
                 for x in xrange(px-5, px+6):
                     for y in xrange(py-5, py+6):
-                        if not M.tile_blocks_mov(x, y):
+                        if not g.M.tile_blocks_mov(x, y):
                             unblocked_locations.append((x, y))
 
                 x, y = random.choice(unblocked_locations)
-                M.add_object_to_map(x=x, y=y, obj=figure)
+                g.M.add_object_to_map(x=x, y=y, obj=figure)
 
                 figure.local_brain.set_state('patrolling', patrol_route=patrol_route)
         ####################################
@@ -5945,7 +5957,7 @@ class Population:
                     x, y = roll(startrect.x1, startrect.x2), roll(startrect.y1, startrect.y2)
                 elif startbuilding:
                     x, y = random.choice(startbuilding.physical_property)
-                if not M.tile_blocks_mov(x, y):
+                if not g.M.tile_blocks_mov(x, y):
                     found_spot = 1
                     break
             ####### Safety step - couldn't find a valid location ########
@@ -5953,14 +5965,14 @@ class Population:
                 print 'Could not place', figure.fulltitle(), 'attempting to place nearby'
                 # Now keep picking vals at random across the entire map ... one's bound to work
                 while 1:
-                    x, y = roll(10, M.width-11), roll(10, M.height-11)
-                    if not M.tile_blocks_mov(x, y):
+                    x, y = roll(10, g.M.width-11), roll(10, g.M.height-11)
+                    if not g.M.tile_blocks_mov(x, y):
                         break
             ###### end safety step #####################################
             #if figure in self.captives:
             #    game.add_message('{0} is a captive and at {1}, {2}'.format(figure.fulltitle(), figure.x, figure.y))
 
-            M.add_object_to_map(x=x, y=y, obj=figure)
+            g.M.add_object_to_map(x=x, y=y, obj=figure)
 
 
 
@@ -5970,7 +5982,7 @@ class Dynasty:
         self.lastname = lastname
         self.race = race
 
-        WORLD.dynasties.append(self)
+        g.WORLD.dynasties.append(self)
 
         self.members = []
 
@@ -6006,9 +6018,9 @@ class Meeting:
 
         self.attending = [self.leader]
 
-        (future_year, future_month, future_day) = time_cycle.days_to_date(days_in_advance=days_ahead)
+        (future_year, future_month, future_day) = g.time_cycle.days_to_date(days_in_advance=days_ahead)
         self.date = (future_year, future_month, future_day)
-        time_cycle.add_event(date=(future_year, future_month, future_day), event=self.hold_meeting)
+        g.time_cycle.add_event(date=(future_year, future_month, future_day), event=self.hold_meeting)
         ## Add to the leader's calendar too
         self.leader.sapient.add_event(date=(future_year, future_month, future_day), event=self)
 
@@ -6043,7 +6055,7 @@ class Plot:
 
         # Other init stuff
         self.target.sapient.targeted_plots.append({self: 0})
-        WORLD.plots.append(self)
+        g.WORLD.plots.append(self)
 
         for member in self.members:
             member.sapient.involved_plots.append(self)
@@ -6069,7 +6081,7 @@ class Plot:
 
         for member in self.members:
             member.sapient.involved_plots.remove(self)
-        WORLD.plots.remove(self)
+        g.WORLD.plots.remove(self)
 
 
 class Goal:
@@ -6121,9 +6133,9 @@ class WaitBehavior:
 
     def get_name(self):
         if (self.figure.wx, self.figure.wy) != self.location:
-            goal_name = '{0} to {1} to {2} for {3} days'.format(self.travel_verb, WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.activity_verb, self.num_days)
+            goal_name = '{0} to {1} to {2} for {3} days'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.activity_verb, self.num_days)
         else:
-            goal_name = '{0} in {1} for {2} days'.format(self.activity_verb, WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.num_days)
+            goal_name = '{0} in {1} for {2} days'.format(self.activity_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.num_days)
 
         return goal_name
 
@@ -6157,7 +6169,7 @@ class MovLocBehavior:
 
 
     def get_name(self):
-        goal_name = '{0} to {1}'.format(self.travel_verb, WORLD.tiles[self.x][self.y].get_location_description())
+        goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.x][self.y].get_location_description())
         return goal_name
 
     def initialize_behavior(self):
@@ -6165,20 +6177,20 @@ class MovLocBehavior:
         self.is_active = 1
         ## Find path
         targeting_city = 0
-        target_site = WORLD.tiles[self.x][self.y].site
-        current_site = WORLD.tiles[self.figure.wx][self.figure.wy].site
-        if target_site is not None and target_site in WORLD.cities:
+        target_site = g.WORLD.tiles[self.x][self.y].site
+        current_site = g.WORLD.tiles[self.figure.wx][self.figure.wy].site
+        if target_site is not None and target_site in g.WORLD.cities:
             targeting_city = 1
-        if targeting_city and (current_site is not None and current_site in WORLD.cities):
+        if targeting_city and (current_site is not None and current_site in g.WORLD.cities):
             # Pathfinding bit
             self.figure.world_brain.path = current_site.path_to[target_site][:]
 
         else:
             # Default - use libtcod's A* to create a path to destination
-            path = libtcod.path_compute(p=WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.x, dy=self.y)
-            self.figure.world_brain.path = libtcod_path_to_list(path_map=WORLD.path_map)
+            path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.x, dy=self.y)
+            self.figure.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
 
-        #self.name = 'move to {0}.'.format(WORLD.tiles[self.x][self.y].get_location_description())
+        #self.name = 'move to {0}.'.format(g.WORLD.tiles[self.x][self.y].get_location_description())
         #game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
 
     def is_completed(self):
@@ -6208,10 +6220,10 @@ class MovTargBehavior:
 
     def take_behavior_action(self):
         # TODO - not magically knowing where the target is....
-        #path = libtcod.path_compute(p=WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.target.wx, dy=self.target.wy)
+        #path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.target.wx, dy=self.target.wy)
         #libtcod.path_compute(p, ox, oy, dx, dy)
 
-        #x, y = libtcod.path_walk(WORLD.path_map, True)
+        #x, y = libtcod.path_walk(g.WORLD.path_map, True)
         #if x is not None and y is not None:
         self.figure.w_move_to(self.target.wx, self.target.wy)
 
@@ -6431,7 +6443,7 @@ class SapientComponent:
     #    # This also handles updating knowledge
     #    answer_type = self.ask_question(asker=asker, target=target, question_type=question_type)
     #    # Verbal responses to the questions
-    #    if player in self.participants:
+    #    if g.player in self.participants:
     #        self.verbalize_question(asker=asker, target=target, question_type=question_type)
     #        self.verbalize_answer(asker=asker, target=target, question_type=question_type, answer_type=answer_type)
 
@@ -6443,9 +6455,9 @@ class SapientComponent:
 
         target.sapient.pending_conversations.append((self.owner, question_type))
 
-        # TODO - move this player-specific bit somewhere where it makes more sense?
-        if self.owner == player:
-            game.player_advance_time(ticks=1)
+        # TODO - move this g.player-specific bit somewhere where it makes more sense?
+        if self.owner == g.player:
+            game.g.player_advance_time(ticks=1)
 
 
     def verbalize_question(self, target, question_type):
@@ -6504,7 +6516,7 @@ class SapientComponent:
                 self.say('I will gladly join you!')
                 ### TODO - put this into a function!
                 self.profession = Profession('Adventurer', 'commoner')
-                player.sapient.add_commanded_figure(self.owner)
+                g.player.sapient.add_commanded_figure(self.owner)
 
             elif answer_type == 'no':
                 ## Decline, with a reason why
@@ -6547,7 +6559,7 @@ class SapientComponent:
             valid_questions.append('goals')
 
         ## TODO - allow NPCs to recruit, under certain circumstances
-        if self.is_commander() and target.sapient.commander != self.owner and self.owner == player:
+        if self.is_commander() and target.sapient.commander != self.owner and self.owner == g.player:
             valid_questions.append('recruit')
 
         return valid_questions
@@ -6559,7 +6571,7 @@ class SapientComponent:
 
     #def change_topic(self, topic):
     #    self.topic = topic
-    #    game.add_message('You begin talking about ' + self.topic + '.', libtcod.color_lerp(player.color, PANEL_FRONT, .5))
+    #    game.add_message('You begin talking about ' + self.topic + '.', libtcod.color_lerp(g.player.color, PANEL_FRONT, .5))
 
 
     def determine_response(self, asker, question_type):
@@ -6629,8 +6641,8 @@ class SapientComponent:
     def handle_pending_conversations(self):
         for (asker, question_type) in self.pending_conversations:
 
-            #if self.owner == player:
-                ## TODO - prompt GUI for player to choose his answer
+            #if self.owner == g.player:
+                ## TODO - prompt GUI for g.player to choose his answer
             #    answer_type = self.determine_response(asker, question_type)
             #    self.verbalize_answer(asker, question_type, answer_type)
             #else:
@@ -6639,7 +6651,7 @@ class SapientComponent:
             self.verbalize_answer(asker, question_type, answer_type)
 
             # GUI stuff - must update when NPC gives response
-            if asker == player:
+            if asker == g.player:
                 for panel in interface.get_panels(panel_name='talk_screen'):
                     panel.button_refresh_func(*panel.button_refresh_args)
 
@@ -6700,7 +6712,7 @@ class SapientComponent:
         self.captor = None
 
         # Unsure if this will work properly, but, once freed, all sapients should re-evaluate to make sure captives show up as enemies properly
-        for figure in M.sapients:
+        for figure in g.M.sapients:
             if figure.local_brain:
                 figure.local_brain.set_enemy_perceptions_from_cached_factions()
         ############################################################
@@ -6747,7 +6759,7 @@ class SapientComponent:
         if possible_successors != []:
             return possible_successors[0]
         else:
-            return self.current_citizenship.create_inhabitant(sex=1, born=time_cycle.years_ago(18, 35), char='o', dynasty=None, important=self.important)
+            return self.current_citizenship.create_inhabitant(sex=1, born=g.time_cycle.years_ago(18, 35), char='o', dynasty=None, important=self.important)
 
     def add_event(self, date, event):
         ''' Should add an event to our memory'''
@@ -6761,8 +6773,8 @@ class SapientComponent:
     def die(self, reason):
         figure = self.owner
         figure.creature.set_status('dead')
-        #if WORLD.tiles[figure.wx][figure.wy].site:  location = WORLD.tiles[figure.wx][figure.wy].site.name
-        location = WORLD.tiles[figure.wx][figure.wx].get_location_description()
+        #if g.WORLD.tiles[figure.wx][figure.wy].site:  location = g.WORLD.tiles[figure.wx][figure.wy].site.name
+        location = g.WORLD.tiles[figure.wx][figure.wx].get_location_description()
 
         # Notify world!
         game.add_message('{0} has died in {1}! ({2}, {3})'.format(figure.fulltitle(), location, figure.wx, figure.wy), libtcod.red)
@@ -6772,9 +6784,9 @@ class SapientComponent:
             figure.sapient.current_citizenship.citizens.remove(figure)
 
         # Remove from the list of all figures, and the important ones if we're important
-        WORLD.all_figures.remove(figure)
-        if figure in WORLD.important_figures:
-            WORLD.important_figures.remove(figure)
+        g.WORLD.all_figures.remove(figure)
+        if figure in g.WORLD.important_figures:
+            g.WORLD.important_figures.remove(figure)
 
         if self.faction:
             self.faction.remove_member(figure)
@@ -6817,7 +6829,7 @@ class SapientComponent:
 #                 ## a successor to his location. In order to do this, we may have to leave our
 #                 ## current city and then get added to the new city.
 #                 try:
-#                     for city in WORLD.cities:
+#                     for city in g.WORLD.cities:
 #                         if army in city.caravans and successor.sapient.current_city != city:
 #                             print '%s was teleported to %s upon the death of %s'%(successor.fulltitle(), city.name, figure.fulltitle())
 #                             break
@@ -6840,7 +6852,7 @@ class SapientComponent:
                 game.add_message(figure.fulltitle(), 'was not in his house!')
 
     def get_age(self):
-        return time_cycle.current_year - self.born
+        return g.time_cycle.current_year - self.born
 
     def get_profession(self):
         if self.profession:
@@ -6859,7 +6871,7 @@ class SapientComponent:
 
     def have_child(self):
 
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=time_cycle.current_year, char='o',
+        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=g.time_cycle.current_year, char='o',
                                                            dynasty=self.spouse.sapient.dynasty, race=self.owner.creature.creature_type, important=self.important)
 
         self.children.append(child)
@@ -7046,8 +7058,8 @@ class Creature:
         if self.experience[skill] >= EXPERIENCE_PER_SKILL_LEVEL[self.skills[skill]] and self.skills[skill] <= MAX_SKILL_LEVEL:
             self.skills[skill] += 1
 
-            # Notify player
-            if self.owner == player:
+            # Notify g.player
+            if self.owner == g.player:
                 game.add_message(new_msg="{0} has increased {1} to {2}".format(self.owner.fulltitle(), skill, self.skills[skill]), color=libtcod.green)
 
     def check_to_perceive(self, other_creature):
@@ -7061,7 +7073,7 @@ class Creature:
             # Raycast from our position to see if any obstacles block our vision
             x, y = libtcod.line_step()
             while x is not None:
-                if M.tile_blocks_sight(x, y):
+                if g.M.tile_blocks_sight(x, y):
                     perceived = 0
                     break
 
@@ -7095,7 +7107,7 @@ class Creature:
             #blood_amt = min(actor.creature.bleeding/100, 1)
             blood_amt = .1
             #M.tiles[self.owner.x][self.owner.y].color = libtcod.color_lerp(M.tiles[self.owner.x][self.owner.y].color, libtcod.darker_red, blood_amt)
-            M.tiles[self.owner.x][self.owner.y].set_color(color=libtcod.color_lerp(M.tiles[self.owner.x][self.owner.y].color, libtcod.darker_red, blood_amt) )
+            g.M.tiles[self.owner.x][self.owner.y].set_color(color=libtcod.color_lerp(g.M.tiles[self.owner.x][self.owner.y].color, libtcod.darker_red, blood_amt) )
 
 
     def set_status(self, status):
@@ -7158,17 +7170,17 @@ class Creature:
         ny = j
 
         for desire, amount in self.dijmap_desires.iteritems():
-            current_tile_cost += (M.dijmaps[desire].dmap[i][j] * amount)
+            current_tile_cost += (g.M.dijmaps[desire].dmap[i][j] * amount)
 
         for (x, y) in ( (i - 1, j - 1), (i, j - 1), (i + 1, j - 1),
                         (i - 1, j),                 (i + 1, j),
                         (i - 1, j + 1), (i, j + 1), (i + 1, j + 1) ):
 
-            if M.is_val_xy((x, y)) and not M.tile_blocks_mov(x, y): #not M.tiles[x][y].blocked:
+            if g.M.is_val_xy((x, y)) and not g.M.tile_blocks_mov(x, y): #not g.M.tiles[x][y].blocked:
                 ## Check each desire, multiply by amount, and save if necessary
                 weighted_desire = 0
                 for desire, amount in self.dijmap_desires.iteritems():
-                    weighted_desire += (M.dijmaps[desire].dmap[x][y] * amount)
+                    weighted_desire += (g.M.dijmaps[desire].dmap[x][y] * amount)
                     ## Only move if we have a reason to
                 if weighted_desire < current_tile_cost:
                     current_tile_cost = weighted_desire
@@ -7262,7 +7274,7 @@ class Creature:
         combat_log = []
 
 
-        if target.sapient and target.local_brain and target.local_brain.ai_state == 'idle':
+        if target.sapient and not self.owner.sapient.faction.is_hostile_to(target.sapient.faction) and target.local_brain and target.local_brain.ai_state == 'idle':
             self.handle_renegade_faction(target)
 
         # Hacking in some defaults for now
@@ -7406,8 +7418,8 @@ class Creature:
         if creature_obj.sapient.commander and self.owner in creature_obj.sapient.commander.sapient.commanded_figures:
             creature_obj.sapient.commander.sapient.remove_commanded_figure(creature_obj)
 
-        M.sapients.remove(creature_obj)
-        M.objects.append(creature_obj)
+        g.M.sapients.remove(creature_obj)
+        g.M.objects.append(creature_obj)
 
         if creature_obj.creature:
             game.add_message('{0} has died due to {1}'.format(creature_obj.fulltitle(), reason), libtcod.darker_red)
@@ -7415,7 +7427,7 @@ class Creature:
         creature_obj.set_display_color(creature_obj.death_color)
         creature_obj.blocks_mov = False
         creature_obj.local_brain = None
-        libtcod.map_set_properties(M.fov_map, creature_obj.x, creature_obj.y, True, True)
+        libtcod.map_set_properties(g.M.fov_map, creature_obj.x, creature_obj.y, True, True)
         creature_obj.name = 'Corpse of {0}'.format(creature_obj.fulltitle())
 
 
@@ -7451,7 +7463,7 @@ class DijmapSapient:
         ''' Make sure We are not a captive (later, if freed, captives will need to run this routine) '''
         if not self.owner.sapient.is_captive():
 
-            for faction, members in M.factions_on_map.iteritems():
+            for faction, members in g.M.factions_on_map.iteritems():
                 game.add_message('{0}'.format(faction.faction_name), faction.color)
 
                 if self.owner.sapient.faction.is_hostile_to(faction):
@@ -7463,7 +7475,7 @@ class DijmapSapient:
                             #game.add_message(new_msg="{0} adding {1} to enemies".format(self.owner.fullname(), member.fullname()), color=self.owner.color)
 
             #for enemy_faction in self.owner.sapient.enemy_factions:
-            #    for member in M.factions_on_map[enemy_faction]:
+            #    for member in g.M.factions_on_map[enemy_faction]:
             #        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
             #            self.unperceived_enemies.append(member)
 
@@ -7628,13 +7640,15 @@ class DijmapSapient:
             # This will clear the target, in case they happen to be following someone or whatever
             self.unset_target()
 
-            for faction in M.factions_on_map.keys():
+            #for faction in g.M.factions_on_map.keys():
+            for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
 
-            for faction in M.factions_on_map.keys():
+            #for faction in g.M.factions_on_map.keys():
+            for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = -4
 
@@ -7654,7 +7668,7 @@ class DijmapSapient:
     def ai_state_patrol(self):
         ''' Handles route-setting and moving of patrolling entities '''
         if self.target_location is None:
-            if M.get_astar_distance_to(x=self.owner.x, y=self.owner.y, target_x=self.patrol_route[self.current_patrol_index][0], target_y=self.patrol_route[self.current_patrol_index][1]) > 0:
+            if g.M.get_astar_distance_to(x=self.owner.x, y=self.owner.y, target_x=self.patrol_route[self.current_patrol_index][0], target_y=self.patrol_route[self.current_patrol_index][1]) > 0:
                 self.set_target_location(self.patrol_route[self.current_patrol_index])
             else:
                 game.add_message('%s could not reach patrol route at (%i, %i), aborting' %(self.owner.fulltitle(), self.patrol_route[self.current_patrol_index][0], self.patrol_route[self.current_patrol_index][1]) )
@@ -7712,7 +7726,7 @@ class BasicWorldBrain:
             # Name the location
             behavior_list = []
             #target = kwargs['target']
-            #location = WORLD.tiles[target[0]][target[1]].get_location_description()
+            #location = g.WORLD.tiles[target[0]][target[1]].get_location_description()
             #if (self.owner.wx, self.owner.wy) != target or len(self.goals): # Problematic that this is calculated when the goal is added rather than when fired.
             #    goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
             #    behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
@@ -7723,7 +7737,7 @@ class BasicWorldBrain:
             behavior_list.append(wait)
 
         elif goal_type == 'travel':
-            #goal_name = 'travel to {0}'.format(WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
+            #goal_name = 'travel to {0}'.format(g.WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
             goto_site = MovLocBehavior(location=kwargs['location'], figure=self.owner, travel_verb='travel')
             behavior_list = [goto_site]
         # also phased out
@@ -7789,7 +7803,7 @@ class BasicWorldBrain:
             self.goals.remove(current_goal)
 
             #if len(self.goals) == 0:
-            #    WORLD.travelers.remove(self.owner)
+            #    g.WORLD.travelers.remove(self.owner)
 
 
     def monthly_life_check(self):
@@ -7830,7 +7844,7 @@ class BasicWorldBrain:
             num = roll(1, 100)
 
             if num < 10:
-                city = WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
+                city = g.WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
                 if city:
                     self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
 
@@ -7840,8 +7854,8 @@ class BasicWorldBrain:
     def pick_spouse(self):
         sapient = self.owner.sapient
         # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
-        if WORLD.tiles[self.owner.wx][self.owner.wy].site:
-            potential_spouses = [figure for figure in WORLD.tiles[self.owner.wx][self.owner.wy].entities
+        if g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
+            potential_spouses = [figure for figure in g.WORLD.tiles[self.owner.wx][self.owner.wy].entities
                                  if figure.creature.sex != self.owner.creature.sex
                                  and figure.creature.creature_type == self.owner.creature.creature_type
                                  and figure.sapient.dynasty != sapient.dynasty
@@ -7850,7 +7864,7 @@ class BasicWorldBrain:
             if len(potential_spouses) == 0 and sapient.current_citizenship:
                 # Make a person out of thin air to marry
                 sex = abs(self.owner.creature.sex-1)
-                s_born = time_cycle.years_ago(sapient.get_age()-5, sapient.get_age()+5)
+                s_born = g.time_cycle.years_ago(sapient.get_age()-5, sapient.get_age()+5)
                 potential_spouses = [sapient.current_citizenship.create_inhabitant(sex=sex, born=s_born, char='o', dynasty=None, race=self.owner.creature.creature_type, important=sapient.important, house=sapient.house)]
             elif sapient.current_citizenship is None:
                 game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
@@ -7876,7 +7890,7 @@ class BasicWorldBrain:
 
     def check_for_adventure(self):
 
-        targets = [e for e in WORLD.all_figures if e.creature.creature_type  == "lehur"]
+        targets = [e for e in g.WORLD.all_figures if e.creature.creature_type  == "lehur"]
         if roll(1, 10) == 1 and targets != []:
             target = random.choice(targets)
 
@@ -7891,7 +7905,7 @@ class BasicWorldBrain:
     def check_for_move_city(self):
         sapient = self.owner.sapient
         if sapient.profession is None and roll(1, 1000) >= 950:
-            target_city = random.choice([city for city in WORLD.cities if city != sapient.current_citizenship])
+            target_city = random.choice([city for city in g.WORLD.cities if city != sapient.current_citizenship])
             reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
 
             sapient.change_citizenship(new_city=target_city, new_house=None)
@@ -7919,7 +7933,7 @@ class BasicWorldBrain:
                     xdist = roll(5, 15) * random.choice((-1, 1))
                     ydist = roll(5, 15) * random.choice((-1, 1))
                     # If we can path there, it's OK
-                    if WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
+                    if g.WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
                         found_spot = True
                 # Pick a reason
                 travel_verb = 'travel'
@@ -8106,7 +8120,7 @@ class TimeCycle(object):
         self.check_tick()
 
         ### Creatures
-        for creature in M.creatures:
+        for creature in g.M.creatures:
             creature.creature.handle_tick()
 
             if creature.local_brain and creature.creature.next_tick <= self.current_tick:
@@ -8117,7 +8131,7 @@ class TimeCycle(object):
                 creature.local_brain.take_turn()
 
         ### Sapients
-        for actor in M.sapients:
+        for actor in g.M.sapients:
             # Talk
             actor.sapient.handle_pending_conversations()
             # Bleed every tick, if necessary
@@ -8132,9 +8146,9 @@ class TimeCycle(object):
                 actor.local_brain.take_turn()
 
         # Now that entities have made their moves, calculate the outcome of any combats
-        combat.handle_combat_round(actors=M.creatures + M.sapients)
+        combat.handle_combat_round(actors=g.M.creatures + g.M.sapients)
 
-        M.update_dmaps()
+        g.M.update_dmaps()
 
 
     def day_tick(self, num_days):
@@ -8142,20 +8156,20 @@ class TimeCycle(object):
             self.check_day()
             self.handle_events()
 
-            for figure in reversed(WORLD.all_figures):
+            for figure in reversed(g.WORLD.all_figures):
                 if figure.world_brain and figure.sapient.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
                     #figure.world_brain.next_tick = self.next_day()
                     figure.world_brain.take_turn()
 
     def week_tick(self):
         # Cheaply defined to get civs working per-day
-        for city in reversed(WORLD.cities):
+        for city in reversed(g.WORLD.cities):
             city.econ.run_simulation()
             city.dispatch_caravans()
 
         # Player econ preview - to show items we're gonna bid on
-        if game.state == 'playing' and player.sapient.economy_agent:
-            player.sapient.economy_agent.player_auto_manage()
+        if game.state == 'playing' and g.player.sapient.economy_agent:
+            g.player.sapient.economy_agent.g.player_auto_manage()
             panel4.tiles_dynamic_buttons = []
             panel4.recalculate_wmap_dyn_buttons = True
 
@@ -8168,12 +8182,12 @@ class TimeCycle(object):
         self.check_month()
 
         ## Have figures do some stuff monthly
-        for figure in WORLD.all_figures[:]:
+        for figure in g.WORLD.all_figures[:]:
             ## TODO - make sure this check works out all the time
             if figure.sapient.is_available_to_act():
                 figure.world_brain.monthly_life_check()
 
-        for plot in WORLD.plots[:]:
+        for plot in g.WORLD.plots[:]:
             if plot.check_for_fire():
                 plot.fire()
 
@@ -8182,7 +8196,7 @@ class TimeCycle(object):
         self.current_month = 0
         self.current_year += 1
         #game.add_message('It is now ' + str(self.current_year), libtcod.light_sea)
-        for figure in WORLD.all_figures[:]:
+        for figure in g.WORLD.all_figures[:]:
             # Die from old age
             if figure.sapient.get_age() > phys.creature_dict[figure.creature.creature_type]['creature']['lifespan']:
                 figure.sapient.die(reason='old age')
@@ -8208,43 +8222,43 @@ class Camera:
         self.x = 0
         self.y = 0
 
-        self.center(int(round(WORLD_WIDTH / 2)), int(round(WORLD_HEIGHT / 2)))
+        self.center(int(round(g.WORLD_WIDTH / 2)), int(round(g.WORLD_HEIGHT / 2)))
 
     def move(self, dx, dy):
         if game.map_scale == 'world':
-            # Make sure the new camera coordinate won't let the camera see off the map
-            if 0 <= self.x + dx < WORLD_WIDTH - self.width - 1:
+            # Make sure the new g.camera coordinate won't let the g.camera see off the map
+            if 0 <= self.x + dx < g.WORLD_WIDTH - self.width - 1:
                 self.x += dx
-            if 0 <= self.y + dy < WORLD_HEIGHT - self.height - 1:
+            if 0 <= self.y + dy < g.WORLD_HEIGHT - self.height - 1:
                 self.y += dy
 
         if game.map_scale == 'human':
-            # Make sure the new camera coordinate won't let the camera see off the map
-            if 0 <= self.x + dx < M.width - self.width - 1:
+            # Make sure the new g.camera coordinate won't let the g.camera see off the map
+            if 0 <= self.x + dx < g.M.width - self.width - 1:
                 self.x += dx
-            if 0 <= self.y + dy < M.height - self.height - 1:
+            if 0 <= self.y + dy < g.M.height - self.height - 1:
                 self.y += dy
 
     def center(self, target_x, target_y):
-        #new camera coordinates (top-left corner of the screen relative to the map)
+        #new g.camera coordinates (top-left corner of the screen relative to the map)
         x = target_x - int(round(self.width / 2))  #coordinates so that the target is at the center of the screen
         y = target_y - int(round(self.height / 2))
 
-        #make sure the camera doesn't see outside the map
+        #make sure the g.camera doesn't see outside the map
         if x < 0: x = 0
         if y < 0: y = 0
         if game.map_scale == 'world':
-            if x > WORLD_WIDTH - self.width - 1:
-                x = WORLD_WIDTH - self.width - 1
-            if y > WORLD_HEIGHT - self.height - 1:
-                y = WORLD_HEIGHT - self.height - 1
+            if x > g.WORLD_WIDTH - self.width - 1:
+                x = g.WORLD_WIDTH - self.width - 1
+            if y > g.WORLD_HEIGHT - self.height - 1:
+                y = g.WORLD_HEIGHT - self.height - 1
 
         ## Add FOV compute once it works for the world.
         elif game.map_scale == 'human':
-            if x > M.width - self.width - 1:
-                x = M.width - self.width - 1
-            if y > M.height - self.height - 1:
-                y = M.height - self.height - 1
+            if x > g.M.width - self.width - 1:
+                x = g.M.width - self.width - 1
+            if y > g.M.height - self.height - 1:
+                y = g.M.height - self.height - 1
 
         (self.x, self.y) = (x, y)
 
@@ -8274,7 +8288,7 @@ class Camera:
             (x, y) = self.cam2map(mouse.cx, mouse.cy)
 
             dif_x, dif_y = (x - ox, y - oy)
-            # add some momentum to the camera
+            # add some momentum to the g.camera
             if dif_x != ox and dif_y != oy:
                 momentum += 2
             else:
@@ -8282,7 +8296,7 @@ class Camera:
 
             self.move(-dif_x, -dif_y)
 
-        # after button is released, move the camera a bit more based on momentum
+        # after button is released, move the g.camera a bit more based on momentum
         total_momentum = momentum
         m_amt = 1
         while momentum > 0 and int(round(dif_x * m_amt)) + int(round(dif_y * m_amt)):
@@ -8296,7 +8310,7 @@ class Camera:
             self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
 
     def mouse_is_on_map(self):
-        ''' Ensures mouse doesn't pick up activity outside edge of camera '''
+        ''' Ensures mouse doesn't pick up activity outside edge of g.camera '''
         return (0 <= mouse.cx <= self.width and 0 <= mouse.cy <= self.height)
 
 
@@ -8339,7 +8353,7 @@ class Culture:
         expanded = 0
         for (x, y) in self.edge:
             for (s, t) in get_border_tiles(x, y):
-                if WORLD.is_val_xy((s, t)) and not WORLD.tiles[s][t].blocks_mov and not WORLD.tiles[s][t].culture:
+                if g.WORLD.is_val_xy((s, t)) and not g.WORLD.tiles[s][t].blocks_mov and not g.WORLD.tiles[s][t].culture:
                     expanded = 1
                     # A little randomness helps the cultures look more natural
                     # However, we must set expanded to true so that even if the check fails, this culture will
@@ -8356,7 +8370,7 @@ class Culture:
         return expanded
 
     def add_territory(self, x, y):
-        WORLD.tiles[x][y].culture = self
+        g.WORLD.tiles[x][y].culture = self
         self.territory.append((x, y))
 
 
@@ -8419,17 +8433,17 @@ class Culture:
 
     def add_villages(self):
         for x, y in self.territory:
-            for resource in WORLD.tiles[x][y].res.keys():
-                if resource not in self.access_res and WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(WORLD.tiles[x][y].minor_sites): #and 10 < x < WORLD_WIDTH - 10 and 10 < y < WORLD_HEIGHT - 10:
+            for resource in g.WORLD.tiles[x][y].res.keys():
+                if resource not in self.access_res and g.WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(g.WORLD.tiles[x][y].minor_sites): #and 10 < x < g.WORLD_WIDTH - 10 and 10 < y < g.WORLD_HEIGHT - 10:
                     self.access_res.append(resource)
                     self.add_village(x, y)
                     break
 
 
     def add_village(self, x, y):
-        village = Site(world=WORLD, site_type='village', x=x, y=y, char=chr(7), name=self.name + ' village', color=self.color)
-        WORLD.sites.append(village)
-        WORLD.tiles[x][y].site = village
+        village = Site(world=g.WORLD, site_type='village', x=x, y=y, char=chr(7), name=self.name + ' village', color=self.color)
+        g.WORLD.sites.append(village)
+        g.WORLD.tiles[x][y].site = village
         self.villages.append(village)
 
 
@@ -8486,11 +8500,11 @@ class Culture:
         # This function will get anytime there needs to be people generated. They don't always need
         # to be saved in the world - thus, we won't worry too much about them if we don't need to
         if save_being:
-            WORLD.tiles[wx][wy].entities.append(human)
+            g.WORLD.tiles[wx][wy].entities.append(human)
 
-            WORLD.all_figures.append(human)
+            g.WORLD.all_figures.append(human)
             if important:
-                WORLD.important_figures.append(human)
+                g.WORLD.important_figures.append(human)
 
         return human
 
@@ -8529,13 +8543,13 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, sap
 
 def get_info_under_mouse():
     ''' get info to be printed in the sidebar '''
-    (x, y) = camera.cam2map(mouse.cx, mouse.cy)
+    (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)
     info = []
-    if game.map_scale == 'human' and M.is_val_xy((x, y)):
-        info.append(('Tick: {0}'.format(time_cycle.current_tick), PANEL_FRONT))
-        info.append(('at coords {0}, {1} height is {2}'.format(x, y, M.tiles[x][y].height), PANEL_FRONT))
+    if game.map_scale == 'human' and g.M.is_val_xy((x, y)):
+        info.append(('Tick: {0}'.format(g.time_cycle.current_tick), PANEL_FRONT))
+        info.append(('at coords {0}, {1} height is {2}'.format(x, y, g.M.tiles[x][y].height), PANEL_FRONT))
         ### This will spit out some info about the unit we've selected (debug stuff)
-        if render_handler.debug_active_unit_dijmap and not M.tiles[x][y].blocks_mov:
+        if render_handler.debug_active_unit_dijmap and not g.M.tiles[x][y].blocks_mov:
             debug_unit = render_handler.debug_active_unit_dijmap
             info.append(('{0}: tick = {1}'.format(debug_unit.fullname(), debug_unit.creature.next_tick), libtcod.copper))
             total_desire = 0
@@ -8544,26 +8558,26 @@ def get_info_under_mouse():
                 elif amount > 0: dcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.green, amount/100)
                 else: dcolor = PANEL_FRONT
                 info.append(('{0}: {1}'.format(desire, amount), dcolor ))
-                total_desire += (M.dijmaps[desire].dmap[x][y] * amount)
+                total_desire += (g.M.dijmaps[desire].dmap[x][y] * amount)
             info.append(('Total: {0}'.format(total_desire), libtcod.dark_violet))
             info.append((' ', libtcod.white))
         ###############################################################################
 
         # Info about the surface of the map
-        info.append((M.tiles[x][y].surface, libtcod.color_lerp(PANEL_FRONT, M.tiles[x][y].color, .5) ))
+        info.append((g.M.tiles[x][y].surface, libtcod.color_lerp(PANEL_FRONT, g.M.tiles[x][y].color, .5) ))
         info.append((' ', libtcod.white))
         # Zoning info
-        if M.tiles[x][y].zone:
-            info.append((M.tiles[x][y].zone, PANEL_FRONT))
+        if g.M.tiles[x][y].zone:
+            info.append((g.M.tiles[x][y].zone, PANEL_FRONT))
             info.append((' ', PANEL_FRONT))
             # Building info
-        if M.tiles[x][y].building:
-            info.append((M.tiles[x][y].building.get_name(), PANEL_FRONT))
+        if g.M.tiles[x][y].building:
+            info.append((g.M.tiles[x][y].building.get_name(), PANEL_FRONT))
             info.append((' ', PANEL_FRONT))
 
         color = PANEL_FRONT
-        for obj in M.tiles[x][y].objects:
-            if libtcod.map_is_in_fov(M.fov_map, obj.x, obj.y):
+        for obj in g.M.tiles[x][y].objects:
+            if libtcod.map_is_in_fov(g.M.fov_map, obj.x, obj.y):
                 info.append((obj.fulltitle(), libtcod.color_lerp(PANEL_FRONT, obj.color, .3) ))
 
                 if obj.creature and obj.creature.status == 'alive':
@@ -8580,33 +8594,33 @@ def get_info_under_mouse():
 
     elif game.map_scale == 'world':
         color = PANEL_FRONT
-        xc, yc = camera.map2cam(x, y)
+        xc, yc = g.camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
-            info.append(('DBG: Reg{0}, {1}ht'.format(WORLD.tiles[x][y].region_number, WORLD.tiles[x][y].height), libtcod.color_lerp(color, WORLD.tiles[x][y].color, .5)))
+            info.append(('DBG: Reg{0}, {1}ht'.format(g.WORLD.tiles[x][y].region_number, g.WORLD.tiles[x][y].height), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
 
-            info.append((WORLD.tiles[x][y].region.capitalize(), libtcod.color_lerp(color, WORLD.tiles[x][y].color, .5)))
+            info.append((g.WORLD.tiles[x][y].region.capitalize(), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
             ###### Cultures ########
-            if WORLD.tiles[x][y].culture is not None:
-                info.append(('Culture: {0}'.format(WORLD.tiles[x][y].culture.name), libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
-                info.append(('Language: {0}'.format(WORLD.tiles[x][y].culture.language.name), libtcod.color_lerp(color, WORLD.tiles[x][y].culture.color, .3)))
+            if g.WORLD.tiles[x][y].culture is not None:
+                info.append(('Culture: {0}'.format(g.WORLD.tiles[x][y].culture.name), libtcod.color_lerp(color, g.WORLD.tiles[x][y].culture.color, .3)))
+                info.append(('Language: {0}'.format(g.WORLD.tiles[x][y].culture.language.name), libtcod.color_lerp(color, g.WORLD.tiles[x][y].culture.color, .3)))
             else:
                 info.append(('No civilized creatures inhabit this region', color))
             ###### Territory #######
-            if WORLD.tiles[x][y].territory:
-                info.append(('Territory of {0}'.format(WORLD.tiles[x][y].territory.name), libtcod.color_lerp(color, WORLD.tiles[x][y].territory.color, .3)))
+            if g.WORLD.tiles[x][y].territory:
+                info.append(('Territory of {0}'.format(g.WORLD.tiles[x][y].territory.name), libtcod.color_lerp(color, g.WORLD.tiles[x][y].territory.color, .3)))
             else:
                 info.append(('No state\'s borders claim this region', color))
             info.append((' ', color))
 
             # Resources
-            for resource, amount in WORLD.tiles[x][y].res.iteritems():
+            for resource, amount in g.WORLD.tiles[x][y].res.iteritems():
                 info.append(('{0} ({1})'.format(resource.capitalize(), amount), color))
             info.append((' ', color))
 
             ## FEATURES
-            for feature in WORLD.tiles[x][y].features + WORLD.tiles[x][y].caves:
+            for feature in g.WORLD.tiles[x][y].features + g.WORLD.tiles[x][y].caves:
                 info.append((feature.get_name(), color))
-            for site in WORLD.tiles[x][y].minor_sites:
+            for site in g.WORLD.tiles[x][y].minor_sites:
                 info.append((site.name, color))
                 if site.is_holy_site_to:
                     for pantheon in site.is_holy_site_to:
@@ -8614,16 +8628,16 @@ def get_info_under_mouse():
             info.append((' ', color))
 
             # Sites
-            site = WORLD.tiles[x][y].site
+            site = g.WORLD.tiles[x][y].site
             if site:
                 info.append(('{0} ({1})'.format(site.name.capitalize(), site.site_type), color))
                 if site.site_type == 'city':
                     info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
-                    num_figures = len([f for f in WORLD.tiles[x][y].entities if (f.sapient.is_commander() or not f.sapient.commander)])
+                    num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.sapient.is_commander() or not f.sapient.commander)])
                     info.append(('{0} figures or parties here'.format(num_figures), color))
             else:
                 # Entities
-                for entity in WORLD.tiles[x][y].entities:
+                for entity in g.WORLD.tiles[x][y].entities:
                     # Commanders of parties or armies
                     if entity.sapient and entity.sapient.is_commander():
                         info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.sapient.get_total_number_of_commanded_beings()), entity.sapient.faction.color))
@@ -8632,7 +8646,7 @@ def get_info_under_mouse():
                         info.append(('{0}'.format(entity.fulltitle()), entity.sapient.faction.color))
                     info.append((' ', color))
                 # Only show uncommanded populations
-                for population in WORLD.tiles[x][y].populations:
+                for population in g.WORLD.tiles[x][y].populations:
                     if not population.commander:
                         info.append(('{0}'.format(population.name), population.faction.color))
 
@@ -8673,37 +8687,37 @@ class RenderHandler:
         map_con.render_bar(x=int(round(SCREEN_WIDTH / 2)) - 9, y=1, total_width=18, name=current_action, value=min_val,
                    maximum=max_val, bar_color=libtcod.color_lerp(libtcod.dark_yellow, PANEL_FRONT, .5),
                    back_color=PANEL_BACK, text_color=PANEL_FRONT, show_values=False, title_inset=False)
-        libtcod.console_blit(map_con.con, 0, 0, camera.width, camera.height, 0, 0, 10)
+        libtcod.console_blit(map_con.con, 0, 0, g.camera.width, g.camera.height, 0, 0, 10)
         #libtcod.console_blit(con.con, 0, 0, SCREEN_WIDTH, PANEL1_HEIGHT, 0, 0, PANEL1_YPOS)
         libtcod.console_set_default_background(map_con.con, libtcod.black)
         libtcod.console_flush()
 
     def blink(self, x, y, color, repetitions, speed):
         # Have a tile blink at specified speed for specified # of repetitions
-        (wmap_x, wmap_y) = camera.cam2map(x, y)
+        (wmap_x, wmap_y) = g.camera.cam2map(x, y)
 
         render_handler.render_all(do_flush=1)
 
         for repetition in xrange(repetitions):
             # Render red
-            #libtcod.console_put_char_ex(con.con, x, y, WORLD.tiles[wmap_x][wmap_y].char, color, color)
+            #libtcod.console_put_char_ex(con.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, color, color)
             libtcod.console_put_char_ex(map_con.con, x, y, 'X', color, color)
             libtcod.console_blit(map_con.con, 0, 0, CAMERA_WIDTH, CAMERA_HEIGHT, 0, 0, 0)
             libtcod.console_flush()
             time.sleep(speed)
             # Render background color
-            libtcod.console_put_char_ex(map_con.con, x, y, WORLD.tiles[wmap_x][wmap_y].char, WORLD.tiles[wmap_x][wmap_y].char_color, WORLD.tiles[wmap_x][wmap_y].color)
-            libtcod.console_blit(map_con.con, 0, 0, camera.width, camera.height, 0, 0, 0)
+            libtcod.console_put_char_ex(map_con.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, g.WORLD.tiles[wmap_x][wmap_y].char_color, g.WORLD.tiles[wmap_x][wmap_y].color)
+            libtcod.console_blit(map_con.con, 0, 0, g.camera.width, g.camera.height, 0, 0, 0)
             libtcod.console_flush()
             time.sleep(speed)
 
     def render_all(self, do_flush=1):
 
-        if game.map_scale == 'human' and M.fov_recompute:
-            M.display(self.debug_active_unit_dijmap)
+        if game.map_scale == 'human' and g.M.fov_recompute:
+            g.M.display(self.debug_active_unit_dijmap)
 
         elif game.map_scale == 'world':
-            WORLD.display()
+            g.WORLD.display()
 
         # Handle the basic rendering steps on the GUI panels
         for panel in interface.gui_panels:
@@ -8714,16 +8728,16 @@ class RenderHandler:
 
         if game.state == 'playing':
             # Current date and time info
-            libtcod.console_print(panel2.con, 2, 2, time_cycle.get_current_date())
+            libtcod.console_print(panel2.con, 2, 2, g.time_cycle.get_current_date())
             if game.map_scale == 'world':
-                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + time_cycle.current_year - player.sapient.faction.leader_change_year), player.sapient.faction.leader.fullname() ))
-                libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(time_cycle.current_year, len(WORLD.all_figures), len(WORLD.important_figures)))
+                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.time_cycle.current_year - g.player.sapient.faction.leader_change_year), g.player.sapient.faction.leader.fullname() ))
+                libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(g.time_cycle.current_year, len(g.WORLD.all_figures), len(g.WORLD.important_figures)))
 
             ##### PANEL 4 - ECONOMY STUFF
-            if player.sapient.economy_agent is not None:
+            if g.player.sapient.economy_agent is not None:
                 libtcod.console_set_default_foreground(panel4.con, PANEL_FRONT)
 
-                agent = player.sapient.economy_agent
+                agent = g.player.sapient.economy_agent
                 y = 5
                 libtcod.console_print(panel4.con, 2, y, agent.name + ' (' + agent.economy.owner.name + ')')
                 y +=  1
@@ -8756,14 +8770,14 @@ class RenderHandler:
 
 
                     if panel4.recalculate_wmap_dyn_buttons:
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_bid_price, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_price, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-3, y), width=2, height=2, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_bid_price, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_price, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-2, y), width=2, height=2, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_bid_quant, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_quant, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-5, y), width=2, height=2, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_bid_quant, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_quant, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-4, y), width=2, height=2, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                 y += 1
@@ -8774,46 +8788,46 @@ class RenderHandler:
 
 
                     if panel4.recalculate_wmap_dyn_buttons:
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_sell_price, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_price, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_sell_price, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_price, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_sell_quant, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_quant, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=player.sapient.economy_agent.change_sell_quant, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_quant, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
 
                 if panel4.recalculate_wmap_dyn_buttons:
                     panel4.recalculate_wmap_dyn_buttons = 0
 
-            ## Panel 3 - player info ##
-            libtcod.console_print_ex(panel3.con, int(round(PANEL3_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, '-* {0} *-'.format(player.fullname()))
+            ## Panel 3 - g.player info ##
+            libtcod.console_print_ex(panel3.con, int(round(PANEL3_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, '-* {0} *-'.format(g.player.fullname()))
 
-            libtcod.console_print(panel3.con, 2, 3, player.creature.status)
+            libtcod.console_print(panel3.con, 2, 3, g.player.creature.status)
             # A list of things to display
             y = 4
-            for grasper in player.creature.get_graspers():
+            for grasper in g.player.creature.get_graspers():
                 if grasper.grasped_item:
                     y += 1
                     libtcod.console_print(panel3.con, 2, y, '{0} ({1})'.format(grasper.grasped_item.name, grasper.name))
 
             y += 2
-            wearing_info = join_list([c.name for c in player.wearing])
+            wearing_info = join_list([c.name for c in g.player.wearing])
             libtcod.console_print_rect(panel3.con, 2, y, panel3.width-2, panel3.height-y, 'Wearing {0}'.format(wearing_info))
 
                 ## Bar showing current energy amount ##
             #panel3.render_bar(x=2, y=panel3.height - 3, total_width=panel3.width - 4, name='Energy',
-            #           value=player.creature.energy, maximum=player.creature.catts['Stamina'],
+            #           value=g.player.creature.energy, maximum=g.player.creature.catts['Stamina'],
             #           bar_color=ENERGY_FRONT, back_color=ENERGY_BACK, text_color=libtcod.black, show_values=True,
             #           title_inset=True)
             ## bar showing current pain amount ##
             #panel3.render_bar(x=2, y=panel3.height - 4, total_width=panel3.width - 4, name='Pain',
-            #           value=player.creature.get_pain(), maximum=player.creature.get_max_pain(),
+            #           value=g.player.creature.get_pain(), maximum=g.player.creature.get_max_pain(),
             #           bar_color=PAIN_FRONT, back_color=PAIN_BACK, text_color=libtcod.black, show_values=True,
             #           title_inset=True)
-            ### Done rendering player info ###
+            ### Done rendering g.player info ###
 
             if game.map_scale == 'human':
                 battle_hover_information()
@@ -8858,19 +8872,19 @@ class RenderHandler:
 
 def battle_hover_information():
     ''' Displays a box summarizing some combat stats on mouse hover '''
-    (x, y) = camera.cam2map(mouse.cx, mouse.cy)  #from screen to map coordinates
+    (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)  #from screen to map coordinates
 
     target = None
-    if camera.mouse_is_on_map() and M.is_val_xy((x, y)) and M.tiles[x][y].explored:
-        for obj in M.tiles[x][y].objects:
+    if g.camera.mouse_is_on_map() and g.M.is_val_xy((x, y)) and g.M.tiles[x][y].explored:
+        for obj in g.M.tiles[x][y].objects:
             if obj.creature and obj.creature.status != 'dead':
                 target = obj
                 break
 
-        other_objects = [obj for obj in M.tiles[x][y].objects if (not obj.creature) or (obj.creature and obj.creature.status != 'alive') ]
+        other_objects = [obj for obj in g.M.tiles[x][y].objects if (not obj.creature) or (obj.creature and obj.creature.status != 'alive') ]
 
-        if M.tiles[x][y].interactable:
-            itext = M.tiles[x][y].interactable['hover_text']
+        if g.M.tiles[x][y].interactable:
+            itext = g.M.tiles[x][y].interactable['hover_text']
             gui.HoverInfo(header=['Interact'], text=itext, cx=mouse.cx, cy=mouse.cy, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=interface)
 
         ####### FOR OTHER OBJECTS ######
@@ -9138,59 +9152,59 @@ class Game:
 
             panel2.wmap_buttons = [
                                    gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, PANEL2_HEIGHT-16), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=show_civs, args=[WORLD], text='Civ info', topleft=(4, PANEL2_HEIGHT-11), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=show_cultures, args=[WORLD, None], text='Cultures', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=5)
+                                   gui.Button(gui_panel=panel2, func=g.WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, PANEL2_HEIGHT-16), width=bwidth, height=5),
+                                   gui.Button(gui_panel=panel2, func=show_civs, args=[g.WORLD], text='Civ info', topleft=(4, PANEL2_HEIGHT-11), width=bwidth, height=5),
+                                   gui.Button(gui_panel=panel2, func=show_cultures, args=[g.WORLD, None], text='Cultures', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=5)
                                    ]
 
     def handle_fov_recompute(self):
         ''' FOV / map is only re-rendered when fov_recompue is set to true '''
         if self.map_scale == 'world':
-            WORLD.fov_recompute = 1
+            g.WORLD.fov_recompute = 1
         elif self.map_scale == 'human':
-            M.fov_recompute = 1
+            g.M.fov_recompute = 1
 
 
     def save_game(self):
         #open a new empty shelve (possibly overwriting an old one) to write the game data
         save_file = shelve.open('savegame', 'n')
-        save_file['WORLD'] = WORLD
-        save_file['time_cyle'] = time_cycle
+        save_file['g.WORLD'] = g.WORLD
+        save_file['time_cyle'] = g.time_cycle
         save_file.close()
 
     def load_game(self):
         #open the previously saved shelve and load the game data
-        global M, WORLD, player, time_cycle
+        #global M, g.WORLD, g.player, g.time_cycle
         file = shelve.open('savegame', 'r')
-        WORLD = file['WORLD']
-        time_cycle = file['time_cyle']
+        g.WORLD = file['g.WORLD']
+        g.time_cycle = file['time_cyle']
         file.close()
 
 
     def create_new_world_and_begin_game(self):
-        global WORLD, camera
-        # Need to first set camera
-        camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
+        #global g.WORLD, g.camera
+        # Need to first set g.camera
+        g.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
         # Gen world
-        WORLD = None # Clear in case previous world was generated
-        WORLD = World(WORLD_WIDTH, WORLD_HEIGHT)
-        WORLD.generate()
+        g.WORLD = None # Clear in case previous world was generated
+        g.WORLD = World(g.WORLD_WIDTH, g.WORLD_HEIGHT)
+        g.WORLD.generate()
         self.game_main_loop()
 
 
     def new_game(self):
-        global player
+        #global g.player
 
         self.switch_map_scale(map_scale='world')
 
-        playerciv = WORLD.cities[0]
-        player = playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=playerciv.faction, armed=1, wx=playerciv.x, wy=playerciv.y)
-        WORLD.tiles[player.wx][player.wy].entities.append(player)
-        player.color = libtcod.cyan
-        player.local_brain = None
-        player.world_brain = None
+        g.playerciv = g.WORLD.cities[0]
+        g.player = g.playerciv.culture.create_being(sex=1, born=roll(-40, -30), char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        g.WORLD.tiles[g.player.wx][g.player.wy].entities.append(g.player)
+        g.player.color = libtcod.cyan
+        g.player.local_brain = None
+        g.player.world_brain = None
 
-        camera.center(player.wx, player.wy)
+        g.camera.center(g.player.wx, g.player.wy)
         self.state = 'playing'
 
 
@@ -9212,23 +9226,23 @@ class Game:
     def setup_quick_battle(self):
         ''' A quick and dirty battle testing arena, more or less. Will need a massive overhaul
             at some point, if it even stays in '''
-        global time_cycle, camera, player, M, WORLD
+        #global g.time_cycle, g.camera, g.player, M, g.WORLD
 
-        # Need to first set camera
-        camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
+        # Need to first set g.camera
+        g.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
 
         t1 = time.time()
         ##################### Create a dummy world just for the quick battle
-        WORLD = World(width=3, height=3)
-        WORLD.setup_world()
-        WORLD.gen_sentient_races()
-        cult = Culture(color=libtcod.grey, language=lang.Language(), world=WORLD, races=WORLD.sentient_races)
-        for x in xrange(WORLD.width):
-            for y in xrange(WORLD.height):
-                WORLD.tiles[x][y].region = 'grass savanna'
-                WORLD.tiles[x][y].color = libtcod.Color(95, 110, 68)
-                WORLD.tiles[x][y].culture = cult
-                WORLD.tiles[x][y].height = 120
+        g.WORLD = World(width=3, height=3)
+        g.WORLD.setup_world()
+        g.WORLD.gen_sentient_races()
+        cult = Culture(color=libtcod.grey, language=lang.Language(), world=g.WORLD, races=g.WORLD.sentient_races)
+        for x in xrange(g.WORLD.width):
+            for y in xrange(g.WORLD.height):
+                g.WORLD.tiles[x][y].region = 'grass savanna'
+                g.WORLD.tiles[x][y].color = libtcod.Color(95, 110, 68)
+                g.WORLD.tiles[x][y].culture = cult
+                g.WORLD.tiles[x][y].height = 120
 
         ########### Factions ################
         faction1 = Faction(leader_prefix='King', faction_name='Player faction', color=random.choice(civ_colors), succession='dynasty')
@@ -9236,37 +9250,37 @@ class Game:
         # Set them as enemies (function will do so reciprocally)
         #faction1.set_enemy_faction(faction=faction2)
 
-        ### Make the player ###
-        player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
-        #player.creature.skills['fighting'] += 100
-        player.char = '@'
-        player.local_brain = None
+        ### Make the g.player ###
+        g.player = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
+        #g.player.creature.skills['fighting'] += 100
+        g.player.char = '@'
+        g.player.local_brain = None
 
         sentients = {cult:{random.choice(cult.races):{'Adventurers':10}}}
-        player_party = WORLD.create_population(char='@', name="player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=player)
+        g.player_party = g.WORLD.create_population(char='@', name="g.player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=g.player)
 
 
         leader = cult.create_being(sex=1, born=roll(-40, -20), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
-        enemy_party = WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
+        enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
 
-        hideout_site = WORLD.tiles[1][1].add_minor_site(world=WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
+        hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
         hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
-        faction1.set_leader(leader=player)
+        faction1.set_leader(leader=g.player)
         faction2.set_leader(leader=leader)
         # Weapons for variety
         faction1.create_faction_weapons()
         faction2.create_faction_weapons()
 
-        # Give weapon to player
+        # Give weapon to g.player
         wname = random.choice(faction1.weapons)
         weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=phys.materials['iron'], wx=None, wy=None)
-        player.initial_give_object_to_hold(weapon)
-        #WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
-        #WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
-        #WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))
+        g.player.initial_give_object_to_hold(weapon)
+        #g.WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
+        #g.WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
+        #g.WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))
         #####################################################################
 
         self.switch_map_scale(map_scale='human')
@@ -9274,22 +9288,22 @@ class Game:
 
 
         ## Make map
-        M = Wmap(world=WORLD, wx=1, wy=1, width=MAP_WIDTH, height=MAP_HEIGHT)
-        hm = M.create_heightmap_from_surrounding_tiles()
-        base_color = WORLD.tiles[1][1].get_base_color()
-        M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
-        M.run_cellular_automata(cfg=MCFG[WORLD.tiles[x][y].region])
-        M.add_minor_sites_to_map()
-        M.color_blocked_tiles(cfg=MCFG[WORLD.tiles[x][y].region])
-        M.add_vegetation(cfg=MCFG[WORLD.tiles[x][y].region])
-        M.set_initial_dmaps()
-        M.add_sapients_from_world()
+        g.M = Wmap(world=g.WORLD, wx=1, wy=1, width=MAP_WIDTH, height=MAP_HEIGHT)
+        hm = g.M.create_heightmap_from_surrounding_tiles()
+        base_color = g.WORLD.tiles[1][1].get_base_color()
+        g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
+        g.M.run_cellular_automata(cfg=MCFG[g.WORLD.tiles[x][y].region])
+        g.M.add_minor_sites_to_map()
+        g.M.color_blocked_tiles(cfg=MCFG[g.WORLD.tiles[x][y].region])
+        g.M.add_vegetation(cfg=MCFG[g.WORLD.tiles[x][y].region])
+        g.M.set_initial_dmaps()
+        g.M.add_sapients_from_world()
 
 
         pack = assemble_object(object_blueprint=phys.object_dict['pack'], force_material=None, wx=None, wy=None)
-        player.put_on_clothing(clothing=pack)
+        g.player.put_on_clothing(clothing=pack)
 
-        camera.center(player.x, player.y)
+        g.camera.center(g.player.x, g.player.y)
 
         game.add_message('loaded in %.2f seconds' %(time.time() - t1))
 
@@ -9299,15 +9313,15 @@ class Game:
 
     def return_to_worldmap(self):
         '''
-        file = shelve.open('WORLD' + str(player_party.x) + str(player_party.y), 'n')
+        file = shelve.open('g.WORLD' + str(g.player_party.x) + str(g.player_party.y), 'n')
         file['map'] = map
-        file['WORLD' + str(player_party.x) + str(player_party.y) + '.objects'] = objects
+        file['g.WORLD' + str(g.player_party.x) + str(g.player_party.y) + '.objects'] = objects
         file.close()
         '''
-        M.clear_objects()
+        g.M.clear_objects()
 
         self.switch_map_scale(map_scale='world')
-        camera.center(player.wx, player.wy)
+        g.camera.center(g.player.wx, g.player.wy)
 
 
     def handle_keys(self):
@@ -9317,7 +9331,7 @@ class Game:
         #test for other keys
         key_char = chr(key.c)
 
-        (x, y) = camera.cam2map(mouse.cx, mouse.cy)
+        (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)
 
         if key.vk == libtcod.KEY_ENTER and key.lalt:
             #Alt+Enter: toggle fullscreen
@@ -9330,8 +9344,8 @@ class Game:
         elif key.vk == libtcod.KEY_ESCAPE:
             return 'exit'  #exit game
 
-        if mouse.lbutton and camera.mouse_is_on_map():
-            camera.click_and_drag(mouse)
+        if mouse.lbutton and g.camera.mouse_is_on_map():
+            g.camera.click_and_drag(mouse)
 
         if mouse.wheel_up:
             game.set_msg_index(amount=-1)
@@ -9352,10 +9366,10 @@ class Game:
                         game.world_map_display_type = 'normal'
 
             if self.map_scale == 'human':
-                if mouse.lbutton_pressed and camera.mouse_is_on_map():
+                if mouse.lbutton_pressed and g.camera.mouse_is_on_map():
                     # Clicking on a fellow sapient lets you talk to it
-                    if len(M.tiles[x][y].objects) or M.tiles[x][y].interactable:
-                        choose_object_to_interact_with(objs=M.tiles[x][y].objects, x=x, y=y)
+                    if len(g.M.tiles[x][y].objects) or g.M.tiles[x][y].interactable:
+                        choose_object_to_interact_with(objs=g.M.tiles[x][y].objects, x=x, y=y)
                         #self.handle_fov_recompute()
 
                 if key_char == 'n':
@@ -9393,16 +9407,16 @@ class Game:
 
         elif self.state == 'worldgen':
             if key.vk == libtcod.KEY_UP:
-                camera.move(0, -10)
+                g.camera.move(0, -10)
 
             elif key.vk == libtcod.KEY_DOWN:
-                camera.move(0, 10)
+                g.camera.move(0, 10)
 
             elif key.vk == libtcod.KEY_LEFT:
-                camera.move(-10, 0)
+                g.camera.move(-10, 0)
 
             elif key.vk == libtcod.KEY_RIGHT:
-                camera.move(10, 0)
+                g.camera.move(10, 0)
 
     def get_key(self, key):
         ''' 'return either libtcod code or character that was pressed '''
@@ -9413,46 +9427,46 @@ class Game:
 
 
     def player_advance_time(self, ticks):
-        time_cycle.rapid_tick(ticks)
+        g.time_cycle.rapid_tick(ticks)
 
         # TODO - make much more efficient
         self.handle_fov_recompute()
 
     def player_move_or_attack(self, dx, dy):
         if self.map_scale == 'human':
-            #the coordinates the player is moving to/attacking
-            x = player.x + dx
-            y = player.y + dy
+            #the coordinates the g.player is moving to/attacking
+            x = g.player.x + dx
+            y = g.player.y + dy
 
-            if M.is_val_xy((x, y)):
+            if g.M.is_val_xy((x, y)):
                 #try to find an attackable object there
                 target = None
-                for obj in M.tiles[x][y].objects:
-                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and player.sapient.faction.is_hostile_to(obj.sapient.faction) ):
+                for obj in g.M.tiles[x][y].objects:
+                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and g.player.sapient.faction.is_hostile_to(obj.sapient.faction) ):
                         target = obj
                         break
                 #attack if target found, move otherwise
                 if target != None:
                     ## TODO - drop random attacks when you try to move to the tile?
                     ## Or should just use whatever AI ends up happening
-                    weapon = player.creature.get_current_weapon()
+                    weapon = g.player.creature.get_current_weapon()
                     if weapon:
-                        opening_move = random.choice([m for m in combat.melee_armed_moves if m not in player.creature.last_turn_moves])
-                        move2 = random.choice([m for m in combat.melee_armed_moves if m != opening_move and m not in player.creature.last_turn_moves])
-                        player.creature.set_combat_attack(target=target, opening_move=opening_move, move2=move2)
+                        opening_move = random.choice([m for m in combat.melee_armed_moves if m not in g.player.creature.last_turn_moves])
+                        move2 = random.choice([m for m in combat.melee_armed_moves if m != opening_move and m not in g.player.creature.last_turn_moves])
+                        g.player.creature.set_combat_attack(target=target, opening_move=opening_move, move2=move2)
 
                 else:
-                    player.move_and_face(dx, dy)
+                    g.player.move_and_face(dx, dy)
                 # Advance time!
-                self.player_advance_time(player.creature.attributes['movespeed'])
+                self.player_advance_time(g.player.creature.attributes['movespeed'])
 
-                camera.center(player.x, player.y)
+                g.camera.center(g.player.x, g.player.y)
 
         elif self.map_scale == 'world':
             # Change back to allow blocked movement and non-glitchy battlemap
-            player.w_move(dx, dy)
-            time_cycle.day_tick(1)
-            camera.center(player.wx, player.wy)
+            g.player.w_move(dx, dy)
+            g.time_cycle.day_tick(1)
+            g.camera.center(g.player.wx, g.player.wy)
 
 
 def main_menu():
@@ -9589,9 +9603,9 @@ def show_cultures(world, spec_culture=None):
         #### Handle flipping through the world's cultures with the arrow keys
         else:
             if key_pressed == libtcod.KEY_LEFT:
-                index = looped_increment(initial_num=index, max_num=len(WORLD.cultures)-1, increment_amt=-1)
+                index = looped_increment(initial_num=index, max_num=len(g.WORLD.cultures)-1, increment_amt=-1)
             elif key_pressed == libtcod.KEY_RIGHT:
-                index = looped_increment(initial_num=index, max_num=len(WORLD.cultures)-1, increment_amt=-1)
+                index = looped_increment(initial_num=index, max_num=len(g.WORLD.cultures)-1, increment_amt=-1)
 
             culture = world.cultures[index]
             language = culture.language
@@ -9800,20 +9814,20 @@ def show_civs(world):
                 else:
                     agent_name = agent.name
 
-                if agent.attached_to == player:
+                if agent.attached_to == g.player:
                     agent_name += ' (you)'
 
                 ### (debug) Player can take on role of economy agent at a whim
                 if mouse.cy == y and 32 <= mouse.cx <= 85:
                     acolor = libtcod.dark_yellow
 
-                    # Set the player to "become" one of these agents
+                    # Set the g.player to "become" one of these agents
                     if mouse.lbutton_pressed:
-                        agent.update_holder(figure=player)
+                        agent.update_holder(figure=g.player)
                         panel4.render = True
                         pcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.light_green, .5)
                         hcolor = pcolor * 2
-                        panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=time_cycle.goto_next_week, args=[],
+                        panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=g.time_cycle.goto_next_week, args=[],
                                                               text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, hcolor=hcolor, do_draw_box=True) )
 
                 else:
@@ -10146,6 +10160,8 @@ def economy_tab(world):
 ##### START GAME #####
 if __name__ == '__main__':
     global interface, render_handler, game
+
+    g.init()
 
     TILE_SIZE = 12
     #actual size of the window

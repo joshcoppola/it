@@ -7,6 +7,7 @@ import random
 from random import randint as roll
 
 from helpers import weighted_choice
+import config as g
 
 def load_combat_data():
     global combat_matrix, combat_moves, melee_armed_moves
@@ -103,7 +104,7 @@ class WorldBattle:
                 f1_member.local_brain.attack_enemy(enemy=target)
                 target.local_brain.attack_enemy(enemy=f1_member)
 
-                print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
+                #print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
                 handle_combat_round(actors=[f1_member, target])
 
 
