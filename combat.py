@@ -94,7 +94,8 @@ class WorldBattle:
             self.small_scale_battle()
 
     def small_scale_battle(self):
-
+        
+        g.M = Wmap
 
         for f1_member in self.faction1_named:
             target = random.choice(self.faction2_named)

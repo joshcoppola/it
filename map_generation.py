@@ -6,6 +6,7 @@ import time
 
 from helpers import *
 from it import Profession
+import config as g
 
 ##### City map generating stuff
 MAX_BUILDING_SIZE = 15
@@ -159,24 +160,24 @@ class CityMap:
                 if not neighbor in node.connected:
                     node.connect(other=neighbor, n_div=3, div_mag=1, usemap=self.usemap)
 
-    def generate_city_map(self, num_nodes, min_dist, disorg, render_handler):
+    def generate_city_map(self, num_nodes, min_dist, disorg):
         steps = 9
         pbarname = 'Generating ' + self.city_class.name + ' map'
-        render_handler.progressbar_screen(pbarname, 'creating main avenues', 1, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'creating main avenues', 1, steps)
         #### Generate the city!
         self.make_main_avenues(center=(int(round(self.usemap.width / 2)), int(round(self.usemap.height / 2))),
                                block_size=min_dist, disorg=disorg)
         #self.all_nodes = self.main_aves
 
         # Add a smattering of nodes
-        render_handler.progressbar_screen(pbarname, 'adding nodes', 2, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'adding nodes', 2, steps)
         self.add_initial_nodes(num_nodes, min_dist)
         # Connect them
-        render_handler.progressbar_screen(pbarname, 'connecting nodes', 3, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'connecting nodes', 3, steps)
         self.connect_initial_nodes(num_neighbors=3)
 
         #  Set outside
-        render_handler.progressbar_screen(pbarname, 'setting outer limits', 4, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'setting outer limits', 4, steps)
 
         ############################################
         border_cells = set(['road', 'municipal', 'wilderness'])
@@ -194,7 +195,7 @@ class CityMap:
 
         border_zones = set(['wilderness', 'road', 'residential', 'industrial', 'market', 'municipal', 'undeveloped'])
 
-        render_handler.progressbar_screen(pbarname, 'finding initial lots', 5, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'finding initial lots', 5, steps)
         # Now loop through all map tiles and find developments on the inside
 
         ###########################
@@ -213,7 +214,7 @@ class CityMap:
 
         has_market = False
 
-        render_handler.progressbar_screen(pbarname, 'zoning and filling lots', 6, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'zoning and filling lots', 6, steps)
         for development_option in development_options:
             ## Choose a random tile to zone the lot from
             distx, disty = random.choice(development_option)
@@ -233,11 +234,11 @@ class CityMap:
         #print(str(len(self.industries)) + ' industries')
         #print(str(len(self.markets)) + ' markets')
 
-        render_handler.progressbar_screen(pbarname, 'historizing houses', 7, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'historizing houses', 7, steps)
         self.historize_houses()
-        render_handler.progressbar_screen(pbarname, 'historizing buildings', 8, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'historizing buildings', 8, steps)
         self.historize_buildings()
-        render_handler.progressbar_screen(pbarname, 'placing figures', 9, steps)
+        g.game.render_handler.progressbar_screen(pbarname, 'placing figures', 9, steps)
         self.place_figures()
 
 
