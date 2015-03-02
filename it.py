@@ -47,8 +47,8 @@ CITY_MAP_WIDTH = 300
 CITY_MAP_HEIGHT = 300
 
 #size of the WORLD
-g.WORLD_WIDTH = 240
-g.WORLD_HEIGHT = 220
+WORLD_WIDTH = 240
+WORLD_HEIGHT = 220
 
 WATER_HEIGHT = 100
 MOUNTAIN_HEIGHT = 190
@@ -1104,9 +1104,9 @@ class Wmap:
         # NORMAL RENDERING
         if not debug_active_unit_dijmap:
             #go through all tiles, and set their background color according to the FOV
-            for cam_y in xrange(g.camera.height):
-                for cam_x in xrange(g.camera.width):
-                    (x, y) = g.camera.cam2map(cam_x, cam_y)
+            for cam_y in xrange(game.camera.height):
+                for cam_x in xrange(game.camera.width):
+                    (x, y) = game.camera.cam2map(cam_x, cam_y)
                     if self.is_val_xy((x, y)):
                         visible = libtcod.map_is_in_fov(self.fov_map, x, y)
 
@@ -1124,10 +1124,10 @@ class Wmap:
 
         ## UNOPTIMIZED DIJMAP RENDERING
         elif debug_active_unit_dijmap:
-            for cam_y in xrange(g.camera.height):
-                for cam_x in xrange(g.camera.width):
-                    #(map_x, map_y) = (g.camera.x + x, g.camera.y + y)
-                    (x, y) = g.camera.cam2map(cam_x, cam_y)
+            for cam_y in xrange(game.camera.height):
+                for cam_x in xrange(game.camera.width):
+                    #(map_x, map_y) = (game.camera.x + x, game.camera.y + y)
+                    (x, y) = game.camera.cam2map(cam_x, cam_y)
                     if self.is_val_xy((x, y)):
                         if not self.tiles[x][y].blocks_mov:
                             intensity = 0
@@ -2323,8 +2323,8 @@ class World:
 
         ## Try to shade the map
         max_alpha = .9
-        for y in xrange(2, g.WORLD_HEIGHT-2):
-            for x in xrange(2, g.WORLD_WIDTH-2):
+        for y in xrange(2, self.height-2):
+            for x in xrange(2, self.width-2):
                 if self.tiles[x][y].region != 'ocean' and self.tiles[x+1][y].region != 'ocean':
                     hdif = self.tiles[x][y].height / self.tiles[x+1][y].height
 
@@ -2981,9 +2981,9 @@ class World:
         if game.world_map_display_type == 'normal':
             #buffer = libtcod.ConsoleBuffer(CAMERA_WIDTH, CAMERA_HEIGHT)
 
-            for y in xrange(g.camera.height):
-                for x in xrange(g.camera.width):
-                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
+            for y in xrange(game.camera.height):
+                for x in xrange(game.camera.width):
+                    (wmap_x, wmap_y) = game.camera.cam2map(x, y)
                     libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
                     #bc = g.WORLD.tiles[wmap_x][wmap_y].color
                     #fc = g.WORLD.tiles[wmap_x][wmap_y].char_color
@@ -2993,9 +2993,9 @@ class World:
             #buffer.blit(con.con)
 
         elif game.world_map_display_type == 'culture':
-            for y in xrange(g.camera.height):
-                for x in xrange(g.camera.width):
-                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
+            for y in xrange(game.camera.height):
+                for x in xrange(game.camera.width):
+                    (wmap_x, wmap_y) = game.camera.cam2map(x, y)
                     if self.tiles[wmap_x][wmap_y].culture is not None:
                         color = self.tiles[wmap_x][wmap_y].culture.color
                         #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, g.WORLD.tiles[wmap_x][wmap_y].color)
@@ -3006,9 +3006,9 @@ class World:
 
         ######################### Territories ##################################
         elif game.world_map_display_type == 'territory':
-            for y in xrange(g.camera.height):
-                for x in xrange(g.camera.width):
-                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
+            for y in xrange(game.camera.height):
+                for x in xrange(game.camera.width):
+                    (wmap_x, wmap_y) = game.camera.cam2map(x, y)
                     if self.tiles[wmap_x][wmap_y].territory is not None:
                         color = self.tiles[wmap_x][wmap_y].territory.color
                         #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, g.WORLD.tiles[wmap_x][wmap_y].color)
@@ -3018,9 +3018,9 @@ class World:
                         libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
         ######################### Resources ##################################
         elif game.world_map_display_type == 'resource':
-            for y in xrange(g.camera.height):
-                for x in xrange(g.camera.width):
-                    (wmap_x, wmap_y) = g.camera.cam2map(x, y)
+            for y in xrange(game.camera.height):
+                for x in xrange(game.camera.width):
+                    (wmap_x, wmap_y) = game.camera.cam2map(x, y)
                     libtcod.console_put_char_ex(map_con.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
 
                     if len(self.tiles[wmap_x][wmap_y].res.keys()) and not 'wood' in self.tiles[wmap_x][wmap_y].res.keys():
@@ -3100,7 +3100,7 @@ class World:
 
         g.M.add_sapients_from_world()
 
-        g.camera.center(g.player.x, g.player.y)
+        game.camera.center(g.player.x, g.player.y)
         game.handle_fov_recompute()
 
 
@@ -3213,7 +3213,7 @@ class World:
         ######################################
 
         g.M.initialize_fov()
-        g.camera.center(g.player.x, g.player.y)
+        game.camera.center(g.player.x, g.player.y)
         game.handle_fov_recompute()
 
     def make_city(self, cx, cy, char, color, name, faction):
@@ -3499,7 +3499,7 @@ class Site:
     def draw(self):
         #only show if it's visible to the g.player
         #if libtcod.map_is_in_fov(fov_map, self.x, self.y):
-        (x, y) = g.camera.map2cam(self.x, self.y)
+        (x, y) = game.camera.map2cam(self.x, self.y)
 
         if x is not None:
             #set the color and then draw the character that represents this object at its position
@@ -3510,7 +3510,7 @@ class Site:
 
     def clear(self):
         #erase the character that represents this object
-        (x, y) = g.camera.map2cam(self.x, self.y)
+        (x, y) = game.camera.map2cam(self.x, self.y)
         if x is not None:
             libtcod.console_put_char(map_con.con, x, y, ' ', libtcod.BKGND_NONE)
 
@@ -5164,7 +5164,7 @@ class Object:
     def w_draw(self):
         #only show if it's visible to the g.player
         #if libtcod.map_is_in_fov(fov_map, self.x, self.y):
-        (x, y) = g.camera.map2cam(self.wx, self.wy)
+        (x, y) = game.camera.map2cam(self.wx, self.wy)
 
         if x is not None:
             #set the color and then draw the character that represents this object at its position
@@ -5176,7 +5176,7 @@ class Object:
     def draw(self):
         #only show if it's visible to the g.player
         if libtcod.map_is_in_fov(g.M.fov_map, self.x, self.y):
-            (x, y) = g.camera.map2cam(self.x, self.y)
+            (x, y) = game.camera.map2cam(self.x, self.y)
 
             if x is not None:
                 #set the color and then draw the character that represents this object at its position
@@ -5184,7 +5184,7 @@ class Object:
                 libtcod.console_put_char(map_con.con, x, y, self.char, libtcod.BKGND_NONE)
 
         elif not self.local_brain:
-            (x, y) = g.camera.map2cam(self.x, self.y)
+            (x, y) = game.camera.map2cam(self.x, self.y)
 
             if x is not None:
                 libtcod.console_set_default_foreground(map_con.con, self.shadow_color)
@@ -5193,7 +5193,7 @@ class Object:
 
     def clear(self):
         #erase the character that represents this object
-        (x, y) = g.camera.map2cam(self.x, self.y)
+        (x, y) = game.camera.map2cam(self.x, self.y)
         if x is not None:
             libtcod.console_put_char(map_con.con, x, y, ' ', libtcod.BKGND_NONE)
 
@@ -5471,7 +5471,7 @@ def player_give_order(target, order):
         while 1:
             event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
             mx, my = mouse.cx, mouse.cy
-            x, y = g.camera.cam2map(mx, my)
+            x, y = game.camera.cam2map(mx, my)
 
             render_handler.render_all(do_flush=False)
 
@@ -5480,7 +5480,7 @@ def player_give_order(target, order):
             path = libtcod.path_compute(p=M.path_map, ox=target.x, oy=target.y, dx=x, dy=y)
             while not libtcod.path_is_empty(p=M.path_map):
                 px, py = libtcod.path_walk(g.M.path_map, True)
-                cpx, cpy = g.camera.map2cam(px, py)
+                cpx, cpy = game.camera.map2cam(px, py)
                 libtcod.console_put_char_ex(con=map_con.con, x=cpx, y=cpy, c='*', fore=libtcod.light_grey, back=libtcod.BKGND_NONE)
             # Draw the final location
             libtcod.console_put_char_ex(con=map_con.con, x=mx, y=my, c='X', fore=libtcod.grey, back=libtcod.black)
@@ -5516,7 +5516,7 @@ def player_order_move():
     while 1:
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
         mx, my = mouse.cx, mouse.cy
-        x, y = g.camera.cam2map(mx, my)
+        x, y = game.camera.cam2map(mx, my)
 
         render_handler.render_all(do_flush=False)
 
@@ -5526,7 +5526,7 @@ def player_order_move():
         locs = []
         for i in xrange(mx-offset, mx+sq_size+1):
             for j in xrange(my-offset, my+sq_size+1):
-                ii, jj = g.camera.cam2map(i, j)
+                ii, jj = game.camera.cam2map(i, j)
                 if not g.M.tile_blocks_mov(ii, jj):
                     locs.append((ii, jj))
                     libtcod.console_put_char_ex(con=map_con.con, x=i, y=j, c='X', fore=libtcod.grey, back=libtcod.black)
@@ -5688,7 +5688,7 @@ def choose_object_to_interact_with(objs, x, y):
     # Else, a button menu which shows the interactions
     elif len(objs) > 1:
 
-        (x, y) = g.camera.map2cam(x, y)
+        (x, y) = game.camera.map2cam(x, y)
 
         height = 30
         width = 28
@@ -5727,7 +5727,7 @@ def choose_object_to_interact_with(objs, x, y):
         args = g.M.tiles[x][y].interactable['args']
         text = g.M.tiles[x][y].interactable['text']
 
-        (x, y) = g.camera.map2cam(x, y)
+        (x, y) = game.camera.map2cam(x, y)
 
         height = 12
         width = 22
@@ -8214,43 +8214,41 @@ class Camera:
         self.x = 0
         self.y = 0
 
-        self.center(int(round(g.WORLD_WIDTH / 2)), int(round(g.WORLD_HEIGHT / 2)))
-
     def move(self, dx, dy):
         if game.map_scale == 'world':
-            # Make sure the new g.camera coordinate won't let the g.camera see off the map
-            if 0 <= self.x + dx < g.WORLD_WIDTH - self.width - 1:
+            # Make sure the new game.camera coordinate won't let the game.camera see off the map
+            if 0 <= self.x + dx < g.WORLD.width - self.width:
                 self.x += dx
-            if 0 <= self.y + dy < g.WORLD_HEIGHT - self.height - 1:
+            if 0 <= self.y + dy < g.WORLD.height - self.height:
                 self.y += dy
 
         if game.map_scale == 'human':
-            # Make sure the new g.camera coordinate won't let the g.camera see off the map
-            if 0 <= self.x + dx < g.M.width - self.width - 1:
+            # Make sure the new game.camera coordinate won't let the game.camera see off the map
+            if 0 <= self.x + dx <= g.M.width - self.width:
                 self.x += dx
-            if 0 <= self.y + dy < g.M.height - self.height - 1:
+            if 0 <= self.y + dy <= g.M.height - self.height:
                 self.y += dy
 
     def center(self, target_x, target_y):
-        #new g.camera coordinates (top-left corner of the screen relative to the map)
+        #new game.camera coordinates (top-left corner of the screen relative to the map)
         x = target_x - int(round(self.width / 2))  #coordinates so that the target is at the center of the screen
         y = target_y - int(round(self.height / 2))
 
-        #make sure the g.camera doesn't see outside the map
+        #make sure the game.camera doesn't see outside the map
         if x < 0: x = 0
         if y < 0: y = 0
         if game.map_scale == 'world':
-            if x > g.WORLD_WIDTH - self.width - 1:
-                x = g.WORLD_WIDTH - self.width - 1
-            if y > g.WORLD_HEIGHT - self.height - 1:
-                y = g.WORLD_HEIGHT - self.height - 1
+            if x > g.WORLD.width - self.width:
+                x = g.WORLD.width - self.width
+            if y > g.WORLD.height - self.height:
+                y = g.WORLD.height - self.height
 
         ## Add FOV compute once it works for the world.
         elif game.map_scale == 'human':
-            if x > g.M.width - self.width - 1:
-                x = g.M.width - self.width - 1
-            if y > g.M.height - self.height - 1:
-                y = g.M.height - self.height - 1
+            if x > g.M.width - self.width:
+                x = g.M.width - self.width
+            if y > g.M.height - self.height:
+                y = g.M.height - self.height
 
         (self.x, self.y) = (x, y)
 
@@ -8280,7 +8278,7 @@ class Camera:
             (x, y) = self.cam2map(mouse.cx, mouse.cy)
 
             dif_x, dif_y = (x - ox, y - oy)
-            # add some momentum to the g.camera
+            # add some momentum to the game.camera
             if dif_x != ox and dif_y != oy:
                 momentum += 2
             else:
@@ -8288,7 +8286,7 @@ class Camera:
 
             self.move(-dif_x, -dif_y)
 
-        # after button is released, move the g.camera a bit more based on momentum
+        # after button is released, move the game.camera a bit more based on momentum
         total_momentum = momentum
         m_amt = 1
         while momentum > 0 and int(round(dif_x * m_amt)) + int(round(dif_y * m_amt)):
@@ -8302,7 +8300,7 @@ class Camera:
             self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
 
     def mouse_is_on_map(self):
-        ''' Ensures mouse doesn't pick up activity outside edge of g.camera '''
+        ''' Ensures mouse doesn't pick up activity outside edge of game.camera '''
         return (0 <= mouse.cx <= self.width and 0 <= mouse.cy <= self.height)
 
 
@@ -8426,7 +8424,7 @@ class Culture:
     def add_villages(self):
         for x, y in self.territory:
             for resource in g.WORLD.tiles[x][y].res.keys():
-                if resource not in self.access_res and g.WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(g.WORLD.tiles[x][y].minor_sites): #and 10 < x < g.WORLD_WIDTH - 10 and 10 < y < g.WORLD_HEIGHT - 10:
+                if resource not in self.access_res and g.WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(g.WORLD.tiles[x][y].minor_sites):
                     self.access_res.append(resource)
                     self.add_village(x, y)
                     break
@@ -8537,7 +8535,7 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, sap
 
 def get_info_under_mouse():
     ''' get info to be printed in the sidebar '''
-    (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)
+    (x, y) = game.camera.cam2map(mouse.cx, mouse.cy)
     info = []
     if game.map_scale == 'human' and g.M.is_val_xy((x, y)):
         info.append(('Tick: {0}'.format(g.WORLD.time_cycle.current_tick), PANEL_FRONT))
@@ -8588,7 +8586,7 @@ def get_info_under_mouse():
 
     elif game.map_scale == 'world':
         color = PANEL_FRONT
-        xc, yc = g.camera.map2cam(x, y)
+        xc, yc = game.camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
             info.append(('DBG: Reg{0}, {1}ht'.format(g.WORLD.tiles[x][y].region_number, g.WORLD.tiles[x][y].height), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
 
@@ -8681,14 +8679,14 @@ class RenderHandler:
         map_con.render_bar(x=int(round(SCREEN_WIDTH / 2)) - 9, y=1, total_width=18, name=current_action, value=min_val,
                    maximum=max_val, bar_color=libtcod.color_lerp(libtcod.dark_yellow, PANEL_FRONT, .5),
                    back_color=PANEL_BACK, text_color=PANEL_FRONT, show_values=False, title_inset=False)
-        libtcod.console_blit(map_con.con, 0, 0, g.camera.width, g.camera.height, 0, 0, 10)
+        libtcod.console_blit(map_con.con, 0, 0, game.camera.width, game.camera.height, 0, 0, 10)
         #libtcod.console_blit(con.con, 0, 0, SCREEN_WIDTH, PANEL1_HEIGHT, 0, 0, PANEL1_YPOS)
         libtcod.console_set_default_background(map_con.con, libtcod.black)
         libtcod.console_flush()
 
     def blink(self, x, y, color, repetitions, speed):
         # Have a tile blink at specified speed for specified # of repetitions
-        (wmap_x, wmap_y) = g.camera.cam2map(x, y)
+        (wmap_x, wmap_y) = game.camera.cam2map(x, y)
 
         render_handler.render_all(do_flush=1)
 
@@ -8701,7 +8699,7 @@ class RenderHandler:
             time.sleep(speed)
             # Render background color
             libtcod.console_put_char_ex(map_con.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, g.WORLD.tiles[wmap_x][wmap_y].char_color, g.WORLD.tiles[wmap_x][wmap_y].color)
-            libtcod.console_blit(map_con.con, 0, 0, g.camera.width, g.camera.height, 0, 0, 0)
+            libtcod.console_blit(map_con.con, 0, 0, game.camera.width, game.camera.height, 0, 0, 0)
             libtcod.console_flush()
             time.sleep(speed)
 
@@ -8866,10 +8864,10 @@ class RenderHandler:
 
 def battle_hover_information():
     ''' Displays a box summarizing some combat stats on mouse hover '''
-    (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)  #from screen to map coordinates
+    (x, y) = game.camera.cam2map(mouse.cx, mouse.cy)  #from screen to map coordinates
 
     target = None
-    if g.camera.mouse_is_on_map() and g.M.is_val_xy((x, y)) and g.M.tiles[x][y].explored:
+    if game.camera.mouse_is_on_map() and g.M.is_val_xy((x, y)) and g.M.tiles[x][y].explored:
         for obj in g.M.tiles[x][y].objects:
             if obj.creature and obj.creature.status != 'dead':
                 target = obj
@@ -9078,7 +9076,10 @@ class Game:
         self.interface.set_game(self)
 
         self.state = 'worldgen'
-        self.map_scale = 'world'        self.msgs = []
+        self.map_scale = 'world'
+        self.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
+
+        self.msgs = []
 
         self.quit_game = 0
 
@@ -9176,13 +9177,13 @@ class Game:
 
 
     def create_new_world_and_begin_game(self):
-        #global g.WORLD, g.camera
-        # Need to first set g.camera
-        g.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
         # Gen world
         g.WORLD = None # Clear in case previous world was generated
-        g.WORLD = World(g.WORLD_WIDTH, g.WORLD_HEIGHT)
+        g.WORLD = World(WORLD_WIDTH, WORLD_HEIGHT)
         g.WORLD.generate()
+
+        self.camera.center(int(round(g.WORLD.width / 2)), int(round(g.WORLD.height / 2)))
+
         self.game_main_loop()
 
 
@@ -9198,7 +9199,7 @@ class Game:
         g.player.local_brain = None
         g.player.world_brain = None
 
-        g.camera.center(g.player.wx, g.player.wy)
+        game.camera.center(g.player.wx, g.player.wy)
         self.state = 'playing'
 
 
@@ -9220,10 +9221,6 @@ class Game:
     def setup_quick_battle(self):
         ''' A quick and dirty battle testing arena, more or less. Will need a massive overhaul
             at some point, if it even stays in '''
-        #global g.time_cycle, g.camera, g.player, M, g.WORLD
-
-        # Need to first set g.camera
-        g.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
 
         t1 = time.time()
         ##################### Create a dummy world just for the quick battle
@@ -9297,7 +9294,7 @@ class Game:
         pack = assemble_object(object_blueprint=phys.object_dict['pack'], force_material=None, wx=None, wy=None)
         g.player.put_on_clothing(clothing=pack)
 
-        g.camera.center(g.player.x, g.player.y)
+        game.camera.center(g.player.x, g.player.y)
 
         game.add_message('loaded in %.2f seconds' %(time.time() - t1))
 
@@ -9315,7 +9312,7 @@ class Game:
         g.M.clear_objects()
 
         self.switch_map_scale(map_scale='world')
-        g.camera.center(g.player.wx, g.player.wy)
+        game.camera.center(g.player.wx, g.player.wy)
 
 
     def handle_keys(self):
@@ -9325,7 +9322,7 @@ class Game:
         #test for other keys
         key_char = chr(key.c)
 
-        (x, y) = g.camera.cam2map(mouse.cx, mouse.cy)
+        (x, y) = game.camera.cam2map(mouse.cx, mouse.cy)
 
         if key.vk == libtcod.KEY_ENTER and key.lalt:
             #Alt+Enter: toggle fullscreen
@@ -9338,8 +9335,8 @@ class Game:
         elif key.vk == libtcod.KEY_ESCAPE:
             return 'exit'  #exit game
 
-        if mouse.lbutton and g.camera.mouse_is_on_map():
-            g.camera.click_and_drag(mouse)
+        if mouse.lbutton and game.camera.mouse_is_on_map():
+            game.camera.click_and_drag(mouse)
 
         if mouse.wheel_up:
             game.set_msg_index(amount=-1)
@@ -9360,7 +9357,7 @@ class Game:
                         game.world_map_display_type = 'normal'
 
             if self.map_scale == 'human':
-                if mouse.lbutton_pressed and g.camera.mouse_is_on_map():
+                if mouse.lbutton_pressed and game.camera.mouse_is_on_map():
                     # Clicking on a fellow sapient lets you talk to it
                     if len(g.M.tiles[x][y].objects) or g.M.tiles[x][y].interactable:
                         choose_object_to_interact_with(objs=g.M.tiles[x][y].objects, x=x, y=y)
@@ -9401,16 +9398,16 @@ class Game:
 
         elif self.state == 'worldgen':
             if key.vk == libtcod.KEY_UP:
-                g.camera.move(0, -10)
+                game.camera.move(0, -10)
 
             elif key.vk == libtcod.KEY_DOWN:
-                g.camera.move(0, 10)
+                game.camera.move(0, 10)
 
             elif key.vk == libtcod.KEY_LEFT:
-                g.camera.move(-10, 0)
+                game.camera.move(-10, 0)
 
             elif key.vk == libtcod.KEY_RIGHT:
-                g.camera.move(10, 0)
+                game.camera.move(10, 0)
 
     def get_key(self, key):
         ''' 'return either libtcod code or character that was pressed '''
@@ -9454,13 +9451,13 @@ class Game:
                 # Advance time!
                 self.player_advance_time(g.player.creature.attributes['movespeed'])
 
-                g.camera.center(g.player.x, g.player.y)
+                game.camera.center(g.player.x, g.player.y)
 
         elif self.map_scale == 'world':
             # Change back to allow blocked movement and non-glitchy battlemap
             g.player.w_move(dx, dy)
             g.WORLD.time_cycle.day_tick(1)
-            g.camera.center(g.player.wx, g.player.wy)
+            game.camera.center(g.player.wx, g.player.wy)
 
 
 def main_menu():
