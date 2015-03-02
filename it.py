@@ -8299,6 +8299,16 @@ class Camera:
 
             self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
 
+            # Remove any extra momentum on hitting map edge
+            if game.map_scale == 'world':
+                wx, wy = self.cam2map(x=self.x, y=self.y)
+                if not (0 < wx < g.WORLD.width - self.width or 0 < wy < g.WORLD.height - self.height):
+                    momentum = 0
+            elif game.map_scale == 'human':
+                mx, my = self.cam2map(x=self.x, y=self.y)
+                if not (0 < mx < g.M.width - self.width or 0 < my < g.M.height - self.height):
+                    momentum = 0
+
     def mouse_is_on_map(self):
         ''' Ensures mouse doesn't pick up activity outside edge of game.camera '''
         return (0 <= mouse.cx <= self.width and 0 <= mouse.cy <= self.height)
