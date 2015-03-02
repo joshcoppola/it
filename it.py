@@ -50,12 +50,6 @@ CITY_MAP_HEIGHT = 300
 WORLD_WIDTH = 240
 WORLD_HEIGHT = 220
 
-
-FOV_ALGO = 0  #default FOV algorithm
-FOV_LIGHT_WALLS = 1  #light walls or not
-UNALERT_FOV_RADIUS = 30
-ALERT_FOV_RADIUS = 60
-
 LIMIT_FPS = 60
 
 # Sites must be this far apart
@@ -1095,7 +1089,7 @@ class Wmap:
     def display(self, debug_active_unit_dijmap):
         #recompute FOV if needed (the g.player moved or something)
         self.fov_recompute = False
-        libtcod.map_compute_fov(self.fov_map, g.player.x, g.player.y, g.player.creature.alert_sight_radius, FOV_LIGHT_WALLS, FOV_ALGO)
+        libtcod.map_compute_fov(self.fov_map, g.player.x, g.player.y, g.player.creature.alert_sight_radius, g.FOV_LIGHT_WALLS, g.FOV_ALGO)
         libtcod.console_clear(map_con.con)
 
         # NORMAL RENDERING
@@ -7018,10 +7012,8 @@ class Creature:
         for attribute, value in phys.creature_dict['human']['creature']['attributes'].iteritems():
             self.attributes[attribute] = value
 
-        self.alert_sight_radius = 60
-        self.unalert_sight_radius = 30
-        #self.move_action_pool = 0
-        #self.attack_action_pool = 0
+        self.alert_sight_radius = g.ALERT_FOV_RADIUS
+        self.unalert_sight_radius = g.UNALERT_FOV_RADIUS
 
         self.energy = 10
         self.pain = 0
