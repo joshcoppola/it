@@ -68,9 +68,6 @@ PANEL_BACK = libtcod.Color(18, 15, 15)
 PANEL_FRONT = libtcod.Color(138, 115, 95)
 
 
-ENERGY_FRONT = libtcod.color_lerp(PANEL_FRONT, libtcod.yellow, .6)
-ENERGY_BACK = libtcod.black
-
 PAIN_FRONT = libtcod.color_lerp(PANEL_FRONT, libtcod.red, .6)
 PAIN_BACK = libtcod.color_lerp(libtcod.dark_red, libtcod.black, .6)
 
@@ -264,241 +261,6 @@ civ_colors = (
               libtcod.Color(148, 62, 15), libtcod.Color(205, 38, 38), libtcod.Color(255, 64, 64)
               )
 
-MCFG = {
-           'tundra':{
-                     'initial_blocks_mov_chance':100,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':1,
-                     'small_stump_chance':1,
-                     'large_tree_chance':1,
-                     'large_stump_chance':1,
-                     'shrub_chance':10,
-                     'unique_ground_tiles':(()),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'taiga':{
-                    'initial_blocks_mov_chance':200,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':10,
-                     'small_stump_chance':10,
-                     'large_tree_chance':1,
-                     'large_stump_chance':1,
-                     'shrub_chance':15,
-                     'unique_ground_tiles':((293, 4), (294, 4)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'temperate forest':{
-                    'initial_blocks_mov_chance':400,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     #'base_color':(233,221,209),
-                     'base_color':(82, 61, 56),
-                     'small_tree_chance':8,
-                     'small_stump_chance':6,
-                     'large_tree_chance':10,
-                     'large_stump_chance':2,
-                     'shrub_chance':85,
-                     'unique_ground_tiles':((293, 8), (294, 8)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'temperate steppe':{
-                    'initial_blocks_mov_chance':450,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':5,
-                     'small_stump_chance':1,
-                     'large_tree_chance':1,
-                     'large_stump_chance':1,
-                     'shrub_chance':10,
-                     'unique_ground_tiles':((293, 4), (294, 4)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'rain forest':{
-                    'initial_blocks_mov_chance':400,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     #'base_color':(182, 161, 156),
-                     'base_color':(82, 61, 56),
-                     'small_tree_chance':20,
-                     'small_stump_chance':10,
-                     'large_tree_chance':15,
-                     'large_stump_chance':5,
-                     'shrub_chance':100,
-                     'unique_ground_tiles':((293, 9), (294, 9)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'tree savanna':{
-                    'initial_blocks_mov_chance':450,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':(159, 139, 76),
-                     'small_tree_chance':5,
-                     'small_stump_chance':2,
-                     'large_tree_chance':10,
-                     'large_stump_chance':2,
-                     'shrub_chance':15,
-                     'unique_ground_tiles':((293, 8), (294, 8)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'grass savanna':{
-                    'initial_blocks_mov_chance':300,
-                     'repetitions':3,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':5,
-                     'small_stump_chance':3,
-                     'large_tree_chance':1,
-                     'large_stump_chance':1,
-                     'shrub_chance':20,
-                     'unique_ground_tiles':((293, 1), (294, 1)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'dry steppe':{
-                    'initial_blocks_mov_chance':400,
-                     'repetitions':1,
-                     'walls_to_floor':4,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':5,
-                     'small_stump_chance':10,
-                     'large_tree_chance':1,
-                     'large_stump_chance':5,
-                     'shrub_chance':10,
-                     'unique_ground_tiles':((293, 5), (294, 5)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'semi-arid desert':{
-                    'initial_blocks_mov_chance':300,
-                     'repetitions':1,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':0,
-                     'small_stump_chance':1,
-                     'large_tree_chance':0,
-                     'large_stump_chance':1,
-                     'shrub_chance':5,
-                     'unique_ground_tiles':((293, 1), (294, 1)),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'arid desert':{
-                    'initial_blocks_mov_chance':300,
-                     'repetitions':1,
-                     'walls_to_floor':3,
-                     'walls_to_wall':5,
-                     'blocks_mov_color':libtcod.darker_grey,
-                     'blocks_mov_surface':'rocky outcrop',
-                     'shade':1,
-                     'blocks_mov_height':189,
-
-                     'base_color':'use_world_map',
-                     'small_tree_chance':0,
-                     'small_stump_chance':1,
-                     'large_tree_chance':0,
-                     'large_stump_chance':0,
-                     'shrub_chance':2,
-                     'unique_ground_tiles':(),
-                     'map_pad':0,
-                     'map_pad_type':0
-                     },
-
-           'ocean':{
-            'initial_blocks_mov_chance':300,
-             'repetitions':1,
-             'walls_to_floor':3,
-             'walls_to_wall':5,
-             'blocks_mov_color':libtcod.darker_grey,
-             'blocks_mov_surface':'rocky outcrop',
-             'shade':1,
-             'blocks_mov_height':189,
-
-             'base_color':'use_world_map',
-             'small_tree_chance':0,
-             'small_stump_chance':1,
-             'large_tree_chance':0,
-             'large_stump_chance':0,
-             'shrub_chance':2,
-             'unique_ground_tiles':(),
-             'map_pad':0,
-             'map_pad_type':0
-             }
-           }
-
 
 mouse = libtcod.Mouse()
 key = libtcod.Key()
@@ -558,7 +320,7 @@ class Region:
 
     def get_base_color(self):
         # Give the map a base color
-        base_rgb_color = MCFG[self.region]['base_color']
+        base_rgb_color = g.MCFG[self.region]['base_color']
         if base_rgb_color == 'use_world_map':
             base_color = self.color
         else:
@@ -3078,15 +2840,15 @@ class World:
 
 
 
-        g.M.run_cellular_automata(cfg=MCFG[self.tiles[x][y].region])
+        g.M.run_cellular_automata(cfg=g.MCFG[self.tiles[x][y].region])
         g.M.add_minor_sites_to_map()
 
         if not self.tiles[x][y].site:
             g.M.add_world_features(x, y)
 
         ########### NATURE #################
-        g.M.color_blocked_tiles(cfg=MCFG[self.tiles[x][y].region])
-        g.M.add_vegetation(cfg=MCFG[self.tiles[x][y].region])
+        g.M.color_blocked_tiles(cfg=g.MCFG[self.tiles[x][y].region])
+        g.M.add_vegetation(cfg=g.MCFG[self.tiles[x][y].region])
         g.M.set_initial_dmaps()
 
         g.M.add_sapients_from_world()
@@ -5233,7 +4995,7 @@ def attack_menu(actor, target):
     xb, yb = 0, 0
     transp = .8
     # Make the console window
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=xb, yoff=yb, interface=interface, is_root=0, append_to_panels=1, transp=.8)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=xb, yoff=yb, interface=g.game.interface, is_root=0, append_to_panels=1, transp=.8)
 
 
     def button_refresh_func(target):
@@ -5254,7 +5016,7 @@ def attack_menu(actor, target):
         # Setup buttons
         buttons = [gui.Button(gui_panel=wpanel, func=show_object_info, args=[target],
                                   text='Obj info', topleft=(mid_x, 40), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
-                   gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+                   gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         ########## New simultaneous combat system preview ############
@@ -5319,7 +5081,7 @@ def attack_menu(actor, target):
         ######### End new simultaneous combat system preview #########
 
         mid_y += 4
-        buttons.append(gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+        buttons.append(gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                                   text='Cancel', topleft=(mid_x, 44), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
@@ -5376,11 +5138,11 @@ def talk_screen(actor, target):
     height = 40
 
     # Make the console window
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=xb, yoff=yb, interface=interface, name='talk_screen')
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=xb, yoff=yb, interface=g.game.interface, name='talk_screen')
 
     def refresh_buttons():
         aty = 15
-        buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+        buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         talk_options = g.player.sapient.get_valid_questions(target)
@@ -5401,7 +5163,7 @@ def talk_screen(actor, target):
 
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.render_handler.debug_dijmap_view, args=[target],
                                   text='See DMap', topleft=(atx, aty+9), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
-        buttons.append(gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+        buttons.append(gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                                   text='Done', topleft=(atx, aty+12), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
@@ -5443,13 +5205,13 @@ def order_menu(player, target):
 
     bwidth = width - (4 * 2)
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     bx = 4
     by = 5
 
-    wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=bwidth, height=3)
-    wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
+    wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=bwidth, height=3)
+    wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
 
     wpanel.add_button(func=g.player_give_order, args=[target, 'move_to'], text='Move to...', topleft=(atx, aty), width=bwidth, height=3, closes_menu=1)
@@ -5554,13 +5316,13 @@ def pick_up_menu():
 
     bwidth = width - (4 * 2)
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     bx = 4
     by = 5
 
-    wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=bwidth, height=3)
-    wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
+    wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=bwidth, height=3)
+    wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
     i = 0
     for obj in objs:
@@ -5594,7 +5356,7 @@ def manage_inventory():
 
     b_width = width - (4 * 2)
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     def update_button_func():
         wpanel.gen_buttons = []
@@ -5602,8 +5364,8 @@ def manage_inventory():
         inventory = g.player.get_inventory()
 
         # Setup buttons
-        wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=b_width, height=3)
-        wpanel.add_button(func=interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
+        wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=b_width, height=3)
+        wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
         i = 0
         for obj in inventory['clothing']:
@@ -5642,14 +5404,14 @@ def storage_menu(obj):
 
     b_width = width - (4 * 2)
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     ### Get a list of storage devices g.player might have
     storage_items = g.player.get_storage_items()
 
-    buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel], text='Done',
+    buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
                           topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
-               gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+               gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     # Store item
@@ -5689,11 +5451,11 @@ def choose_object_to_interact_with(objs, x, y):
 
         b_width = width - (4 * 2)
 
-        wpanel = gui.GuiPanel(width=width, height=height, xoff=x, yoff=y, interface=interface)
+        wpanel = gui.GuiPanel(width=width, height=height, xoff=x, yoff=y, interface=g.game.interface)
 
-        buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel], text='Done',
+        buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
                               topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
-                   gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+                   gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         i = 0
@@ -5728,12 +5490,12 @@ def choose_object_to_interact_with(objs, x, y):
 
         b_width = width - (4 * 2)
 
-        wpanel = gui.GuiPanel(width=width, height=height, xoff=x, yoff=y, interface=interface)
+        wpanel = gui.GuiPanel(width=width, height=height, xoff=x, yoff=y, interface=g.game.interface)
 
 
-        buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel], text='Cancel',
+        buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Cancel',
                               topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
-                   gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+                   gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
 
@@ -5747,10 +5509,10 @@ def debug_menu():
     height = 50
     width = 30
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     if g.game.map_scale == 'world':
-        buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+        buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                  text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
 
                    gui.Button(gui_panel=wpanel, func=list_people, args=[],
@@ -5760,7 +5522,7 @@ def debug_menu():
                  text='Factions', topleft=(3, 8), width=width-4, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
                    ]
     elif g.game.map_scale == 'human':
-        buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+        buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                  text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
 
                  gui.Button(gui_panel=wpanel, func=list_people, args=[],
@@ -5774,9 +5536,9 @@ def list_people():
     height = 50
     width = 30
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
-    buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+    buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
              text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     y = 5
@@ -5795,9 +5557,9 @@ def list_factions():
     height = 50
     width = 30
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
-    buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+    buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
              text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     y = 5
@@ -5814,9 +5576,9 @@ def dbg_faction_relations(faction):
     height = 50
     width = 30
 
-    wpanel = gui.GuiPanel(width=width, height=height, xoff=30, yoff=0, interface=interface)
+    wpanel = gui.GuiPanel(width=width, height=height, xoff=30, yoff=0, interface=g.game.interface)
 
-    buttons = [gui.Button(gui_panel=wpanel, func=interface.prepare_to_delete_panel, args=[wpanel],
+    buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
              text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     def render_text_func():
@@ -6637,7 +6399,7 @@ class SapientComponent:
 
             # GUI stuff - must update when NPC gives response
             if asker == g.player:
-                for panel in interface.get_panels(panel_name='talk_screen'):
+                for panel in g.game.interface.get_panels(panel_name='talk_screen'):
                     panel.button_refresh_func(*panel.button_refresh_args)
 
 
@@ -6999,7 +6761,7 @@ class Creature:
 
 
         self.skills = {}
-        for skill, value in phys.creature_dict['human']['creature']['skills'].iteritems():
+        for skill, value in phys.creature_dict[self.creature_type]['creature']['skills'].iteritems():
             self.skills[skill] = value
 
 
@@ -7009,13 +6771,13 @@ class Creature:
 
 
         self.attributes = {}
-        for attribute, value in phys.creature_dict['human']['creature']['attributes'].iteritems():
+        for attribute, value in phys.creature_dict[self.creature_type]['creature']['attributes'].iteritems():
             self.attributes[attribute] = value
 
         self.alert_sight_radius = g.ALERT_FOV_RADIUS
         self.unalert_sight_radius = g.UNALERT_FOV_RADIUS
 
-        self.energy = 10
+
         self.pain = 0
         ## Blood ##
         self.blood = 5.6 # in liters - should also scale with body's volume
@@ -8711,7 +8473,7 @@ class RenderHandler:
             g.WORLD.display()
 
         # Handle the basic rendering steps on the GUI panels
-        for panel in interface.gui_panels:
+        for panel in g.game.interface.gui_panels:
             panel.render_panel(g.game.map_scale, mouse)
 
         # Debug - print FPS
@@ -8808,17 +8570,13 @@ class RenderHandler:
             wearing_info = join_list([c.name for c in g.player.wearing])
             libtcod.console_print_rect(panel3.con, 2, y, panel3.width-2, panel3.height-y, 'Wearing {0}'.format(wearing_info))
 
-                ## Bar showing current energy amount ##
-            #panel3.render_bar(x=2, y=panel3.height - 3, total_width=panel3.width - 4, name='Energy',
-            #           value=g.player.creature.energy, maximum=g.player.creature.catts['Stamina'],
-            #           bar_color=ENERGY_FRONT, back_color=ENERGY_BACK, text_color=libtcod.black, show_values=True,
-            #           title_inset=True)
+
             ## bar showing current pain amount ##
             #panel3.render_bar(x=2, y=panel3.height - 4, total_width=panel3.width - 4, name='Pain',
             #           value=g.player.creature.get_pain(), maximum=g.player.creature.get_max_pain(),
             #           bar_color=PAIN_FRONT, back_color=PAIN_BACK, text_color=libtcod.black, show_values=True,
             #           title_inset=True)
-            ### Done rendering g.player info ###
+            ### Done rendering player info ###
 
             if g.game.map_scale == 'human':
                 battle_hover_information()
@@ -8847,18 +8605,18 @@ class RenderHandler:
             y += 1
 
         #blit the contents of "panel" to the root console
-        for panel in interface.gui_panels:
+        for panel in g.game.interface.gui_panels:
             if panel.render:
                 panel.blit()
         # Special priority for the hover information panel
-        if interface.hover_info:
-            interface.hover_info.hover()
+        if g.game.interface.hover_info:
+            g.game.interface.hover_info.hover()
 
         if do_flush:
             libtcod.console_flush()
 
-        for panel in interface.panel_deletions[:]:
-            interface.delete_panel(panel)
+        for panel in g.game.interface.panel_deletions[:]:
+            g.game.interface.delete_panel(panel)
 
 
 def battle_hover_information():
@@ -8876,7 +8634,7 @@ def battle_hover_information():
 
         if g.M.tiles[x][y].interactable:
             itext = g.M.tiles[x][y].interactable['hover_text']
-            gui.HoverInfo(header=['Interact'], text=itext, cx=mouse.cx, cy=mouse.cy, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=interface)
+            gui.HoverInfo(header=['Interact'], text=itext, cx=mouse.cx, cy=mouse.cy, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
 
         ####### FOR OTHER OBJECTS ######
         if len(other_objects) > 0:
@@ -8893,7 +8651,7 @@ def battle_hover_information():
                 otext.append('')
 
 
-            gui.HoverInfo(header=oheader, text=otext, cx=mouse.cx+1, cy=mouse.cy+1, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=interface, xy_corner=1)
+            gui.HoverInfo(header=oheader, text=otext, cx=mouse.cx+1, cy=mouse.cy+1, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface, xy_corner=1)
 
         ######## FOR SAPIENTS ###########
         if target and target.sapient:
@@ -8933,7 +8691,7 @@ def battle_hover_information():
                 text.append('Closest_dist: %s'%target.local_brain.perception_info['closest_enemy_distance'])
                 #text.append('State: ' + target.local_brain.ai_state )
 
-            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=interface)
+            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
 
         ### If it's a non-sapient creature....
         elif target:
@@ -8944,7 +8702,7 @@ def battle_hover_information():
                 text.append('')
                 text.append('AI State: %s' %target.local_brain.ai_state )
 
-            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=interface)
+            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
         ######################################
 
         ## Only handle recompute if there's something uner the cursor
@@ -8974,7 +8732,7 @@ def infobox(header, options, xb=0, yb=0, xoffset=2, yoffset=2, textc=libtcod.gre
         yb = int(round(SCREEN_HEIGHT / 2)) - int(round(height / 2))
 
     #create an off-screen console that represents the menu's window
-    wpanel = gui.GuiPanel(width=total_width, height=height, xoff=0, yoff=0, interface=interface,
+    wpanel = gui.GuiPanel(width=total_width, height=height, xoff=0, yoff=0, interface=g.game.interface,
                           is_root=0, append_to_panels=0)
 
     # Blit window once with desired transparency.
@@ -9284,10 +9042,10 @@ class Game:
         hm = g.M.create_heightmap_from_surrounding_tiles()
         base_color = g.WORLD.tiles[1][1].get_base_color()
         g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
-        g.M.run_cellular_automata(cfg=MCFG[g.WORLD.tiles[x][y].region])
+        g.M.run_cellular_automata(cfg=g.MCFG[g.WORLD.tiles[x][y].region])
         g.M.add_minor_sites_to_map()
-        g.M.color_blocked_tiles(cfg=MCFG[g.WORLD.tiles[x][y].region])
-        g.M.add_vegetation(cfg=MCFG[g.WORLD.tiles[x][y].region])
+        g.M.color_blocked_tiles(cfg=g.MCFG[g.WORLD.tiles[x][y].region])
+        g.M.add_vegetation(cfg=g.MCFG[g.WORLD.tiles[x][y].region])
         g.M.set_initial_dmaps()
         g.M.add_sapients_from_world()
 
@@ -10151,7 +9909,6 @@ def economy_tab(world):
 
 ##### START GAME #####
 if __name__ == '__main__':
-    global interface
 
     g.init()
 
@@ -10199,7 +9956,7 @@ if __name__ == '__main__':
     libtcod.sys_set_fps(LIMIT_FPS)
 
     # PlayerInterface class has been initialized in GUI
-    interface = gui.interface
+    interface = gui.PlayerInterface()
     root_con = gui.GuiPanel(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, xoff=0, yoff=0, interface=interface, is_root=1, name='Root')
 
     render_handler = RenderHandler()

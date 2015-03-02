@@ -2,6 +2,7 @@
 from __future__ import division
 import libtcodpy as libtcod
 #from it import PANEL_BACK, PANEL_FRONT
+import config as g
 
 PANEL_BACK = libtcod.Color(18, 15, 15)
 #PANEL_FRONT = libtcod.Color(88, 80, 64)
@@ -268,7 +269,7 @@ class Button:
 
             if self.hover_text:
                 #hover_info(interface=interface, header=['t'], text=self.hover_text, xb=self.x, yb=self.y-10, transp=0)
-                interface.add_hover_info(interface=interface, header=self.hover_header, text=self.hover_text, cx=mouse.cx + self.hover_text_offset[0], cy=mouse.cy + self.hover_text_offset[1], transp=1, do_hover=0)
+                self.gui_panel.interface.add_hover_info(interface=self.gui_panel.interface, header=self.hover_header, text=self.hover_text, cx=mouse.cx + self.hover_text_offset[0], cy=mouse.cy + self.hover_text_offset[1], transp=1, do_hover=0)
 
             # Handle clicks
             if mouse.lbutton_pressed and not self.clicked:
@@ -348,7 +349,7 @@ class HoverInfo:
         height = len(self.text) + header_height + self.yoffset + self.hoffset
 
 
-        wpanel = GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=interface, is_root=0, append_to_panels=0)
+        wpanel = GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=self.interface, is_root=0, append_to_panels=0)
 
         # Header
         libtcod.console_set_default_foreground(wpanel.con, self.textc)
@@ -382,9 +383,4 @@ class HoverInfo:
 
         if not self.do_hover:
             self.interface.clear_hover_info()
-
-
-
-interface = PlayerInterface()
-
 

@@ -13,7 +13,9 @@ COMPASS = ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'wes
 # from http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
 int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
 
-def join_list(string_list):
+def join_list(string_list, null_value="nothing"):
+    if len(string_list) == 0:
+        return null_value
     if len(string_list) == 1:
         return string_list[0]
     elif len(string_list) == 2:
