@@ -1,4 +1,4 @@
-
+from __future__ import division
 import random
 from random import randint as roll
 import libtcodpy as libtcod

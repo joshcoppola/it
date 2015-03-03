@@ -291,7 +291,7 @@ class PlayerInterface:
     def __init__(self):
 
         self.gui_panels = []
-        self.map_panel = None
+        self.map_console = None
         self.root_console = None
         self.panel_deletions = []
         self.game = None
@@ -300,8 +300,8 @@ class PlayerInterface:
     def set_root_panel(self, root_console):
         self.root_console = root_console
 
-    def set_map_panel(self, map_panel):
-        self.map_panel = map_panel
+    def set_map_panel(self, map_console):
+        self.map_console = map_console
 
     def set_panels(self, panels):
         self.panels = panels

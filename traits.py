@@ -1,3 +1,4 @@
+from __future__ import division
 import yaml
 
 with open('data/traits.yml') as t:
