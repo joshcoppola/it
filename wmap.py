@@ -287,7 +287,7 @@ class Wmap:
         hwd = int(self.width/2)
 
 
-        surrounding_heights = g.WORLD.get_surrounding_heights(coords=(self.wx, self.wy))
+        surrounding_heights = self.world.get_surrounding_heights(coords=(self.wx, self.wy))
         this_tile_height = min(surrounding_heights[4], g.MOUNTAIN_HEIGHT-10)
 
         # Which map tiles to use from surrounding_heights variable
@@ -297,7 +297,7 @@ class Wmap:
                                       (0, self.height-1), (hwd, self.height-1), (self.width-1, self.height-1)
                                       )
 
-        surrounding_rivers = g.WORLD.get_surrounding_rivers(coords=(self.wx, self.wy))
+        surrounding_rivers = self.world.get_surrounding_rivers(coords=(self.wx, self.wy))
 
         # Which map tiles to use from the river_dirs variable
         world_to_wmap_rivers =  {
@@ -310,7 +310,7 @@ class Wmap:
 
         ## Create the actual heightmap
         hm = self.create_and_vary_heightmap(initial_height=this_tile_height, mborder=int(self.width/10),
-                                            minr=20, maxr=int(self.width/3), minh=minh, maxh=maxh, iterations=iterations)
+                                            minr=int(self.width/12.5), maxr=int(self.width/3), minh=minh, maxh=maxh, iterations=iterations)
 
 
         corner_tile_indices = set([0, 2, 6, 8])
@@ -405,7 +405,7 @@ class Wmap:
 
     def make_city_map(self, city_class, num_nodes, min_dist, disorg):
         #Make a city on this tile
-        self.cit = mgen.CityMap(self, city_class, g.WORLD.tiles[city_class.x][city_class.y].entities)
+        self.cit = mgen.CityMap(self, city_class, self.world.tiles[city_class.x][city_class.y].entities)
         self.cit.generate_city_map(num_nodes=num_nodes, min_dist=min_dist, disorg=disorg)
 
 
@@ -434,10 +434,10 @@ class Wmap:
 
         if obj.sapient:
             self.sapients.append(obj)
-            obj.creature.next_tick = g.WORLD.time_cycle.current_tick + 1
+            obj.creature.next_tick = self.world.time_cycle.current_tick + 1
         elif obj.creature:
             self.creatures.append(obj)
-            obj.creature.next_tick = g.WORLD.time_cycle.current_tick + 1
+            obj.creature.next_tick = self.world.time_cycle.current_tick + 1
         else:
             self.objects.append(obj)
 
@@ -460,7 +460,7 @@ class Wmap:
                             }
 
 
-        for entity in g.WORLD.tiles[self.wx][self.wy].entities:
+        for entity in self.world.tiles[self.wx][self.wy].entities:
             figure_start = world_last_dir_to_rect[entity.world_last_dir]
             # Find a non-blocked tile
             while 1:
@@ -471,7 +471,7 @@ class Wmap:
             # Add the entity to the map
             g.M.add_object_to_map(x=x, y=y, obj=entity)
 
-        for population in g.WORLD.tiles[self.wx][self.wy].populations:
+        for population in self.world.tiles[self.wx][self.wy].populations:
             population_start = world_last_dir_to_rect[population.world_last_dir]
             population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[])
 
@@ -697,7 +697,7 @@ class Wmap:
                           }
 
 
-        if g.WORLD.tiles[x][y].has_feature('road'):
+        if self.world.tiles[x][y].has_feature('road'):
             # Find whether there are nearby roads
             road_dirs = []
 
@@ -728,7 +728,7 @@ class Wmap:
 
 
         ## Add cave entrances
-        for cave in g.WORLD.tiles[x][y].caves:
+        for cave in self.world.tiles[x][y].caves:
             ## find some tiles that border rock for each cave
             borders_rock = False
             while not borders_rock:
@@ -740,7 +740,7 @@ class Wmap:
                             break
             #cx, cy = random.choice(self.rock_border_cells)
             self.tiles[cx][cy].char = 'O'
-            self.tiles[cx][cy].interactable = {'func':g.WORLD.make_cave_map, 'args':[x, y, cave], 'text':'Enter cave', 'hover_text':['Cave entrance']}
+            self.tiles[cx][cy].interactable = {'func':self.world.make_cave_map, 'args':[x, y, cave], 'text':'Enter cave', 'hover_text':['Cave entrance']}
 
             g.game.add_message(new_msg='cave at %i, %i' %(cx, cy), color=libtcod.green)
 

@@ -679,7 +679,8 @@ class World:
         #libtcod.heightmap_mid_point_displacement(hm=hm, rng=0, roughness=.5)
 
         # Erosion - not sure exactly what these params do
-        libtcod.heightmap_rain_erosion(hm, self.width * self.height, .05, .05, rnd=0)
+        libtcod.heightmap_rain_erosion(hm=hm, nbDrops=self.width * self.height, erosionCoef=.05, sedimentationCoef=.05, rnd=0)
+
         # And normalize heightmap
         #libtcod.heightmap_normalize(hm, mi=1, ma=255)
         libtcod.heightmap_normalize(hm, mi=1, ma=220)
@@ -6195,10 +6196,10 @@ class Creature:
         self.set_stance('Prone')
 
         # Drop any things we have
-        # for component in self.get_graspers():
-            #if component.grasped_item is not None:
+        for component in self.get_graspers():
+            if component.grasped_item is not None:
                 # Drop the object (and release hold on it)
-                #self.owner.drop_object(own_component=component, obj=component.grasped_item)
+                self.owner.drop_object(own_component=component, obj=component.grasped_item)
 
         self.owner.set_display_color(self.owner.pass_out_color)
         self.owner.sapient.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
@@ -6440,15 +6441,15 @@ class DijmapSapient:
             # This will clear the target, in case they happen to be following someone or whatever
             self.unset_target()
 
-            for faction in g.M.factions_on_map.keys():
-            #for faction in actor.creature.dijmap_desires.keys():
+            #for faction in g.M.factions_on_map.keys():
+            for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
 
-            for faction in g.M.factions_on_map.keys():
-            #for faction in actor.creature.dijmap_desires.keys():
+            #for faction in g.M.factions_on_map.keys():
+            for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = -4
 

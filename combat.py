@@ -8,6 +8,7 @@ from random import randint as roll
 
 from helpers import weighted_choice
 import config as g
+import wmap
 
 def load_combat_data():
     global combat_matrix, combat_moves, melee_armed_moves
@@ -94,8 +95,15 @@ class WorldBattle:
             self.small_scale_battle()
 
     def small_scale_battle(self):
-        
-        g.M = Wmap
+
+        g.M = wmap.Wmap(world=g.WORLD, wx=1, wy=1, height=50, width=50 )
+        hm = g.M.create_heightmap_from_surrounding_tiles()
+        base_color = g.WORLD.tiles[1][1].get_base_color()
+        g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
+
+
+        for member in self.faction1_named + self.faction2_named:
+            g.M.add_object_to_map(x=roll(1, 4), y=roll(1, 4), obj=member)
 
         for f1_member in self.faction1_named:
             target = random.choice(self.faction2_named)
