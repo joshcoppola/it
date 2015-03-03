@@ -291,9 +291,20 @@ class PlayerInterface:
     def __init__(self):
 
         self.gui_panels = []
+        self.map_panel = None
+        self.root_console = None
         self.panel_deletions = []
         self.game = None
         self.hover_info = None
+
+    def set_root_panel(self, root_console):
+        self.root_console = root_console
+
+    def set_map_panel(self, map_panel):
+        self.map_panel = map_panel
+
+    def set_panels(self, panels):
+        self.panels = panels
 
     def get_panels(self, panel_name):
         ''' Used to get a panels, perhaps to force refresh etc '''

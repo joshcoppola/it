@@ -9957,6 +9957,7 @@ if __name__ == '__main__':
 
     # PlayerInterface class has been initialized in GUI
     interface = gui.PlayerInterface()
+
     root_con = gui.GuiPanel(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, xoff=0, yoff=0, interface=interface, is_root=1, name='Root')
 
     render_handler = RenderHandler()
@@ -9971,6 +9972,9 @@ if __name__ == '__main__':
     panel4.render = False
 
     interface.gui_panels = [panel1, panel2, panel3, panel4]
+    #interface.set_root_panel(root_con)
+    #interface.set_map_panel(map_con)
+
 
     g.game = Game(interface, render_handler)
 
