@@ -366,9 +366,6 @@ class World:
         self.height = height
         self.width = width
 
-        g.game.world_map_display_type = 'normal'
-        g.game.map_scale = 'world'
-
         self.time_cycle = TimeCycle()
 
         #self.travelers = []
@@ -1244,10 +1241,32 @@ class World:
 
 
     def gen_mythological_creatures(self):
+
+        ## These guys will be less intelligent and more brute-ish. Generally live in lairs or move into existing empty structures
+        num_brute_races = roll(3, 5)
+        for i in xrange(num_brute_races):
+            # Throwaway language for now
+            race_name_lang = lang.Language()
+            creature_name = race_name_lang.gen_word(syllables=roll(1, 2), num_phonemes=(2, 10))
+            # Shares physical components with humans for now
+            phys_info = copy.deepcopy(phys.creature_dict['human'])
+
+            description = gen_creatures.gen_creature_description(creature_name=lang.spec_cap(creature_name), creature_size=3)
+
+            phys_info['name'] = creature_name
+            phys_info['char'] = creature_name[0].upper()
+            phys_info['description'] = description
+
+            phys.creature_dict[creature_name] = phys_info
+            self.brutish_races.append(creature_name)
+
+            #g.game.add_message('- {0} added'.format(lang.spec_cap(creature_name)))
+
+
         # Create a language for the culture to use
         language = lang.Language()
         self.languages.append(language)
-        self.default_mythic_culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=['lehur'])
+        self.default_mythic_culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=self.brutish_races)
 
         num_placed_beings = 0
         while num_placed_beings < 50:
@@ -1256,8 +1275,9 @@ class World:
 
             x, y = random.choice(self.play_tiles)
 
+            race = random.choice(self.brutish_races)
             faction = Faction(leader_prefix=None, faction_name="Neutrals", color=libtcod.black, succession='strongman', defaultly_hostile=1)
-            lehur = self.default_mythic_culture.create_being(sex=1, age=100, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race="lehur", save_being=1, intelligence_level=2)
+            creature = self.default_mythic_culture.create_being(sex=1, age=50, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race=race, save_being=1, intelligence_level=2)
 
 
     def gen_sentient_races(self):
@@ -1278,25 +1298,6 @@ class World:
             self.sentient_races.append(creature_name)
 
             g.game.add_message('{0} added'.format(lang.spec_cap(creature_name)))
-
-        ## These guys will be less intelligent and more brute-ish. Generally live in lairs or move into existing empty structures
-        for i in xrange(5):
-            # Throwaway language for now
-            race_name_lang = lang.Language()
-            creature_name = race_name_lang.gen_word(syllables=roll(1, 2), num_phonemes=(2, 10))
-            # Shares physical components with humans for now
-            phys_info = copy.deepcopy(phys.creature_dict['human'])
-
-            description = gen_creatures.gen_creature_description(creature_name=lang.spec_cap(creature_name), creature_size=3)
-
-            phys_info['name'] = creature_name
-            phys_info['description'] = description
-
-            phys.creature_dict[creature_name] = phys_info
-            self.brutish_races.append(creature_name)
-
-            g.game.add_message('- {0} added'.format(lang.spec_cap(creature_name)))
-
 
 
     def gen_cultures(self):
@@ -1371,8 +1372,12 @@ class World:
             if self.is_valid_site(x, y, None, MIN_SITE_DIST):
                 # Check for economy
                 nearby_resources, nearby_resource_locations = self.find_nearby_resources(x=x, y=y, distance=MAX_ECONOMY_DISTANCE)
+                if 'clay' not in nearby_resources:
+                    print 'DEBUG - clay not found in neaby resources'
                 ## Use nearby resource info to determine whether we can sustain an economy
                 unavailable_resource_types = economy.check_strategic_resources(nearby_resources)
+                if 'clay' in unavailable_resource_types:
+                    print 'DEBUG - clay not found in unavailable_resource_types'
 
         # Seed with initial x, y value
         city_sites = [(x, y)]
@@ -6265,10 +6270,10 @@ class DijmapSapient:
         if not self.owner.sapient.is_captive():
 
             for faction, members in g.M.factions_on_map.iteritems():
-                g.game.add_message('{0}'.format(faction.faction_name), faction.color)
+                #g.game.add_message('{0}'.format(faction.faction_name), faction.color)
 
                 if self.owner.sapient.faction.is_hostile_to(faction):
-                    g.game.add_message('{0} hostile to {1}'.format(self.owner.sapient.faction.faction_name, faction), self.owner.sapient.faction.color)
+                    #g.game.add_message('{0} hostile to {1}'.format(self.owner.sapient.faction.faction_name, faction), self.owner.sapient.faction.color)
 
                     for member in members:
                         if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
@@ -6299,7 +6304,7 @@ class DijmapSapient:
             perceived, threat_level = actor.creature.check_to_perceive(figure)
 
             if perceived:
-                self.owner.sapient.say('I see you, %s'%figure.fullname())
+                #self.owner.sapient.say('I see you, %s'%figure.fullname())
                 self.perceived_enemies[figure] = threat_level
                 self.unperceived_enemies.remove(figure)
 
@@ -6441,15 +6446,15 @@ class DijmapSapient:
             # This will clear the target, in case they happen to be following someone or whatever
             self.unset_target()
 
-            #for faction in g.M.factions_on_map.keys():
-            for faction in actor.creature.dijmap_desires.keys():
+            for faction in g.M.factions_on_map.keys():
+            #for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
 
-            #for faction in g.M.factions_on_map.keys():
-            for faction in actor.creature.dijmap_desires.keys():
+            for faction in g.M.factions_on_map.keys():
+            #for faction in actor.creature.dijmap_desires.keys():
                 if actor.sapient.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = -4
 
@@ -6690,15 +6695,14 @@ class BasicWorldBrain:
 
     def check_for_adventure(self):
 
-        targets = [e for e in g.WORLD.all_figures if e.creature.creature_type  == "lehur"]
+        targets = [e for e in g.WORLD.all_figures if e.creature.creature_type in g.WORLD.brutish_races ]
         if roll(1, 10) == 1 and targets != []:
             target = random.choice(targets)
 
             self.add_goal(priority=1, goal_type='kill person', reason='I lust for blood', target=target)
-            g.game.add_message(new_msg="Going on kill mission to kill {0} at {1}, {2}".format(target.fullname(), target.wx, target.wy), color=libtcod.red)
+            g.game.add_message(new_msg="{0} is going on mission to kill {1} at {2}, {3}".format(self.owner.fullname(), target.fullname(), target.wx, target.wy), color=libtcod.red)
 
         elif targets == []:
-            print '{0} checked for adventure but found no targets'.format(self.owner.fullname())
             g.game.add_message('{0} checked for adventure but found no targets'.format(self.owner.fullname()))
 
 
@@ -6757,7 +6761,7 @@ class BasicWorldBrain:
         self.path = origin.path_to[destination][:]
 
     def take_turn(self):
-        if self.goals:
+        if self.goals and self.owner.creature.status not in ('dead', 'unconscious'):
             self.handle_goal_behavior()
 
     '''
@@ -7892,7 +7896,8 @@ class Game:
         self.render_handler = render_handler
 
         self.state = 'worldgen'
-        self.map_scale = 'world'
+        self.map_scale = 'world'
+        self.world_map_display_type = 'normal'
         self.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
 
         self.msgs = []

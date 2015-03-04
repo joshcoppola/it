@@ -96,7 +96,8 @@ class WorldBattle:
 
     def small_scale_battle(self):
 
-        g.M = wmap.Wmap(world=g.WORLD, wx=1, wy=1, height=50, width=50 )
+        # Minimum necessary to create a map
+        g.M = wmap.Wmap(world=g.WORLD, wx=1, wy=1, height=5, width=5)
         hm = g.M.create_heightmap_from_surrounding_tiles()
         base_color = g.WORLD.tiles[1][1].get_base_color()
         g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
@@ -115,8 +116,6 @@ class WorldBattle:
 
                 #print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
                 handle_combat_round(actors=[f1_member, target])
-
-
 
 
 
