@@ -106,6 +106,9 @@ class WorldBattle:
         for member in self.faction1_named + self.faction2_named:
             g.M.add_object_to_map(x=roll(1, 4), y=roll(1, 4), obj=member)
 
+            # Add entity to set of all things which have battled this world tick
+            g.WORLD.has_battled.add(member)
+
         for f1_member in self.faction1_named:
             target = random.choice(self.faction2_named)
 

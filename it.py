@@ -349,10 +349,10 @@ class Region:
                 return 'the {0}s just to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist <= 15:
                 return 'the {0}s to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
-            elif dist > 15:
-                return 'the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist > 30:
                 return 'the {0}s far, far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+            elif dist > 15:
+                return 'the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             else:
                 return 'the unknown {0}s'.format(self.region)
 
@@ -366,7 +366,7 @@ class World:
         self.height = height
         self.width = width
 
-        self.time_cycle = TimeCycle()
+        self.time_cycle = TimeCycle(self)
 
         #self.travelers = []
         self.sites = []
@@ -398,6 +398,9 @@ class World:
         self.factions = []
 
         self.site_index = {}
+
+        # Set of entities which have battled this round
+        self.has_battled = set([])
 
         economy.setup_resources()
         #### load phys info ####
@@ -5057,20 +5060,20 @@ class KillTargBehavior:
         self.figure = figure
 
         self.is_active = 0
-        self.has_battled = 0
+        self.has_attempted_kill = 0
 
     def initialize_behavior(self):
         self.is_active= 1
 
     def is_completed(self):
         # return self.target.creature.status == 'dead'
-        return self.has_battled
+        return self.has_attempted_kill
 
     def take_behavior_action(self):
 
         battle = combat.WorldBattle(faction1_named=[self.figure], faction1_population=None, faction2_named=[self.target], faction2_population=None)
 
-        self.has_battled = 1
+        self.has_attempted_kill = 1
 
         #if roll(0, 1):
         #    self.target.sapient.die()
@@ -6785,8 +6788,47 @@ class BasicWorldBrain:
         self.path = origin.path_to[destination][:]
 
     def take_turn(self):
-        if self.goals and self.owner.creature.status not in ('dead', 'unconscious'):
-            self.handle_goal_behavior()
+        if self.owner.creature.status not in ('dead', 'unconscious'):
+
+            ## Here will be the check for immediate threats and / or re-evaluation of goals
+
+            if self.goals:
+                self.handle_goal_behavior()
+
+
+
+            ## See whether we ended a turn on a tile with an enemy
+            wx = self.owner.wx
+            wy = self.owner.wy
+
+            if not g.WORLD.tiles[wx][wy].site:
+
+                enemy_factions_in_this_tile = []
+                for entity in g.WORLD.tiles[wx][wy].entities[:]:
+                    if entity.sapient and entity.sapient.is_available_to_act() and not entity in g.WORLD.has_battled \
+                            and self.owner.sapient.faction.is_hostile_to(entity.sapient.faction) \
+                            and not entity.sapient.faction in enemy_factions_in_this_tile:
+
+                        enemy_factions_in_this_tile.append(entity.sapient.faction)
+                #########################################################
+
+                ## Our faction
+                faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
+                                and not e in g.WORLD.has_battled
+                                and e.sapient.faction == self.owner.sapient.faction]
+
+                ### Do battle with each potential enemy
+                for faction in enemy_factions_in_this_tile:
+                    ## Enemy faction
+                    faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
+                                and not e in g.WORLD.has_battled
+                                and e.sapient.faction == faction]
+
+                    if faction1_named and faction2_named:
+                        if not g.player in faction1_named + faction2_named:
+                            # This will handle placing these people in the has_battled set, as well as resolving the battle
+                            battle = combat.WorldBattle(faction1_named=faction1_named, faction1_population=None, faction2_named=faction2_named, faction2_population=None)
+
 
     '''
     def make_decision(self, decision_name):
@@ -6807,7 +6849,8 @@ class BasicWorldBrain:
 
 class TimeCycle(object):
     ''' Code adapted from Paradox Inversion on libtcod forums '''
-    def __init__(self):
+    def __init__(self, world):
+        self.world = world
         self.ticks_per_hour = 600
         self.hours_per_day = 24
         self.days_per_week = 7
@@ -6822,8 +6865,8 @@ class TimeCycle(object):
         self.current_month = 0
         self.current_year = 1
 
-        self.weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        self.months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        self.weekdays = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+        self.months = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 
         ## Dict of events, with keys being the future Y, M, and D, and values being a list of events
         self.events = {}
@@ -6988,6 +7031,10 @@ class TimeCycle(object):
                 if figure.world_brain and figure.sapient.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
                     #figure.world_brain.next_tick = self.next_day()
                     figure.world_brain.take_turn()
+
+            # Clear set of those who've battled this round
+            self.world.has_battled = set([])
+
 
     def week_tick(self):
         # Cheaply defined to get civs working per-day
