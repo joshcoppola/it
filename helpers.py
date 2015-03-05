@@ -63,6 +63,11 @@ def looped_increment(initial_num, max_num, increment_amt):
 def get_border_tiles(x, y):
     return ( (x, y+1), (x+1, y), (x, y-1), (x-1, y) )
 
+
+def get_border_tiles_8(x, y):
+    return ( (x, y+1), (x+1, y), (x, y-1), (x-1, y), (x+1, y+1), (x+1, y-1), (x-1, y-1), (x-1, y+1)  )
+
+
 def libtcod_path_to_list(path_map):
     ''' get a libtcod path into a list '''
     path = []
