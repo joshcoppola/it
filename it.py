@@ -1012,28 +1012,24 @@ class World:
 
                     c = int(round((self.tiles[x][y].height - 200) / 2))
                     d = -int(round(c / 2))
-                    self.tiles[x][y].color = libtcod.Color(d + 43 + roll(-a, a), d + 50 + roll(-a, a),
-                                                          d + 34 + roll(-a, a))
+                    self.tiles[x][y].color = libtcod.Color(d + 43 + roll(-a, a), d + 50 + roll(-a, a), d + 34 + roll(-a, a))
                     if self.tiles[x][y].height > 235:
                         self.tiles[x][y].char_color = libtcod.grey
                     else:
-                        self.tiles[x][y].char_color = libtcod.Color(c + 38 + roll(-a, a), c + 25 + roll(-a, a),
-                                                                   c + 21 + roll(-a, a))
+                        self.tiles[x][y].char_color = libtcod.Color(c + 38 + roll(-a, a), c + 25 + roll(-a, a), c + 21 + roll(-a, a))
                     self.tiles[x][y].char = chr(036)
 
                 ## Tundra
                 elif self.tiles[x][y].temp < 18 and not ( 25 < y < self.height-25):
                     self.tiles[x][y].region = 'tundra'
-                    self.tiles[x][y].color = libtcod.Color(190 + roll(-a - 2, a + 2), 188 + roll(-a - 2, a + 2),
-                                                          189 + roll(-a - 2, a + 2))
+                    self.tiles[x][y].color = libtcod.Color(190 + roll(-a - 2, a + 2), 188 + roll(-a - 2, a + 2), 189 + roll(-a - 2, a + 2))
 
                 elif self.tiles[x][y].temp < 23 and self.tiles[x][y].moist < 22 and not ( 30 < y < self.height-30):
                     self.tiles[x][y].region = 'taiga'
                     self.tiles[x][y].color = libtcod.Color(127 + roll(-a, a), 116 + roll(-a, a), 115 + roll(-a, a))
 
                     if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(23 + roll(-a, a), 58 + mmod + roll(-a, a),
-                                                                   9 + roll(-a, a))
+                        self.tiles[x][y].char_color = libtcod.Color(23 + roll(-a, a), 58 + mmod + roll(-a, a), 9 + roll(-a, a))
                         if roll(1, 2) == 1:
                             self.tiles[x][y].char = chr(5)
                         else:
@@ -1063,8 +1059,7 @@ class World:
                     self.tiles[x][y].color = libtcod.Color(40 + roll(-a, a), 60 + mmod + roll(-a, a), 18 + roll(-a, a))
 
                     if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(16 + roll(-a, a), 40 + roll(-a - 5, a + 5),
-                                                                   5 + roll(-a, a))
+                        self.tiles[x][y].char_color = libtcod.Color(16 + roll(-a, a), 40 + roll(-a - 5, a + 5), 5 + roll(-a, a))
                         if roll(1, 2) == 1:
                             self.tiles[x][y].char = chr(6)
                         else:
@@ -5123,6 +5118,27 @@ class ImprisonTargBehavior:
         #self.figure.sapient.army.transfer_captive_to_building(figure=self.target, target_building=self.building)
 
 
+class WanderBehavior:
+    ''' Behavior for capturing a target '''
+    def __init__(self, figure):
+        # The object
+        self.figure = figure
+
+        self.is_active = 0
+
+    def initialize_behavior(self):
+        self.is_active= 1
+
+    def is_completed(self):
+        return 0
+
+    def take_behavior_action(self):
+        bordering_tiles = get_border_tiles_8(self.figure.wx, self.figure.wy)
+        wx, wy = random.choice([t for t in bordering_tiles if not g.WORLD.tile_blocks_mov(t[0], t[1])])
+
+        self.figure.w_move_to(wx, wy)
+
+
 class SapientComponent:
     def __init__(self, firstname, lastname, culture, born, dynasty, important=0):
         self.culture = culture
@@ -6581,6 +6597,10 @@ class BasicWorldBrain:
             unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
             behavior_list = [goto_site, unload_goods]
 
+        elif goal_type == 'bandit_wander':
+
+            behavior_list = [WanderBehavior(figure=self.owner)]
+
         ## Tell the world what you're doing
         #if goal_type != 'move_trade_goods_to_city':
         #    g.game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
@@ -6648,14 +6668,18 @@ class BasicWorldBrain:
         ## Lesser intelligent creatures
         elif self.owner.creature.intelligence_level == 2:
             num = roll(1, 100)
-
             if num < 10:
+
+                self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
+
+                '''
                 city = g.WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
                 if city:
                     self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
 
                     self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
                     #self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
+                '''
 
     def pick_spouse(self):
         sapient = self.owner.sapient
