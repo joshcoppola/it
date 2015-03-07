@@ -8,7 +8,7 @@ class Node:
         self.y = y
 
         self.current_locs = [(x, y)]
-        self.current_value = 0
+        self.current_value = 1
 
         self.active = 1
 
@@ -71,5 +71,4 @@ class Dijmap:
             for node in self.nodes:
                 if node.active:
                     marked_status = node.expand()
-                    
-                    
+
