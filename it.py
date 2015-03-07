@@ -399,6 +399,9 @@ class World:
 
         self.site_index = {}
 
+        # Dijmap where cities are the root nodes; set after cities are generated
+        self.distance_from_civilization_dmap = None
+
         # Set of entities which have battled this round
         self.has_battled = set([])
 
@@ -1626,6 +1629,8 @@ class World:
             if self.is_valid_site(x, y, None, MIN_SITE_DIST):
                 self.add_ruins(x, y)
 
+        target_nodes = [(city.x, city.y) for city in created_cities]
+        self.distance_from_civilization_dmap = Dijmap(sourcemap=self, target_nodes=target_nodes, dmrange=10000)
 
         # Each city gets a few bandits near it
         self.add_bandits(city_list=networked_cities, lnum=0, hnum=2, radius=10)
@@ -7481,7 +7486,8 @@ def get_info_under_mouse():
         color = PANEL_FRONT
         xc, yc = g.game.camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
-            info.append(('DBG: Reg{0}, {1}ht'.format(g.WORLD.tiles[x][y].region_number, g.WORLD.tiles[x][y].height), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
+            if g.game.state == 'playing':
+                info.append(('DBG: Reg{0}, {1}ht, {2}dist'.format(g.WORLD.tiles[x][y].region_number, g.WORLD.tiles[x][y].height, g.WORLD.distance_from_civilization_dmap.dmap[x][y]), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
 
             info.append((g.WORLD.tiles[x][y].region.capitalize(), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
             ###### Cultures ########
@@ -7525,15 +7531,17 @@ def get_info_under_mouse():
                 for entity in g.WORLD.tiles[x][y].entities:
                     # Commanders of parties or armies
                     if entity.sapient and entity.sapient.is_commander():
-                        info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.sapient.get_total_number_of_commanded_beings()), entity.sapient.faction.color))
+                        info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.sapient.get_total_number_of_commanded_beings()), libtcod.color_lerp(color, entity.sapient.faction.color, .3)))
+
                     # Individual travellers
                     elif entity.sapient and not entity.sapient.commander:
-                        info.append(('{0}'.format(entity.fulltitle()), entity.sapient.faction.color))
+                        info.append(('{0}'.format(entity.fulltitle()), libtcod.color_lerp(color, entity.sapient.faction.color, .3)))
                     info.append((' ', color))
+
                 # Only show uncommanded populations
                 for population in g.WORLD.tiles[x][y].populations:
                     if not population.commander:
-                        info.append(('{0}'.format(population.name), population.faction.color))
+                        info.append(('{0}'.format(population.name)), libtcod.color_lerp(color, population.faction.color, .3))
 
             info.append((' ', color))
 
