@@ -1916,7 +1916,7 @@ class World:
         g.M.add_vegetation(cfg=g.MCFG[self.tiles[x][y].region])
         g.M.set_initial_dmaps()
 
-        g.M.add_sapients_from_world()
+        g.M.add_sapients_to_map(entities=g.WORLD.tiles[x][y].entities, populations=g.WORLD.tiles[x][y].populations)
 
         g.game.camera.center(g.player.x, g.player.y)
         g.game.handle_fov_recompute()
@@ -4695,6 +4695,18 @@ class Population:
         if self.commander:
             self.commander.sapient.add_commanded_population(self)
 
+
+    def get_number_of_beings(self):
+        total_number = 0
+
+        for culture in self.sentients.keys():
+            for race in self.sentients[culture].keys():
+                for profession_name in self.sentients[culture][race].keys():
+                    total_number += self.sentients[culture][race][profession_name]
+
+        return total_number
+
+
     def w_teleport(self, x, y):
         g.WORLD.tiles[self.wx][self.wy].populations.remove(self)
         self.wx = x
@@ -5076,7 +5088,7 @@ class KillTargBehavior:
 
     def take_behavior_action(self):
 
-        battle = combat.WorldBattle(faction1_named=[self.figure], faction1_population=None, faction2_named=[self.target], faction2_population=None)
+        battle = combat.WorldBattle(wx=self.figure.wx, wy=self.figure.wy, faction1_named=[self.figure], faction1_populations=[], faction2_named=[self.target], faction2_populations=[])
 
         self.has_attempted_kill = 1
 
@@ -5244,10 +5256,7 @@ class SapientComponent:
             total_number = number_of_figures + 1 #(add 1, which is ourself)
             # Dig down into the population breakdown to get the total number
             for population in self.commanded_populations:
-                for culture in population.sentients.keys():
-                    for race in population.sentients[culture].keys():
-                        for profession_name in population.sentients[culture][race].keys():
-                            total_number += population.sentients[culture][race][profession_name]
+                total_number += population.get_number_of_beings()
         # If we're not a commander, return 0, meaning no men under our command
         else:
             total_number = 0
@@ -5994,25 +6003,28 @@ class Creature:
     def dijmap_move(self):
         """ Move via use of dijisktra maps. There's a separate map for each desire, and we just sum
         each map, multiply by the weight of each desire, and roll downhill """
-        current_tile_cost = 0
         i, j = (self.owner.x, self.owner.y)
         nx = i
         ny = j
 
+        current_tile_cost = 0
         for desire, amount in self.dijmap_desires.iteritems():
-            current_tile_cost += (g.M.dijmaps[desire].dmap[i][j] * amount)
+            if g.M.dijmaps[desire].dmap[i][j] is not None:
+                current_tile_cost += (g.M.dijmaps[desire].dmap[i][j] * amount)
 
+        # Find any neighbors with a cost less than current
         for (x, y) in ( (i - 1, j - 1), (i, j - 1), (i + 1, j - 1),
                         (i - 1, j),                 (i + 1, j),
                         (i - 1, j + 1), (i, j + 1), (i + 1, j + 1) ):
 
-            if g.M.is_val_xy((x, y)) and not g.M.tile_blocks_mov(x, y): #not g.M.tiles[x][y].blocked:
+            if g.M.is_val_xy((x, y)):  # and not g.M.tile_blocks_mov(x, y): #not g.M.tiles[x][y].blocked:
                 ## Check each desire, multiply by amount, and save if necessary
                 weighted_desire = 0
                 for desire, amount in self.dijmap_desires.iteritems():
-                    weighted_desire += (g.M.dijmaps[desire].dmap[x][y] * amount)
+                    if g.M.dijmaps[desire].dmap[x][y] is not None:
+                        weighted_desire += (g.M.dijmaps[desire].dmap[x][y] * amount)
                     ## Only move if we have a reason to
-                if weighted_desire < current_tile_cost:
+                if weighted_desire < current_tile_cost and not g.M.tile_blocks_mov(x, y):
                     current_tile_cost = weighted_desire
                     nx, ny = (x, y)
 
@@ -6800,39 +6812,44 @@ class BasicWorldBrain:
             if self.goals:
                 self.handle_goal_behavior()
 
+            self.check_for_battle()
 
+    def check_for_battle(self):
+        ## See whether we ended a turn on a tile with an enemy
+        wx = self.owner.wx
+        wy = self.owner.wy
 
-            ## See whether we ended a turn on a tile with an enemy
-            wx = self.owner.wx
-            wy = self.owner.wy
+        if not g.WORLD.tiles[wx][wy].site:
 
-            if not g.WORLD.tiles[wx][wy].site:
+            enemy_factions_in_this_tile = []
+            for entity in g.WORLD.tiles[wx][wy].entities[:]:
+                if entity.sapient and entity.sapient.is_available_to_act() and not entity in g.WORLD.has_battled \
+                        and self.owner.sapient.faction.is_hostile_to(entity.sapient.faction) \
+                        and not entity.sapient.faction in enemy_factions_in_this_tile:
 
-                enemy_factions_in_this_tile = []
-                for entity in g.WORLD.tiles[wx][wy].entities[:]:
-                    if entity.sapient and entity.sapient.is_available_to_act() and not entity in g.WORLD.has_battled \
-                            and self.owner.sapient.faction.is_hostile_to(entity.sapient.faction) \
-                            and not entity.sapient.faction in enemy_factions_in_this_tile:
+                    enemy_factions_in_this_tile.append(entity.sapient.faction)
+            #########################################################
 
-                        enemy_factions_in_this_tile.append(entity.sapient.faction)
-                #########################################################
+            ## Our faction
+            faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
+                            and not e in g.WORLD.has_battled
+                            and e.sapient.faction == self.owner.sapient.faction]
 
-                ## Our faction
-                faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
-                                and not e in g.WORLD.has_battled
-                                and e.sapient.faction == self.owner.sapient.faction]
+            faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.sapient.faction]
 
-                ### Do battle with each potential enemy
-                for faction in enemy_factions_in_this_tile:
-                    ## Enemy faction
-                    faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
-                                and not e in g.WORLD.has_battled
-                                and e.sapient.faction == faction]
+            ### Do battle with each potential enemy
+            for faction in enemy_factions_in_this_tile:
+                ## Enemy faction
+                faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
+                            and not e in g.WORLD.has_battled
+                            and e.sapient.faction == faction]
 
-                    if faction1_named and faction2_named:
-                        if not g.player in faction1_named + faction2_named:
-                            # This will handle placing these people in the has_battled set, as well as resolving the battle
-                            battle = combat.WorldBattle(faction1_named=faction1_named, faction1_population=None, faction2_named=faction2_named, faction2_population=None)
+                faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
+
+                if faction1_named and faction2_named:
+                    if not g.player in faction1_named + faction2_named:
+                        # This will handle placing these people in the has_battled set, as well as resolving the battle
+                        battle = combat.WorldBattle(wx=wx, wy=wy, faction1_named=faction1_named, faction1_populations=faction1_populations, faction2_named=faction2_named, faction2_populations=faction2_populations)
 
 
     '''
@@ -7448,7 +7465,9 @@ def get_info_under_mouse():
                 elif amount > 0: dcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.green, amount/100)
                 else: dcolor = PANEL_FRONT
                 info.append(('{0}: {1}'.format(desire, amount), dcolor ))
-                total_desire += (g.M.dijmaps[desire].dmap[x][y] * amount)
+
+                if g.M.dijmaps[desire].dmap[x][y] is not None:
+                    total_desire += (g.M.dijmaps[desire].dmap[x][y] * amount)
             info.append(('Total: {0}'.format(total_desire), libtcod.dark_violet))
             info.append((' ', libtcod.white))
         ###############################################################################
@@ -7554,7 +7573,7 @@ class RenderHandler:
 
 
     def debug_dijmap_view(self, figure=None):
-        if figure is None and self.debug_active_unit_type is not None:
+        if figure is None and self.debug_active_unit_dijmap is not None:
             self.debug_active_unit_dijmap.char = 'o'
             self.debug_active_unit_dijmap = None
 
@@ -8188,7 +8207,7 @@ class Game:
         g.M.color_blocked_tiles(cfg=g.MCFG[g.WORLD.tiles[x][y].region])
         g.M.add_vegetation(cfg=g.MCFG[g.WORLD.tiles[x][y].region])
         g.M.set_initial_dmaps()
-        g.M.add_sapients_from_world()
+        g.M.add_sapients_to_map(entities=g.WORLD.tiles[1][1].entities, populations=g.WORLD.tiles[1][1].populations)
 
 
         pack = assemble_object(object_blueprint=phys.object_dict['pack'], force_material=None, wx=None, wy=None)

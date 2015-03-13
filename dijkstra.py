@@ -15,16 +15,18 @@ class Node:
     def expand(self):
         new_locs = []
         expanded = False
-        for ox, oy in self.current_locs:
-            for x, y in ((ox - 1, oy - 1), (ox, oy - 1),  (ox + 1, oy - 1),
-                         (ox - 1, oy),                    (ox + 1, oy),
-                         (ox - 1, oy + 1), (ox, oy + 1),  (ox + 1, oy + 1)):
 
-                #if M.is_val_xy((x, y)) and (not self.owner.sourcemap[x][y].blocked) and (self.owner.dmap[x][y] == self.owner.range):
-                if self.owner.sourcemap.is_val_xy((x, y)) and (not self.owner.sourcemap.tile_blocks_mov(x, y)) and (self.owner.dmap[x][y] == self.owner.dmrange):
-                    new_locs.append((x, y))
-                    self.owner.dmap[x][y] = self.current_value
-                    expanded = True
+        if self.current_value <= self.owner.dmrange:
+            for ox, oy in self.current_locs:
+                for x, y in ((ox - 1, oy - 1), (ox, oy - 1),  (ox + 1, oy - 1),
+                             (ox - 1, oy),                    (ox + 1, oy),
+                             (ox - 1, oy + 1), (ox, oy + 1),  (ox + 1, oy + 1)):
+
+                    # Can't use tile_blocks_mov() function because it will set all tiles with objects in them to 0
+                    if self.owner.sourcemap.is_val_xy((x, y)) and (self.owner.dmap[x][y] is None) and (not self.owner.sourcemap.tiles[x][y].blocks_mov): # (not self.owner.sourcemap.tile_blocks_mov(x, y)) :
+                        new_locs.append((x, y))
+                        self.owner.dmap[x][y] = self.current_value
+                        expanded = True
 
         self.current_locs = new_locs
         self.current_value += 1
@@ -40,11 +42,9 @@ class Dijmap:
         self.sourcemap = sourcemap
         ## The represented map that we draw from
         self.dmrange = dmrange
-        self.recalculate = 0
-
-        empty_val = max(dmrange, 0)
-
-        self.empty_map = [[empty_val for y in xrange(sourcemap.height)] for x in xrange(sourcemap.width)]
+        #self.recalculate = 0
+        #empty_val = max(dmrange, 0)
+        self.empty_map = [[None for y in xrange(sourcemap.height)] for x in xrange(sourcemap.width)]
 
         self.update_map(target_nodes)
 
@@ -70,5 +70,7 @@ class Dijmap:
             marked_status = False
             for node in self.nodes:
                 if node.active:
-                    marked_status = node.expand()
+                    status = node.expand()
+                    if status and not marked_status:
+                        marked_status = True
 

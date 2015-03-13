@@ -79,29 +79,50 @@ class CombatAttack:
 
 
 class WorldBattle:
-    def __init__(self, faction1_named, faction1_population, faction2_named, faction2_population):
+    def __init__(self, wx, wy, faction1_named, faction1_populations, faction2_named, faction2_populations):
+
+        self.wx = wx
+        self.wy = wy
+
         self.faction1_named = faction1_named
-        self.faction1_population = faction1_population
+        self.faction1_populations = faction1_populations
         self.faction2_named = faction2_named
-        self.faction2_population = faction2_population
+        self.faction2_populations = faction2_populations
 
         self.battle_type = None
         self.determine_battle_type_and_execute_battle()
 
     def determine_battle_type_and_execute_battle(self):
-        if self.faction1_population is None and self.faction2_population is None:
+
+        f1_total_number = 0
+        for population in self.faction1_populations:
+            f1_total_number += population.get_number_of_beings()
+
+        f2_total_number = 0
+        for population in self.faction2_populations:
+            f2_total_number += population.get_number_of_beings()
+
+
+        if f1_total_number < 20 and f2_total_number < 20:
             self.battle_type = 'small-scale'
+
+            g.game.add_message('{0} men of {1} face off against {2} men of {3} at {4}'.format(
+                f1_total_number + len(self.faction1_named), self.faction1_named[0].sapient.faction.faction_name,
+                f2_total_number + len(self.faction2_named), self.faction2_named[0].sapient.faction.faction_name,
+                g.WORLD.tiles[self.wx][self.wy].get_location_description()))
 
             self.small_scale_battle()
 
     def small_scale_battle(self):
 
         # Minimum necessary to create a map
-        g.M = wmap.Wmap(world=g.WORLD, wx=1, wy=1, height=5, width=5)
+        g.M = wmap.Wmap(world=g.WORLD, wx=1, wy=1, height=20, width=20)
         hm = g.M.create_heightmap_from_surrounding_tiles()
         base_color = g.WORLD.tiles[1][1].get_base_color()
         g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
 
+        # Add them to the map
+        #g.M.add_sapients_to_map(entities=self.faction1_named + self.faction2_named, populations=self.faction1_populations + self.faction2_populations)
 
         for member in self.faction1_named + self.faction2_named:
             g.M.add_object_to_map(x=roll(1, 4), y=roll(1, 4), obj=member)

@@ -448,30 +448,30 @@ class Wmap:
             obj.local_brain.ai_initialize()
 
 
-    def add_sapients_from_world(self):
+    def add_sapients_to_map(self, entities, populations):
         hht = int(self.height/2)
         hwd = int(self.width/2)
         # Size of rectangle
-        rs = 25
+        rs = int(self.width/10)
 
-        world_last_dir_to_rect = {(-1, -1):Rect(x=1, y=1, w=rs, h=rs),                 (0, -1):Rect(x=hwd, y=1, w=rs, h=rs),                 (1, -1):Rect(x=self.width-(rs+2), y=1, w=rs, h=rs),
+        world_last_dir_to_rect = {(-1, -1):Rect(x=1, y=1, w=rs, h=rs),           (0, -1):Rect(x=hwd, y=1, w=rs, h=rs),                 (1, -1):Rect(x=self.width-(rs+2), y=1, w=rs, h=rs),
                             (-1, 0):Rect(x=1, y=hht, w=rs, h=rs),                (0, 0):Rect(x=hwd, y=hht, w=rs*3, h=rs*3),            (1, 0):Rect(x=self.width-(rs+2), y=hht, w=rs, h=rs),
                             (-1, 1):Rect(x=1, y=self.height-(rs+2), w=rs, h=rs), (0, 1):Rect(x=hwd, y=self.height-(rs+2), w=rs, h=rs), (1, 1):Rect(x=self.width-(rs+2), y=self.height-(rs+2), w=rs, h=rs)
                             }
 
 
-        for entity in self.world.tiles[self.wx][self.wy].entities:
+        for entity in entities:
             figure_start = world_last_dir_to_rect[entity.world_last_dir]
             # Find a non-blocked tile
             while 1:
                 x = roll(figure_start.x1, figure_start.x2)
-                y=roll(figure_start.y1, figure_start.y2)
+                y = roll(figure_start.y1, figure_start.y2)
                 if g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y):
                     break
             # Add the entity to the map
             g.M.add_object_to_map(x=x, y=y, obj=entity)
 
-        for population in self.world.tiles[self.wx][self.wy].populations:
+        for population in populations:
             population_start = world_last_dir_to_rect[population.world_last_dir]
             population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[])
 
@@ -545,7 +545,8 @@ class Wmap:
                             intensity = 0
                             # Sum all desires for this square, weighted by intensity
                             for desire, value in g.game.render_handler.debug_active_unit_dijmap.creature.dijmap_desires.iteritems():
-                                intensity += int(round(value)) * self.dijmaps[desire].dmap[x][y]
+                                if g.M.dijmaps[desire].dmap[x][y] is not None:
+                                    intensity += int(round(value)) * self.dijmaps[desire].dmap[x][y]
 
                             libtcod.console_set_char_background(g.game.interface.map_console.con, cam_x, cam_y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
                             #libtcod.console_set_char_background(con.con, x, y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
