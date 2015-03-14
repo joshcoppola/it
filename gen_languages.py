@@ -390,7 +390,7 @@ class Orthography:
             potential_c_rep = self.replace_grapheme(mapping=potential_c_rep, phoneme=222, old='y', new='j')
 
         # If we want to (possibly) use non-english symbols in place of some of the consonants
-        if (use_weird_symbols == None and roll(1, 5) == 1) or use_weird_symbols == 1:
+        if (use_weird_symbols is None and roll(1, 5) == 1) or use_weird_symbols == 1:
             # Use "thorn"/"eth" (sigma symbol in our library)
             if roll(0, 1) == 1:
                 potential_c_rep = self.replace_grapheme(mapping=potential_c_rep, phoneme=211, old='th', new=chr(235))
@@ -573,7 +573,7 @@ class Language:
 
     def set_onsets(self, onsets=None, no_onset_chance=NO_ONSET_C_CHANCE):
         ''' Establish which syllable onsets are valid in this language '''
-        if onsets != None:
+        if onsets is not None:
             self.valid_onsets = onsets
         ## Otherwise, create the possible onsets randomly
         else:
@@ -605,7 +605,7 @@ class Language:
 
     def set_codas(self, codas=None, no_coda_chance=NO_CODA_C_CHANCE):
         ''' Establish which syllable codas are valid in this language '''
-        if codas != None:
+        if codas is not None:
             self.valid_codas = codas
         ## Otherwise, create the possible codas randomly
         else:
@@ -776,7 +776,7 @@ class Language:
             # Check if consonant matches input qualities
             if (consonant.location == qual or consonant.method == qual) or consonant.num == qual:
                 # If no voicing constraints, and not specifically excluded, append
-                if voicing == None and consonant.num not in exclude_list:
+                if voicing is None and consonant.num not in exclude_list:
                     phon_list.append((consonant.num, consonant.freq))
                 # Else, append if matches voicing requirements and not specifically excluded
                 elif voicing == consonant.voicing and consonant.num not in exclude_list:

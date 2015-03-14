@@ -226,7 +226,7 @@ def calculate_winner_of_opening_round(c1_dict, c2_dict):
 def calculate_combat(combatant_1, combatant_1_opening, combatant_1_closing, combatant_2, combatant_2_opening, combatant_2_closing):
 
     combat_log = []
-    if combatant_2_opening != None:
+    if combatant_2_opening is not None:
         # Assuming both combatants attacked each other, compare their moves and sum
         c1_dict, c2_dict = get_combat_odds(combatant_1, combatant_1_opening, combatant_2, combatant_2_opening)
 

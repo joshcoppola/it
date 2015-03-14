@@ -563,8 +563,8 @@ def import_object_yml(file_path):
 
                 ###### Find possible materials ########
                 material_tokens = []
-                for component in object_dict[obj]['components']:
-                    for layer in component['layers']:
+                for _component in object_dict[obj]['components']:
+                    for layer in _component['layers']:
                         for material_token in layer['material_tokens']:
                             if material_token not in material_tokens:
                                 material_tokens.append(material_token)

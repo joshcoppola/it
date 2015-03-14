@@ -149,7 +149,7 @@ class God:
         else:           return 'sister'
 
     def get_parents(self):
-        if self.mother == None and self.father == None:
+        if self.mother is None and self.father is None:
             return ''
         else:
             return ''.join([self.get_pronoun(), ' is the child of ', self.father.fulltitle(), ' and ', self.mother.fulltitle()])
@@ -260,7 +260,7 @@ class Pantheon:
         # Gods have relationships with each other
         for god in self.gods:
             if god.gender == 1 and roll(0, 1):
-                potential_spouses = [g for g in self.gods if g.gender == 0 and g.spouse == None]
+                potential_spouses = [g for g in self.gods if g.gender == 0 and g.spouse is None]
                 if len(potential_spouses):
 
                     choice = random.choice(potential_spouses)

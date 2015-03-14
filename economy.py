@@ -257,10 +257,10 @@ class Agent(object):
     def update_holder(self, figure):
         '''If the original holder we're attached to dies, we can be passed on to others'''
         # Remove self from who we were previously attached to
-        if self.attached_to != None:
+        if self.attached_to is not None:
             self.attached_to.sapient.economy_agent = None
 
-        if figure.sapient.economy_agent != None:
+        if figure.sapient.economy_agent is not None:
             figure.sapient.economy_agent.attached_to = None
             figure.sapient.economy_agent = None
 
@@ -357,7 +357,7 @@ class Agent(object):
     def eval_bid_rejected(self, economy, type_of_item, price=None):
         # What to do when we've bid on something and didn't get it
         if self.economy.auctions[type_of_item].supply:
-            if price == None:
+            if price is None:
                 self.perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
                 self.perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
             else:
@@ -845,7 +845,7 @@ class Merchant(object):
         self.preferred = preferred
 
         self.attached_to = attached_to
-        if self.attached_to != None:
+        if self.attached_to is not None:
             self.attached_to.sapient.economy_agent = self
 
         self.turns_alive = 0
@@ -888,11 +888,11 @@ class Merchant(object):
     def update_holder(self, figure):
         '''If the original holder we're attached to dies, we can be passed on to others'''
         # Remove self from who we were previously attached to
-        if self.attached_to != None:
+        if self.attached_to is not None:
             self.attached_to.sapient.economy_agent = None
 
 
-        if figure.sapient.economy_agent != None:
+        if figure.sapient.economy_agent is not None:
             figure.sapient.economy_agent.attached_to = None
             figure.sapient.economy_agent = None
 
@@ -1052,7 +1052,7 @@ class Merchant(object):
         # What to do when we've bid on something and didn't get it
         if economy.auctions[type_of_item].supply:
             if economy == self.buy_economy:
-                if price == None:
+                if price is None:
                     self.buy_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
                     self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
                 else:
@@ -1061,7 +1061,7 @@ class Merchant(object):
                     self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
 
             elif economy == self.sell_economy:
-                if price == None:
+                if price is None:
                     self.sell_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
                     self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
                 else:

@@ -339,7 +339,7 @@ class Region:
         if self.site:
             return self.site.name
         elif len(self.minor_sites) or len(self.caves):
-            site_names = [site.name for site in self.minor_sites + self.caves]
+            site_names = [site.get_name() for site in self.minor_sites + self.caves]
             return join_list(site_names)
         else:
             city, dist = g.WORLD.get_closest_city(self.x, self.y)
@@ -1334,7 +1334,7 @@ class World:
                 else:
                     # Pick more than one race to be a part of this culture
                     races = []
-                    for i in xrange(2):
+                    for j in xrange(2):
                         while 1:
                             race = random.choice(self.sentient_races)
                             if race not in races:
@@ -1666,10 +1666,10 @@ class World:
                 x = 1
                 path_to_other_city = []
 
-                while x != None:
+                while x is not None:
                     x, y = libtcod.path_walk(self.road_path_map, True)
 
-                    if x != None:
+                    if x is not None:
                         path_to_other_city.append((x, y))
 
                 #other_city_path_to_us = path_to_other_city[:]
@@ -2232,10 +2232,7 @@ class Feature:
 
 class River(Feature):
     def __init__(self, x, y):
-        self.site_type = 'river'
-        self.x = x
-        self.y = y
-        self.name = None
+        Feature.__init__(self,   'river', x, y)
 
         # Stores which directions the river is connected from
         self.connected_dirs = []
@@ -2502,7 +2499,7 @@ class City(Site):
 
         x, y = self.x, self.y
         old_x, old_y = None, None
-        while x != None:
+        while x is not None:
             # Update the road path map to include this road
             libtcod.map_set_properties(g.WORLD.road_fov_map, x, y, 1, 1)
 
@@ -2912,7 +2909,7 @@ class Building:
     def fill_position(self, profession):
         # Give temples and nobles and stuff an initial dynasty to begin with
         potential_employees = [figure for figure in g.WORLD.tiles[self.site.x][self.site.y].entities if
-                               figure.sapient.profession == None and figure.creature.sex == 1 and figure.sapient.get_age() > MIN_MARRIAGE_AGE]
+                               figure.sapient.profession is None and figure.creature.sex == 1 and figure.sapient.get_age() > MIN_MARRIAGE_AGE]
         if profession.name in ('High Priest', 'General'):
             # Create new dynasty
             human, all_new_figures = self.site.create_initial_dynasty()
@@ -3655,7 +3652,7 @@ class Object:
     def get_possible_target_components_from_attack_position(self, position):
         possible_target_components = []
         for component in self.components:
-            if component.position == position or component.position == None:
+            if component.position == position or component.position is None:
                 possible_target_components.append(component)
 
         return possible_target_components
@@ -4104,15 +4101,15 @@ def attack_menu(actor, target):
         component = target.components[0] ##temp
 
         yval = 8
-        for combat_move in combat.melee_armed_moves:
+        for listed_combat_move in combat.melee_armed_moves:
             yval += 3
             xval = 2
 
-            if combat_move not in g.player.creature.last_turn_moves:  button_color = PANEL_FRONT
+            if listed_combat_move  not in g.player.creature.last_turn_moves:  button_color = PANEL_FRONT
             else:                                                   button_color = libtcod.dark_red
 
             #### Find parts which we can hit ####
-            possible_target_components = target.get_possible_target_components_from_attack_position(position=combat_move.position)
+            possible_target_components = target.get_possible_target_components_from_attack_position(position=listed_combat_move.position)
             can_hit = 'Can hit: {0}'.format(join_list(string_list=[c.name for c in possible_target_components]))
             #######################################
 
@@ -4120,7 +4117,7 @@ def attack_menu(actor, target):
                 odds = []
                 # Go through each other combat move and find the odds
                 for other_combat_move in combat.melee_armed_moves:
-                    c1, c2 = combat.get_combat_odds(combatant_1=g.player, combatant_1_move=combat_move, combatant_2=target, combatant_2_move=other_combat_move)
+                    c1, c2 = combat.get_combat_odds(combatant_1=g.player, combatant_1_move=listed_combat_move, combatant_2=target, combatant_2_move=other_combat_move)
                     c1_total = max(1, sum(c1.values()))
                     c2_total = max(1, sum(c2.values()))
                     total_odds = c1_total/(c1_total + c2_total) * 100
@@ -4132,7 +4129,7 @@ def attack_menu(actor, target):
                     for reason, amt in c2.iteritems():
                         odds_reasons.append('-- {0} ({1})'.format(reason, amt))
 
-                    odds.append([combat_move, other_combat_move, total_odds, odds_reasons])
+                    odds.append([listed_combat_move, other_combat_move, total_odds, odds_reasons])
 
                 # Now sort the odds by the total_odds
                 odds.sort(key=lambda sublist: sublist[2], reverse=True)
@@ -5403,16 +5400,16 @@ class SapientComponent:
         if target not in self.knowledge.keys():
             return ['name']
 
-        if self.knowledge[target]['city'] == None:
+        if self.knowledge[target]['city'] is None:
             valid_questions.append('city')
 
-        if self.knowledge[target]['age'] == None:
+        if self.knowledge[target]['age'] is None:
             valid_questions.append('age')
 
-        if self.knowledge[target]['profession'] == None:
+        if self.knowledge[target]['profession'] is None:
             valid_questions.append('profession')
 
-        if self.knowledge[target]['goals'] == None:
+        if self.knowledge[target]['goals'] is None:
             valid_questions.append('goals')
 
         ## TODO - allow NPCs to recruit, under certain circumstances
@@ -5487,8 +5484,8 @@ class SapientComponent:
 
         elif question_type == 'recruit':
             ''' Try to recruit person into actor's party '''
-            if self.get_age() >= MIN_MARRIAGE_AGE and (self.owner.creature.sex == 1 or self.spouse == None) \
-                and self.profession == None and not self.commander:
+            if self.get_age() >= MIN_MARRIAGE_AGE and (self.owner.creature.sex == 1 or self.spouse is None) \
+                and self.profession is None and not self.commander:
                 return 'yes'
 
             else:
@@ -5763,7 +5760,7 @@ class SapientComponent:
             reasons = {}
 
             ## Based on profession ##
-            if self.profession != None and self.profession.category in PROF_OPINIONS[issue].keys():
+            if self.profession is not None and self.profession.category in PROF_OPINIONS[issue].keys():
                 prof_opinion = PROF_OPINIONS[issue][self.profession.category]
                 reasons['profession'] = prof_opinion
 
@@ -6670,7 +6667,7 @@ class BasicWorldBrain:
 
         if self.owner.creature.intelligence_level == 3:
             # Pick a spouse and get married immediately
-            if sapient.spouse == None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
+            if sapient.spouse is None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
                 if roll(1, 48) >= 48:
                     self.pick_spouse()
 
@@ -6750,16 +6747,19 @@ class BasicWorldBrain:
             return spouse
 
     def check_for_adventure(self):
-
+        do_adventure = 0
         targets = [e for e in g.WORLD.all_figures if e.creature.creature_type in g.WORLD.brutish_races ]
         if roll(1, 10) == 1 and targets != []:
             target = random.choice(targets)
 
             self.add_goal(priority=1, goal_type='kill person', reason='I lust for blood', target=target)
             g.game.add_message(new_msg="{0} is going on mission to kill {1} at {2}, {3}".format(self.owner.fullname(), target.fullname(), target.wx, target.wy), color=libtcod.red)
+            do_adventure = 1
 
         elif targets == []:
             g.game.add_message('{0} checked for adventure but found no targets'.format(self.owner.fullname()))
+
+        return do_adventure
 
 
     def check_for_move_city(self):
@@ -8369,7 +8369,7 @@ class Game:
                         target = obj
                         break
                 #attack if target found, move otherwise
-                if target != None:
+                if target is not None:
                     ## TODO - drop random attacks when you try to move to the tile?
                     ## Or should just use whatever AI ends up happening
                     weapon = g.player.creature.get_current_weapon()
@@ -8679,7 +8679,7 @@ def show_civs(world):
         libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
         libtcod.console_print(0, 32, y - 4, 'City of {0} (Population: {1}, {2} gold)'.format(city.name, city.get_population(), city.treasury))
         libtcod.console_print(0, 32, y - 3, 'Access to: {0}'.format(join_list(city.native_res.keys())))
-        if city.faction.parent == None:
+        if city.faction.parent is None:
             liege = ' * Independent *  '
         else:
             liege = 'Vassal to ' + city.faction.parent.site.name + '. '
@@ -8732,7 +8732,7 @@ def show_civs(world):
 
                 if agent in merchants and agent.current_location == city:
                     agent_name = agent.name + ' (here)'
-                elif agent in merchants and agent.current_location != None:
+                elif agent in merchants and agent.current_location is not None:
                     agent_name = agent.name + ' (' + agent.current_location.owner.name + ')'
                 else:
                     agent_name = agent.name
@@ -8786,7 +8786,7 @@ def show_civs(world):
             y += 2
 
             for commodity, auction in city.econ.auctions.iteritems():
-                if auction.supply != None and auction.demand != None:
+                if auction.supply is not None and auction.demand is not None:
                     libtcod.console_print(0, 85, y, commodity)
                     libtcod.console_print(0, 100, y, str(auction.mean_price))
 
