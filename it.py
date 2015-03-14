@@ -378,9 +378,14 @@ class World:
         self.important_figures = []
         self.plots = []
 
+        self.tiles = None # Reset each time a new map is genned
         self.famous_objects = set([])
         ### TODO - move this around; have it use the actual language of the first city
         self.moons, self.suns = religion.create_astronomy()
+
+        self.equator = None
+        self.mountains = []
+        self.rivers = []
 
         # Contiguous region set for play:
         self.play_region  = None
@@ -388,6 +393,7 @@ class World:
         self.play_tiles = None
 
         # Set up other important lists
+        self.default_mythic_culture = None
         self.sentient_races = []
         self.brutish_races = []
 
@@ -404,6 +410,15 @@ class World:
 
         # Set of entities which have battled this round
         self.has_battled = set([])
+
+
+        ## Set on initialize_fov() call
+        self.fov_recompute = False
+        self.fov_map = None
+        self.path_map = None
+        self.rook_path_map = None
+        self.road_fov_map = None
+        self.road_path_map = None
 
         economy.setup_resources()
         #### load phys info ####
@@ -700,7 +715,7 @@ class World:
         mvar = 30
         ### End experimental code ####
 
-        self.mountains = []
+
         # Add the info from libtcod's heightmap to the world's heightmap
         for x in xrange(self.width):
             for y in xrange(self.height):
@@ -884,7 +899,7 @@ class World:
                     self.tiles[new_x][new_y].height = min(self.tiles[new_x][new_y].height, max(self.tiles[cur_x][cur_y].height - 1, g.WATER_HEIGHT))
                     directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
                     for rx, ry in directions:
-                        self.tiles[rx][ry].moist = self.tiles[rx][ry].moist / 2
+                        self.tiles[rx][ry].moist /= 2
 
 
                 for i in xrange(len(riv_cur)):
@@ -982,7 +997,7 @@ class World:
                 self.tiles[x][y].moist =  max(0, self.tiles[x][y].moist + int(round(w_val * n1scale)) )
                 # temp
                 t_val = libtcod.noise_get_fbm(noisemap2, [x / n2div_amt, y / n2div_amt], n2octaves, libtcod.NOISE_SIMPLEX)
-                self.tiles[x][y].temp =  self.tiles[x][y].temp + int(round(t_val * n2scale))
+                self.tiles[x][y].temp += int(round(t_val * n2scale))
         ### End experimental code ####
 
 
@@ -1310,7 +1325,7 @@ class World:
             # Random playable coords
             x, y = random.choice(self.play_tiles)
             # Make sure it's a legit tile and that no other culture owns it
-            if not self.tiles[x][y].blocks_mov and self.tiles[x][y].culture == None:
+            if not self.tiles[x][y].blocks_mov and self.tiles[x][y].culture is None:
                 # spawn a culture
                 language = lang.Language()
                 self.languages.append(language)
@@ -1373,12 +1388,8 @@ class World:
             if self.is_valid_site(x, y, None, MIN_SITE_DIST):
                 # Check for economy
                 nearby_resources, nearby_resource_locations = self.find_nearby_resources(x=x, y=y, distance=MAX_ECONOMY_DISTANCE)
-                if 'clay' not in nearby_resources:
-                    print 'DEBUG - clay not found in neaby resources'
                 ## Use nearby resource info to determine whether we can sustain an economy
                 unavailable_resource_types = economy.check_strategic_resources(nearby_resources)
-                if 'clay' in unavailable_resource_types:
-                    print 'DEBUG - clay not found in unavailable_resource_types'
 
         # Seed with initial x, y value
         city_sites = [(x, y)]
@@ -1867,7 +1878,7 @@ class World:
         closest_dist = max_range + 1  #start with (slightly more than) maximum range
 
         for city in self.cities:
-            if target_faction == None or city.owner == target_faction:
+            if target_faction is None or city.owner == target_faction:
                 dist = self.get_astar_distance_to(user.x, user.y, city.x, city.y)
                 if dist < closest_dist:  #it's closer, so remember it
                     closest_city = city
@@ -1966,7 +1977,7 @@ class World:
             ## Add some drunk walkers!
             dcfg = {'bias':None, 'color':base_color, 'empty_stop':False, 'tile_limit':1000}
             for i in xrange(5):
-                walker = DrunkWalker(umap=M, x=roll(20, g.M.width-21), y=roll(20, g.M.height-21), cfg=dcfg)
+                walker = DrunkWalker(umap=g.M, x=roll(20, g.M.width-21), y=roll(20, g.M.height-21), cfg=dcfg)
                 walker.drunk_walk()
 
             ### This step fills in every pocket of open ground that's not connected to the largest open pocket
@@ -1988,7 +1999,7 @@ class World:
         bias_dir = entry_dict[entry_dir]['bias_dir']
 
         dcfg = {'bias':(bias_dir, 200), 'color':base_color, 'empty_stop':True, 'tile_limit':-1}
-        walker = DrunkWalker(umap=M, x=x, y=y, cfg=dcfg)
+        walker = DrunkWalker(umap=g.M, x=x, y=y, cfg=dcfg)
         walker.drunk_walk()
         ##############################################################################
         g.M.add_dmap(key='exit', target_nodes=[(x, y)], dmrange=5000)
@@ -2007,7 +2018,7 @@ class World:
                         tile.building = building
                         tile.set_color(libtcod.color_lerp(tile.color, libtcod.grey, .1))
 
-                    filled = floodfill(fmap=M, x=bx, y=by, do_fill=do_fill, do_fill_args=[building], is_border=lambda tile: tile.blocks_mov or tile.building, max_tiles=100)
+                    filled = floodfill(fmap=g.M, x=bx, y=by, do_fill=do_fill, do_fill_args=[building], is_border=lambda tile: tile.blocks_mov or tile.building, max_tiles=100)
 
                     for xx, yy in filled:
                         building.physical_property.append((xx, yy))
@@ -2499,7 +2510,8 @@ class City(Site):
                         road_count += 1
 
                 if road_count <= 3 :
-                    g.WORLD.make_world_road(old_x, old_y)
+                    g.WORLD.make_world_road(old_x, old_y)
+
             old_x, old_y = x, y
             x, y = libtcod.path_walk(g.WORLD.rook_path_map, True)
 
@@ -7995,7 +8007,8 @@ class Game:
 
         self.state = 'worldgen'
         self.map_scale = 'world'
-        self.world_map_display_type = 'normal'
+        self.world_map_display_type = 'normal'
+
         self.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
 
         self.msgs = []
