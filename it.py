@@ -2369,6 +2369,11 @@ class City(Site):
         self.imports = {}
         self.exports = {}
 
+        # Below are set up in prepare_native_economy()
+        self.econ = None
+        self.resource_slots = {}
+        self.industry_slots = {}
+
         self.warehouses = {}
         self.warehouse_types = {}
         self.unique_warehouses = []
@@ -2432,13 +2437,11 @@ class City(Site):
         # Add economy to city
         self.econ = economy.Economy(native_resources=self.native_res.keys(), local_taxes=2, owner=self)
 
-        self.resource_slots = {}
         for resource_type, amount in economy.CITY_RESOURCE_SLOTS.iteritems():
             for resource_class in economy.RESOURCE_TYPES[resource_type]:
                 if resource_class.name in self.native_res.keys():
                     self.resource_slots[resource_class.name] = amount
 
-        self.industry_slots = {}
         good_tokens_we_can_produce = economy.list_goods_from_strategic(self.native_res.keys())
         for good_type, amount in economy.CITY_INDUSTRY_SLOTS.iteritems():
             for good_class in economy.GOOD_TYPES[good_type]:
@@ -2635,7 +2638,7 @@ class City(Site):
         self.owner = None
 
         self.color = libtcod.dark_grey
-        self.name = self.name + ' (abandoned)'
+        self.name += ' (abandoned)'
         # Clear up the territory, and save info about the territory it used to own
         for (x, y) in self.territory:
             g.WORLD.tiles[x][y].territory = None
@@ -3050,6 +3053,7 @@ class Faction:
         self.color = color
 
         self.leader = None
+        self.site = None
         # Eventually will be more precide? Just a way to keep track of when the current leader became leader
         self.leader_change_year = g.WORLD.time_cycle.current_year
         # So far:
