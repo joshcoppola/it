@@ -3427,7 +3427,6 @@ class Object:
     def clear_current_building_and_location(self):
         self.current_building.remove_housed_object(obj=self)
         self.current_building = None
-        self.current_location = None
 
     def set_initial_attachments(self):
         ''' Once the object is created, handle stuff which should be attached to each other.
@@ -3903,7 +3902,7 @@ class Object:
 
         if target_faction == 'enemies':
             for actor in g.M.sapients:
-                if actor.creature.status == 'alive' and self.sapient.faction.is_hostile_to(actor.sapient.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
+                if actor.creature.is_available_to_act() and self.sapient.faction.is_hostile_to(actor.sapient.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     dist = self.distance_to(actor)
                     if dist < closest_dist:
                         closest_enemy = actor
@@ -3911,7 +3910,7 @@ class Object:
 
         else:
             for actor in g.M.sapients:
-                if actor.creature.status == 'alive' and actor.creature and actor.sapient.faction == target_faction: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
+                if actor.creature.is_available_to_act() and actor.sapient.faction == target_faction: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     #calculate distance between this object and the g.player
                     dist = self.distance_to(actor)
                     if dist < closest_dist:  #it's closer, so remember it
@@ -4343,7 +4342,7 @@ def player_order_follow():
 
 def player_order_move():
 
-    figures = filter(lambda figure: figure.local_brain and figure.creature.status == 'alive' and figure.sapient.commander == g.player, g.M.sapients)
+    figures = filter(lambda figure: figure.local_brain and figure.creature.is_available_to_act() and figure.sapient.commander == g.player, g.M.sapients)
     sq_size = int(round(math.sqrt(len(figures))))
     offset = int(sq_size/2)
 
@@ -5578,10 +5577,6 @@ class SapientComponent:
         self.say('I\'m free!')
 
 
-    def is_available_to_act(self):
-        ''' Way to check whether the figure can act of their own accord.'''
-        return not (self.is_captive() or self.owner.creature.status == 'dead')
-
     def change_citizenship(self, new_city, new_house):
         ''' Transfer citizenship from one city to another '''
         # Remove from old citizenship
@@ -5965,6 +5960,11 @@ class Creature:
             g.M.tiles[self.owner.x][self.owner.y].set_color(color=libtcod.color_lerp(g.M.tiles[self.owner.x][self.owner.y].color, libtcod.darker_red, blood_amt) )
 
 
+    def is_available_to_act(self):
+        ''' Way to check whether the figure can act of their own accord.'''
+        ## TODO - switch is_captive() from sapient to creature
+        return not (self.owner.sapient.is_captive() or self.status in ('unconscious', 'dead'))
+
     def set_status(self, status):
         self.status = status
 
@@ -6340,14 +6340,10 @@ class DijmapSapient:
 
     def take_turn(self):
         # Can't do anything if we're unconscious or dead
-        if self.owner.creature.status != 'alive':
-            return
-
-        self.perceive_surroundings()
-
-        self.battle_behavior()
-
-        #self.non_battle_behavior()
+        if self.owner.creature.is_available_to_act():
+            self.perceive_surroundings()
+            self.battle_behavior()
+            #self.non_battle_behavior()
 
     def perceive_surroundings(self):
         actor = self.owner
@@ -6367,7 +6363,7 @@ class DijmapSapient:
         closest_enemy = None
         closest_dist = 1000
 
-        for figure in filter(lambda figure: figure.creature.status == 'alive', self.perceived_enemies):
+        for figure in filter(lambda figure: figure.creature.is_available_to_act(), self.perceived_enemies):
             dist = self.owner.distance_to(figure)
             if dist < closest_dist:
                 closest_enemy = figure
@@ -6384,7 +6380,7 @@ class DijmapSapient:
         if self.astar_refresh_cur == 0:
             self.astar_refresh_cur = self.astar_refresh_period
         # Clear dead targets
-        if self.target_figure and self.target_figure.creature.status != 'alive':
+        if self.target_figure and not self.target_figure.creature.is_available_to_act():
             self.unset_target()
         # Refresh to new target location
         if self.target_figure and ( (1 <= len(self.owner.cached_astar_path) <= 5) or self.astar_refresh_cur == 5):
@@ -6821,7 +6817,7 @@ class BasicWorldBrain:
         self.path = origin.path_to[destination][:]
 
     def take_turn(self):
-        if self.owner.creature.status not in ('dead', 'unconscious'):
+        if self.owner.creature.is_available_to_act():
 
             ## Here will be the check for immediate threats and / or re-evaluation of goals
 
@@ -6839,7 +6835,7 @@ class BasicWorldBrain:
 
             enemy_factions_in_this_tile = []
             for entity in g.WORLD.tiles[wx][wy].entities[:]:
-                if entity.sapient and entity.sapient.is_available_to_act() and not entity in g.WORLD.has_battled \
+                if entity.creature and entity.creature.is_available_to_act() and not entity in g.WORLD.has_battled \
                         and self.owner.sapient.faction.is_hostile_to(entity.sapient.faction) \
                         and not entity.sapient.faction in enemy_factions_in_this_tile:
 
@@ -6847,7 +6843,7 @@ class BasicWorldBrain:
             #########################################################
 
             ## Our faction
-            faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
+            faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
                             and not e in g.WORLD.has_battled
                             and e.sapient.faction == self.owner.sapient.faction]
 
@@ -6856,7 +6852,7 @@ class BasicWorldBrain:
             ### Do battle with each potential enemy
             for faction in enemy_factions_in_this_tile:
                 ## Enemy faction
-                faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.sapient and e.sapient.is_available_to_act()
+                faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
                             and not e in g.WORLD.has_battled
                             and e.sapient.faction == faction]
 
@@ -7066,7 +7062,7 @@ class TimeCycle(object):
             self.handle_events()
 
             for figure in reversed(g.WORLD.all_figures):
-                if figure.world_brain and figure.sapient.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
+                if figure.world_brain and figure.creature.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
                     #figure.world_brain.next_tick = self.next_day()
                     figure.world_brain.take_turn()
 
@@ -7097,7 +7093,7 @@ class TimeCycle(object):
         ## Have figures do some stuff monthly
         for figure in g.WORLD.all_figures[:]:
             ## TODO - make sure this check works out all the time
-            if figure.sapient.is_available_to_act():
+            if figure.creature.is_available_to_act():
                 figure.world_brain.monthly_life_check()
 
         for plot in g.WORLD.plots[:]:
@@ -7801,11 +7797,11 @@ def battle_hover_information():
     target = None
     if g.game.camera.mouse_is_on_map() and g.M.is_val_xy((x, y)) and g.M.tiles[x][y].explored:
         for obj in g.M.tiles[x][y].objects:
-            if obj.creature and obj.creature.status != 'dead':
+            if obj.creature and obj.creature.is_available_to_act():
                 target = obj
                 break
 
-        other_objects = [obj for obj in g.M.tiles[x][y].objects if (not obj.creature) or (obj.creature and obj.creature.status != 'alive') ]
+        other_objects = [obj for obj in g.M.tiles[x][y].objects if (not obj.creature) or (obj.creature and obj.creature.status == 'dead') ]
 
         if g.M.tiles[x][y].interactable:
             itext = g.M.tiles[x][y].interactable['hover_text']
@@ -8369,7 +8365,7 @@ class Game:
                 #try to find an attackable object there
                 target = None
                 for obj in g.M.tiles[x][y].objects:
-                    if obj.creature and obj.creature.status != 'dead' and (obj.sapient and g.player.sapient.faction.is_hostile_to(obj.sapient.faction) ):
+                    if obj.creature and obj.creature.is_available_to_act() and (obj.sapient and g.player.sapient.faction.is_hostile_to(obj.sapient.faction) ):
                         target = obj
                         break
                 #attack if target found, move otherwise
