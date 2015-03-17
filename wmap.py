@@ -224,7 +224,7 @@ class Wmap:
         self.dijmaps[key] = Dijmap(sourcemap=self, target_nodes=target_nodes, dmrange=dmrange)
         end = time.time() - begin
 
-        g.game.add_message('Dmap for %s created in %.2f seconds' %(key, end), libtcod.cyan)
+        #g.game.add_message('Dmap for %s created in %.2f seconds' %(key, end), libtcod.cyan)
 
 
     def get_astar_distance_to(self, x, y, target_x, target_y):
@@ -448,7 +448,7 @@ class Wmap:
             obj.local_brain.ai_initialize()
 
 
-    def add_sapients_to_map(self, entities, populations):
+    def add_sapients_to_map(self, entities, populations, place_anywhere=0):
         hht = int(self.height/2)
         hwd = int(self.width/2)
         # Size of rectangle
@@ -466,14 +466,16 @@ class Wmap:
             while 1:
                 x = roll(figure_start.x1, figure_start.x2)
                 y = roll(figure_start.y1, figure_start.y2)
-                if g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y):
+                # place_anywhere is set to true when battle takes place in the world scale, so that entire large maps do not need to be generated
+                # This means in tiny-sized maps, many creatures may be "on top" of each other.
+                if (g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y)) or place_anywhere:
                     break
             # Add the entity to the map
             g.M.add_object_to_map(x=x, y=y, obj=entity)
 
         for population in populations:
             population_start = world_last_dir_to_rect[population.world_last_dir]
-            population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[])
+            population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[], place_anywhere=place_anywhere)
 
         ## DIJMAPS
         factions_on_map = self.cache_factions_for_dmap()

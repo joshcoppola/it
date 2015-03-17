@@ -121,25 +121,32 @@ class WorldBattle:
         base_color = g.WORLD.tiles[1][1].get_base_color()
         g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
 
-        # Add them to the map
-        #g.M.add_sapients_to_map(entities=self.faction1_named + self.faction2_named, populations=self.faction1_populations + self.faction2_populations)
+        # Add them to the map, with the special place_anywhere flag
+        g.M.add_sapients_to_map(entities=self.faction1_named + self.faction2_named, populations=self.faction1_populations + self.faction2_populations, place_anywhere=1)
 
         for member in self.faction1_named + self.faction2_named:
-            g.M.add_object_to_map(x=roll(1, 4), y=roll(1, 4), obj=member)
-
             # Add entity to set of all things which have battled this world tick
             g.WORLD.has_battled.add(member)
 
         for f1_member in self.faction1_named:
             target = random.choice(self.faction2_named)
 
-            while f1_member.creature.status not in ('dead', 'unconscious') and target.creature.status not in ('dead', 'unconscious'):
+            while f1_member.creature.is_available_to_act() and target.creature.is_available_to_act():
 
                 f1_member.local_brain.attack_enemy(enemy=target)
                 target.local_brain.attack_enemy(enemy=f1_member)
 
                 #print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
                 handle_combat_round(actors=[f1_member, target])
+
+        f1_remaining = [e for e in self.faction1_named if e.creature.is_available_to_act()]
+        f2_remaining = [e for e in self.faction2_named if e.creature.is_available_to_act()]
+
+        if len(f1_remaining) > len(f2_remaining):
+            for member in self.faction2_named:
+                if member.creature.status == 'alive' and not member.creature.is_available_to_act():
+                    f1_remaining[0].sapient.take_captive(member)
+
 
 
 

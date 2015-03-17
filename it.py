@@ -4624,7 +4624,7 @@ def list_people():
         leader = faction.get_leader()
         if leader is not None:
             y += 1
-            buttons.append(gui.Button(gui_panel=wpanel, func=leader.sapient.die, args=[],
+            buttons.append(gui.Button(gui_panel=wpanel, func=leader.sapient.die, args=['godly debug powers'],
                  text=leader.fulltitle(), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
@@ -4743,7 +4743,7 @@ class Population:
             self.turns_since_move = 0
 
 
-    def add_to_map(self, startrect, startbuilding, patrol_locations):
+    def add_to_map(self, startrect, startbuilding, patrol_locations, place_anywhere=0):
         ''' Add this population to the map '''
         allmembers = []
 
@@ -4793,7 +4793,9 @@ class Population:
                     x, y = roll(startrect.x1, startrect.x2), roll(startrect.y1, startrect.y2)
                 elif startbuilding:
                     x, y = random.choice(startbuilding.physical_property)
-                if not g.M.tile_blocks_mov(x, y):
+                ## place_anywhere used for battles at world-scale
+                ## In those battles, only tiny maps are created, which is not enough so that each character has a unique spot
+                if place_anywhere or not g.M.tile_blocks_mov(x, y):
                     found_spot = 1
                     break
             ####### Safety step - couldn't find a valid location ########
@@ -5559,8 +5561,8 @@ class SapientComponent:
 
     def sapient_free_from_captivity(self):
         ''' Handles setting a sapient free from captivity, and making sure any army holding it captive is also properly handled '''
-        if self.captor.sapient.army and self.owner in self.captor.sapient.army.captives:
-            self.captor.sapient.army.captives.remove(self.owner)
+        #if self.captor.sapient.army and self.owner in self.captor.sapient.army.captives:
+        #    self.captor.sapient.army.captives.remove(self.owner)
 
         self.captor.sapient.captives.remove(self.owner)
         self.captor = None
@@ -5578,17 +5580,14 @@ class SapientComponent:
         ''' Transfer citizenship from one city to another '''
         # Remove from old citizenship
         if self.current_citizenship:
-            # TEMP FIX
-            try:
-                self.current_citizenship.citizens.remove(self.owner)
-            except:
-                g.game.add_message('{0} says it is citizen of {1} but not in list'.format(self.owner.fulltitle(), self.current_citizenship.name), libtcod.red)
+            self.current_citizenship.citizens.remove(self.owner)
         # Remove old housing stuff
         if self.house:
             self.house.remove_inhabitant(self.owner)
         # Remove old faction stuff
         if self.faction:
             self.faction.remove_member(self.owner)
+
         # Change to new city, and add to that city's citizens
         if new_city is not None:
             self.current_citizenship = new_city
@@ -5596,6 +5595,7 @@ class SapientComponent:
             new_city.faction.add_member(self.owner)
         ## Otherwise switch to the faction that owns the house you're moving to
         elif new_house.faction:
+            self.current_citizenship = None
             new_house.faction.add_member(self.owner)
 
         self.house = new_house
@@ -5627,12 +5627,13 @@ class SapientComponent:
         location = g.WORLD.tiles[figure.wx][figure.wx].get_location_description()
 
         # Notify world!
-        g.game.add_message('{0} has died in {1}! ({2}, {3})'.format(figure.fulltitle(), location, figure.wx, figure.wy), libtcod.red)
+        g.game.add_message('{0} has died in {1} due to{2}! ({3}, {4})'.format(figure.fulltitle(), location, reason, figure.wx, figure.wy), libtcod.red)
 
         # Remo
         if figure.sapient.current_citizenship:
             figure.sapient.current_citizenship.citizens.remove(figure)
 
+        g.WORLD.tiles[figure.wx][figure.wy].entities.remove(figure)
         # Remove from the list of all figures, and the important ones if we're important
         g.WORLD.all_figures.remove(figure)
         if figure in g.WORLD.important_figures:
@@ -5959,7 +5960,6 @@ class Creature:
 
     def is_available_to_act(self):
         ''' Way to check whether the figure can act of their own accord.'''
-        ## TODO - switch is_captive() from sapient to creature
         return not (self.owner.sapient.is_captive() or self.status in ('unconscious', 'dead'))
 
     def set_status(self, status):
