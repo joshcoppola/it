@@ -3024,7 +3024,10 @@ class Profession:
     def give_profession_to(self, figure):
         # Remove current holder from buildings, and the profession
         if self.holder:
-            g.game.add_message('{0} has replaced {1} as {2} in {3}'.format(figure.fullname(), self.holder.fullname(), self.name, self.building.site.name), libtcod.light_green)
+            if self.building:   location = ' in {0}'.format(self.building.site.name)
+            else:               location = ''
+
+            g.game.add_message('{0} has replaced {1} as {2}{3}'.format(figure.fullname(), self.holder.fullname(), self.name, location), libtcod.light_green)
             if self.current_work_building:
                 self.current_work_building.remove_worker(self.holder)
             self.holder.sapient.profession.remove_profession_from(self.holder)
@@ -5525,10 +5528,11 @@ class SapientComponent:
 
     def nonverbal_behavior(self, behavior, msg_color=None):
         ''' Any nonverbal behavior that this creature can undertake '''
-        if msg_color is None:
-            msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
+        if g.game.map_scale == 'human':
+            if msg_color is None:
+                msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
 
-        g.game.add_message('%s %s.' % (self.owner.fullname(), behavior), msg_color)
+            g.game.add_message('%s %s.' % (self.owner.fullname(), behavior), msg_color)
 
     def verbalize_pain(self, damage, sharpness, pain_ratio):
         ''' The creature will verbalize its pain '''

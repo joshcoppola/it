@@ -85,12 +85,27 @@ class WorldBattle:
         self.wy = wy
 
         self.faction1_named = faction1_named
+        self.faction1_commander = self.determine_commander(faction1_named)
         self.faction1_populations = faction1_populations
+
         self.faction2_named = faction2_named
+        self.faction2_commander = self.determine_commander(faction2_named)
         self.faction2_populations = faction2_populations
 
         self.battle_type = None
         self.determine_battle_type_and_execute_battle()
+
+    def determine_commander(self, faction_named):
+        ''' Find the figure with the greatest number of commanded beings and set as commander '''
+        current_commander = None
+        current_num_commanded_figs = -1 # Non-commanders have 0 commanded figs
+        for entity in faction_named:
+            commanded_figs = entity.sapient.get_total_number_of_commanded_beings()
+            if commanded_figs > current_num_commanded_figs:
+                current_commander = entity
+                current_num_commanded_figs = commanded_figs
+
+        return current_commander
 
     def determine_battle_type_and_execute_battle(self):
 
@@ -106,10 +121,14 @@ class WorldBattle:
         if f1_total_number < 20 and f2_total_number < 20:
             self.battle_type = 'small-scale'
 
-            g.game.add_message('{0} men of {1} face off against {2} men of {3} at {4}'.format(
-                f1_total_number + len(self.faction1_named), self.faction1_named[0].sapient.faction.faction_name,
-                f2_total_number + len(self.faction2_named), self.faction2_named[0].sapient.faction.faction_name,
-                g.WORLD.tiles[self.wx][self.wy].get_location_description()))
+            # Generate message for the game to display!
+            if len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
+            else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.sapient.faction.faction_name, self.faction1_commander.fullname())
+
+            if len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
+            else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.sapient.faction.faction_name, self.faction2_commander.fullname())
+
+            g.game.add_message('{0} attacks {1} at {2}'.format(faction1_desc, faction2_desc, g.WORLD.tiles[self.wx][self.wy].get_location_description()))
 
             self.small_scale_battle()
 
@@ -127,6 +146,10 @@ class WorldBattle:
         for member in self.faction1_named + self.faction2_named:
             # Add entity to set of all things which have battled this world tick
             g.WORLD.has_battled.add(member)
+
+        # Now that the populations have been de-abstracted, we can make a list of all members in each faction
+        f1_all_members = [e for e in g.M.sapients if e.sapient.faction == self.faction1_commander.sapient.faction]
+        f2_all_members = [e for e in g.M.sapients if e.sapient.faction == self.faction2_commander.sapient.faction]
 
         for f1_member in self.faction1_named:
             target = random.choice(self.faction2_named)

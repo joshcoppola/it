@@ -483,7 +483,8 @@ class Wmap:
         for obj in self.sapients:
             obj.creature.set_initial_desires(factions_on_map)
 
-        g.game.add_message('%i objs; %i saps' %(len(self.objects), len(self.sapients)) )
+        if g.game.map_scale == 'human':
+            g.game.add_message('%i objs; %i saps' %(len(self.objects), len(self.sapients)) )
 
         self.initialize_fov()
 
