@@ -151,24 +151,63 @@ class WorldBattle:
         f1_all_members = [e for e in g.M.sapients if e.sapient.faction == self.faction1_commander.sapient.faction]
         f2_all_members = [e for e in g.M.sapients if e.sapient.faction == self.faction2_commander.sapient.faction]
 
-        for f1_member in self.faction1_named:
-            target = random.choice(self.faction2_named)
+        f1_in_combat = f1_all_members[:]
+        f2_in_combat = f2_all_members[:]
 
-            while f1_member.creature.is_available_to_act() and target.creature.is_available_to_act():
+        target_tracking_dict = {e: None for e in f1_in_combat + f2_in_combat}
 
-                f1_member.local_brain.attack_enemy(enemy=target)
-                target.local_brain.attack_enemy(enemy=f1_member)
+        while f1_in_combat and f2_in_combat:
+            # Faction 1
+            print len(f1_in_combat), len(f2_in_combat)
 
-                #print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
-                handle_combat_round(actors=[f1_member, target])
+            for entity in reversed(f1_in_combat):
+                if entity.creature.is_available_to_act():
+                    if target_tracking_dict[entity] not in f2_in_combat and f2_in_combat:
+                        target = random.choice(f2_in_combat)
+                        target_tracking_dict[entity] = target
+                        target_tracking_dict[target] = entity
 
-        f1_remaining = [e for e in self.faction1_named if e.creature.is_available_to_act()]
-        f2_remaining = [e for e in self.faction2_named if e.creature.is_available_to_act()]
+                    if target_tracking_dict[entity] is not None:
+                        entity.local_brain.attack_enemy(enemy=target_tracking_dict[entity])
+                # Unavailable to act, so remove from combat
+                else:
+                    f1_in_combat.remove(entity)
 
-        if len(f1_remaining) > len(f2_remaining):
-            for member in self.faction2_named:
-                if member.creature.status == 'alive' and not member.creature.is_available_to_act():
-                    f1_remaining[0].sapient.take_captive(member)
+            # Faction 2
+            for entity in reversed(f2_in_combat):
+                if entity.creature.is_available_to_act():
+                    if target_tracking_dict[entity] not in f1_in_combat and f1_in_combat:
+                        target = random.choice(f1_in_combat)
+                        target_tracking_dict[entity] = target
+                        target_tracking_dict[target] = entity
+
+                    if target_tracking_dict[entity] is not None:
+                        entity.local_brain.attack_enemy(enemy=target_tracking_dict[entity])
+                else:
+                    f2_in_combat.remove(entity)
+
+            # Execute combat
+            handle_combat_round(actors=f1_in_combat + f2_in_combat)
+
+
+        # for f1_member in self.faction1_named:
+        #     target = random.choice(self.faction2_named)
+        #
+        #     while f1_member.creature.is_available_to_act() and target.creature.is_available_to_act():
+        #
+        #         f1_member.local_brain.attack_enemy(enemy=target)
+        #         target.local_brain.attack_enemy(enemy=f1_member)
+        #
+        #         #print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
+        #         handle_combat_round(actors=[f1_member, target])
+        #
+        # f1_remaining = [e for e in self.faction1_named if e.creature.is_available_to_act()]
+        # f2_remaining = [e for e in self.faction2_named if e.creature.is_available_to_act()]
+        #
+        # if len(f1_remaining) > len(f2_remaining):
+        #     for member in self.faction2_named:
+        #         if member.creature.status == 'alive' and not member.creature.is_available_to_act():
+        #             f1_remaining[0].sapient.take_captive(member)
 
 
 
