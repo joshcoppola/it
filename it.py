@@ -5176,8 +5176,69 @@ class WanderBehavior:
         self.figure.w_move_to(wx, wy)
 
 
-class SapientComponent:
-    def __init__(self, firstname, lastname, culture, born, dynasty, important=0):
+class Creature:
+    def __init__(self, creature_type, sex, intelligence_level, firstname=None, lastname=None, culture=None, born=None, dynasty=None, important=0):
+        self.creature_type = creature_type
+        self.sex = sex
+        self.intelligence_level = intelligence_level
+
+        self.next_tick = 1
+        self.turns_since_move = 0
+
+
+        self.current_weapon = None
+        self.status = 'alive'
+
+        self.combat_target = []
+        self.needs_to_calculate_combat = 0
+        self.last_turn_moves = []
+
+        self.natural_combat_moves = {
+                             'bite': 10,
+                             'high punch': 100,
+                             'middle punch': 100,
+                             'low punch': 100,
+                             'kick': 100
+                             }
+
+
+        self.skills = {}
+        for skill, value in phys.creature_dict[self.creature_type]['creature']['skills'].iteritems():
+            self.skills[skill] = value
+
+
+        self.experience = {}
+        for skill, value in self.skills.iteritems():
+            self.experience[skill] = EXPERIENCE_PER_SKILL_LEVEL[value] - 1
+
+
+        self.attributes = {}
+        for attribute, value in phys.creature_dict[self.creature_type]['creature']['attributes'].iteritems():
+            self.attributes[attribute] = value
+
+        self.alert_sight_radius = g.ALERT_FOV_RADIUS
+        self.unalert_sight_radius = g.UNALERT_FOV_RADIUS
+
+
+        self.pain = 0
+        ## Blood ##
+        self.blood = 5.6 # in liters - should also scale with body's volume
+        self.max_blood = self.blood
+        self.bleeding = 0
+        self.clotting = .05
+
+        self.set_stance(random.choice(('Aggressive', 'Defensive')) )
+        # 8 cardinal directions, 0 = north, every +1 is a turn clockwise
+        self.facing = 0
+
+        # To be set later
+        self.dijmap_desires = {}
+
+        # To be set when it is added to the object component
+        self.owner = None
+
+        ### Sapient ###
+
         self.culture = culture
         self.born = born
 
@@ -5250,658 +5311,7 @@ class SapientComponent:
         ## Set initial opinions - this is without having a profession
         self.set_opinions()
 
-    #def add_enemy_faction(self, faction):
-    #    self.enemy_factions.add(faction)
 
-    #def remove_enemy_faction(self, faction):
-    #    self.enemy_factions.remove(faction)
-
-    def set_as_faction_leader(self, faction):
-        self.is_faction_leader = faction
-
-    def unset_as_faction_leader(self, faction):
-        self.is_faction_leader = None
-
-
-    def is_commander(self):
-        return len(self.commanded_figures) or len(self.commanded_populations)
-
-    def get_total_number_of_commanded_beings(self):
-        ''' Returns the number of beings under tis character's command'''
-        if self.is_commander():
-            number_of_figures = len(self.commanded_figures)
-            total_number = number_of_figures + 1 #(add 1, which is ourself)
-            # Dig down into the population breakdown to get the total number
-            for population in self.commanded_populations:
-                total_number += population.get_number_of_beings()
-        # If we're not a commander, return 0, meaning no men under our command
-        else:
-            total_number = 0
-
-        return total_number
-
-    def add_commanded_figure(self, figure):
-        figure.sapient.commander = self.owner
-        self.commanded_figures.append(figure)
-
-    def remove_commanded_figure(self, figure):
-        figure.sapient.commander = None
-        self.commanded_figures.remove(figure)
-
-    def add_commanded_population(self, population):
-        population.commander = self.owner
-        self.commanded_populations.append(population)
-
-    def remove_commanded_population(self, population):
-        population.commander = None
-        self.commanded_populations.remove(population)
-
-    #def handle_question(self, asker, target, question_type):
-    #    ''' Handles all functions relating to asking questions '''
-    #    # First determine answer ('no response', 'truth', later will implement 'lie')
-    #    # This also handles updating knowledge
-    #    answer_type = self.ask_question(asker=asker, target=target, question_type=question_type)
-    #    # Verbal responses to the questions
-    #    if g.player in self.participants:
-    #        self.verbalize_question(asker=asker, target=target, question_type=question_type)
-    #        self.verbalize_answer(asker=asker, target=target, question_type=question_type, answer_type=answer_type)
-
-    def ask_question(self, target, question_type):
-        ''' Handles the information transfer between questions.
-        The verbalization component is handled in the "verbalize" functions '''
-        # Send the prompt over to the target
-        self.verbalize_question(target, question_type)
-
-        target.sapient.pending_conversations.append((self.owner, question_type))
-
-        # TODO - move this g.player-specific bit somewhere where it makes more sense?
-        if self.owner == g.player:
-            g.game.player_advance_time(ticks=1)
-
-
-    def verbalize_question(self, target, question_type):
-        # Ask the question
-        g.game.add_message(self.owner.fullname() + ': ' + CONVERSATION_QUESTIONS[question_type], libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5))
-
-
-    def verbalize_answer(self, asker, question_type, answer_type):
-        ''' Sending the answer through the game messages '''
-
-        if answer_type == 'no answer':
-            self.say('I don\'t want to tell you that.')
-
-        elif answer_type == 'truth':
-            if question_type == 'name':
-                self.say('My name is %s.' % self.owner.fullname() )
-
-            elif question_type == 'profession':
-                if self.profession:
-                    self.say('I am a %s.' % self.profession.name)
-                else:
-                    self.say('I do not have any profession.')
-
-            elif question_type == 'age':
-                age = self.get_age()
-                self.say('I am %i.' % age)
-
-            elif question_type == 'city':
-                current_citizen_of = self.current_citizenship
-
-                if current_citizen_of:
-                    self.say('I currently live in %s.' % current_citizen_of.name)
-                else:
-                    self.say('I currently do not hold any citizenship.')
-
-            elif question_type == 'goals':
-                if len(self.owner.world_brain.goals):
-                    if len(self.owner.world_brain.goals) == 1:
-                        self.say('My current goal is to {0}.'.format(self.owner.world_brain.goals[0].get_name()) )
-                    elif len(self.owner.world_brain.goals) > 1:
-                        goal_names = join_list([g.get_name() for g in self.owner.world_brain.goals[1:]])
-                        self.say('My current plan is to {0}. Later, I\'m going to {1}'.format(self.owner.world_brain.goals[0].get_name(), goal_names))
-                # IF we're travelling under someone's command
-                elif self.commander and len(self.commander.world_brain.goals):
-                    if len(self.commander.world_brain.goals) == 1:
-                        self.say('I\'m with {0}. Our current plan is to {1}.'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name()) )
-                    elif len(self.commander.world_brain.goals) > 1:
-                        goal_names = join_list([g.get_name() for g in self.commander.world_brain.goals[1:]])
-                        self.say('I\'m with {0}. Our current plan is to {1}. Later, we\'ll {2}'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name(), goal_names))
-                else:
-                    self.say('I don\'t really have any goals at the moment.')
-
-        ## Shouldn't break the mold here... but answer_type is different
-        if question_type == 'recruit':
-            if answer_type == 'yes':
-                self.say('I will gladly join you!')
-                ### TODO - put this into a function!
-                self.profession = Profession('Adventurer', 'commoner')
-                g.player.sapient.add_commanded_figure(self.owner)
-
-            elif answer_type == 'no':
-                ## Decline, with a reason why
-                if self.commander:
-                    self.say('I am already a member of %s.' % self.commander.name)
-                elif self.get_profession:
-                    self.say('As a %s, I cannot join you.' % self.get_profession() )
-                else:
-                    self.say('I cannot join you.')
-
-        # Same with greetings...
-        elif question_type == 'greet':
-            if answer_type == 'return greeting':
-                self.say('Hello there.')
-            elif answer_type == 'no answer':
-                self.nonverbal_behavior('does not answer')
-            elif answer_type == 'busy':
-                self.say('I\m sorry, I am busy right now.')
-
-
-    def get_valid_questions(self, target):
-        ''' Valid questions to ask '''
-        valid_questions = []
-        if target not in self.recent_interlocutors:
-            return ['greet']
-
-        if target not in self.knowledge.keys():
-            return ['name']
-
-        if self.knowledge[target]['city'] is None:
-            valid_questions.append('city')
-
-        if self.knowledge[target]['age'] is None:
-            valid_questions.append('age')
-
-        if self.knowledge[target]['profession'] is None:
-            valid_questions.append('profession')
-
-        if self.knowledge[target]['goals'] is None:
-            valid_questions.append('goals')
-
-        ## TODO - allow NPCs to recruit, under certain circumstances
-        if self.is_commander() and target.sapient.commander != self.owner and self.owner == g.player:
-            valid_questions.append('recruit')
-
-        return valid_questions
-
-
-    #def get_valid_topics(self, target):
-    #    ''' Valid topics of conversation '''
-    #    return self.topics
-
-    #def change_topic(self, topic):
-    #    self.topic = topic
-    #    g.game.add_message('You begin talking about ' + self.topic + '.', libtcod.color_lerp(g.player.color, PANEL_FRONT, .5))
-
-
-    def determine_response(self, asker, question_type):
-
-        if question_type == 'greet':
-            self.recent_interlocutors.append(asker)
-            asker.sapient.recent_interlocutors.append(self.owner)
-
-            return 'return greeting'
-
-        elif question_type == 'name':
-            ''' Ask the target's name '''
-            asker.sapient.meet(self.owner)
-
-            return 'truth'
-
-        elif question_type == 'profession':
-            ''' Ask about their profession '''
-            profession = self.profession
-            if profession is None:
-                profession = 'No profession'
-
-            asker.sapient.add_person_knowledge(other_person=self.owner, info_type=question_type, info=profession)
-
-            return 'truth'
-
-        elif question_type == 'age':
-            ''' Ask about their profession '''
-            age = self.get_age()
-
-            asker.sapient.add_person_knowledge(other_person=self.owner, info_type=question_type, info=age)
-            return 'truth'
-
-        elif question_type == 'city':
-            ''' Ask about the city they live in '''
-
-            current_citizen_of = self.current_citizenship
-            if current_citizen_of is None:
-                current_citizen_of = 'No citizenship'
-
-            asker.sapient.add_person_knowledge(other_person=self.owner, info_type=question_type, info=current_citizen_of)
-
-            return 'truth'
-
-        elif question_type == 'goals':
-            ''' Ask about their goals '''
-
-            goals = []
-            if len(self.goals):
-                for goal in self.goals:
-                    goals.append(goal)
-
-            asker.sapient.add_person_knowledge(other_person=self.owner, info_type=question_type, info=goals)
-
-            return 'truth'
-
-        elif question_type == 'recruit':
-            ''' Try to recruit person into actor's party '''
-            if self.get_age() >= MIN_MARRIAGE_AGE and (self.owner.creature.sex == 1 or self.spouse is None) \
-                and self.profession is None and not self.commander:
-                return 'yes'
-
-            else:
-                return 'no'
-
-
-    def handle_pending_conversations(self):
-        for (asker, question_type) in self.pending_conversations:
-
-            #if self.owner == g.player:
-                ## TODO - prompt GUI for g.player to choose his answer
-            #    answer_type = self.determine_response(asker, question_type)
-            #    self.verbalize_answer(asker, question_type, answer_type)
-            #else:
-
-            answer_type = self.determine_response(asker, question_type)
-            self.verbalize_answer(asker, question_type, answer_type)
-
-            # GUI stuff - must update when NPC gives response
-            if asker == g.player:
-                for panel in g.game.interface.get_panels(panel_name='talk_screen'):
-                    panel.button_refresh_func(*panel.button_refresh_args)
-
-
-        self.pending_conversations = []
-
-    #def score_question(self, conversation, asker, target, question_type):
-    #    score = 5
-    #    return score
-
-    def say(self, text_string):
-        msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
-
-        g.game.add_message('{0}: {1}'.format(self.owner.fullname(), text_string), msg_color)
-
-    def nonverbal_behavior(self, behavior, msg_color=None):
-        ''' Any nonverbal behavior that this creature can undertake '''
-        if g.game.map_scale == 'human':
-            if msg_color is None:
-                msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
-
-            g.game.add_message('%s %s.' % (self.owner.fullname(), behavior), msg_color)
-
-    def verbalize_pain(self, damage, sharpness, pain_ratio):
-        ''' The creature will verbalize its pain '''
-        # Damage/pain ratio are decimals, so divide and multiply are opposite
-        pain_composite = (damage * 3) + (pain_ratio / 2)
-        will_verbalize = roll(1, 100) <= (pain_composite * 100)
-        #will_verbalize = 1
-
-        if will_verbalize:
-            if pain_composite > .8:
-                self.nonverbal_behavior('lets loose a bloodcurdling scream')
-            elif pain_composite > .7:
-                self.nonverbal_behavior('lets loose a shrill scream')
-            elif pain_composite > .6:
-                self.nonverbal_behavior('screams in pain')
-            elif pain_composite > .5:
-                self.nonverbal_behavior('screams')
-            elif pain_composite > .4:
-                self.nonverbal_behavior('grunts loudly')
-            elif pain_composite > .3:
-                self.nonverbal_behavior('grunts')
-
-    def take_captive(self, figure):
-        figure.sapient.captor = self.owner
-        self.captives.append(figure)
-
-    def is_captive(self):
-        ''' Function simply returns whether or not this guy is a captive '''
-        return self.captor is not None
-
-    def sapient_free_from_captivity(self):
-        ''' Handles setting a sapient free from captivity, and making sure any army holding it captive is also properly handled '''
-        #if self.captor.sapient.army and self.owner in self.captor.sapient.army.captives:
-        #    self.captor.sapient.army.captives.remove(self.owner)
-
-        self.captor.sapient.captives.remove(self.owner)
-        self.captor = None
-
-        # Unsure if this will work properly, but, once freed, all sapients should re-evaluate to make sure captives show up as enemies properly
-        for figure in g.M.sapients:
-            if figure.local_brain:
-                figure.local_brain.set_enemy_perceptions_from_cached_factions()
-        ############################################################
-
-        self.say('I\'m free!')
-
-
-    def change_citizenship(self, new_city, new_house):
-        ''' Transfer citizenship from one city to another '''
-        # Remove from old citizenship
-        if self.current_citizenship:
-            self.current_citizenship.citizens.remove(self.owner)
-        # Remove old housing stuff
-        if self.house:
-            self.house.remove_inhabitant(self.owner)
-        # Remove old faction stuff
-        if self.faction:
-            self.faction.remove_member(self.owner)
-
-        # Change to new city, and add to that city's citizens
-        if new_city is not None:
-            self.current_citizenship = new_city
-            new_city.citizens.append(self.owner)
-            new_city.faction.add_member(self.owner)
-        ## Otherwise switch to the faction that owns the house you're moving to
-        elif new_house.faction:
-            self.current_citizenship = None
-            new_house.faction.add_member(self.owner)
-
-        self.house = new_house
-        if self.house:
-            self.house.add_inhabitant(self.owner)
-
-    def get_minor_successor(self):
-        ''' A way for minor figures to pass down their profession, in cases where it's not a huge deal'''
-        possible_successors = [child for child in self.children if
-                               child.creature.sex == 1 and child.sapient.get_age() >= MIN_MARRIAGE_AGE]
-        if possible_successors != []:
-            return possible_successors[0]
-        else:
-            return self.current_citizenship.create_inhabitant(sex=1, age=roll(18, 35), char='o', dynasty=None, important=self.important)
-
-    def add_event(self, date, event):
-        ''' Should add an event to our memory'''
-        (year, month, day) = date
-        if (year, month, day) in self.events.keys():
-            self.events[(year, month, day)].append(event)
-        else:
-            self.events[(year, month, day)] = [event]
-
-
-    def die(self, reason):
-        figure = self.owner
-        figure.creature.set_status('dead')
-        #if g.WORLD.tiles[figure.wx][figure.wy].site:  location = g.WORLD.tiles[figure.wx][figure.wy].site.name
-        location = g.WORLD.tiles[figure.wx][figure.wx].get_location_description()
-
-        # Notify world!
-        g.game.add_message('{0} has died in {1} due to{2}! ({3}, {4})'.format(figure.fulltitle(), location, reason, figure.wx, figure.wy), libtcod.red)
-
-        # Remo
-        if figure.sapient.current_citizenship:
-            figure.sapient.current_citizenship.citizens.remove(figure)
-
-        g.WORLD.tiles[figure.wx][figure.wy].entities.remove(figure)
-        # Remove from the list of all figures, and the important ones if we're important
-        g.WORLD.all_figures.remove(figure)
-        if figure in g.WORLD.important_figures:
-            g.WORLD.important_figures.remove(figure)
-
-        if self.faction:
-            self.faction.remove_member(figure)
-
-        successor = None
-        # The faction lead passes on, if we lead a faction
-        if self.is_faction_leader:
-            self.is_faction_leader.standard_succession()
-
-        # Only check profession if we didn't have a title, so profession associated with title doesn't get weird
-        elif self.profession:
-            # Find who will take over all our stuff
-            successor = self.get_minor_successor()
-            self.profession.give_profession_to(successor)
-
-        ## If we were set to inherit anything, that gets updated now
-        #  File "E:\Dropbox\Code\Iron Testament\it.py", line 8650, in year_tick
-        #    if figure.sapient.get_age() > 70:
-        #    File "E:\Dropbox\Code\Iron Testament\it.py", line 7485, in die
-        #    RuntimeError: dictionary changed size during iteration
-        for faction, position in self.inheritance.iteritems():
-            heirs = faction.get_heirs(3) # Should ignore us now since we're dead
-            # If our position was 1st in line, let the world know who is now first in line
-            if position == 1 and heirs != []:
-                g.game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.faction_name), libtcod.light_blue)
-
-            elif position == 1:
-                g.game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.faction_name), libtcod.light_blue)
-
-
-        # Remove self from any armies we might be in
-        if figure.sapient.commander:
-            if self in figure.sapient.commander.sapient.commanded_figures:
-                figure.sapient.commander.remove_commanded_figure(figure)
-        elif figure.sapient.is_commander():
-            ## The is a possibility that this is a caravan at another city; this will bring the successor there if needed
-            # TODO - should just have the person walk there and join up with the army
-#             if successor:
-#                 ## Pretty ugly hack for now. When a merchant dies naturally, we're gonna teleport
-#                 ## a successor to his location. In order to do this, we may have to leave our
-#                 ## current city and then get added to the new city.
-#                 try:
-#                     for city in g.WORLD.cities:
-#                         if army in city.caravans and successor.sapient.current_city != city:
-#                             print '%s was teleported to %s upon the death of %s'%(successor.fulltitle(), city.name, figure.fulltitle())
-#                             break
-#                 except:
-#                     print ('%s, successor to %s, looked for caravan in %s but something went wrong!'%(successor.fulltitle(), figure.fulltitle(), city.name))
-#
-#                 # Actually join the army
-#                 successor.sapient.join_army(army)
-
-
-            if figure.sapient.economy_agent and successor:
-                figure.sapient.economy_agent.update_holder(successor)
-                #g.game.add_message(successor.fulltitle() + ' is now ' + successor.sapient.economy_agent.name, libtcod.light_green)
-
-        if self.house:
-            try:
-                self.house.remove_inhabitant(figure)
-            except:
-                print figure.fulltitle(), 'was not in his house!'
-                g.game.add_message(figure.fulltitle(), 'was not in his house!')
-
-    def get_age(self):
-        return g.WORLD.time_cycle.current_year - self.born
-
-    def get_profession(self):
-        if self.profession:
-            return self.profession.name
-        elif self.get_age() < MIN_CHILDBEARING_AGE:
-            return 'Child'
-        elif self.owner.creature.sex == 0 and self.spouse:
-            return 'Housewife'
-        elif self.owner.creature.sex == 0:
-            return 'Maiden'
-        return 'No profession'
-
-    def take_spouse(self, spouse):
-        self.spouse = spouse
-        spouse.sapient.spouse = self.owner
-
-    def have_child(self):
-
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), age=0, char='o', dynasty=self.spouse.sapient.dynasty, race=self.owner.creature.creature_type, important=self.important)
-
-        self.children.append(child)
-        self.spouse.sapient.children.append(child)
-
-        child.sapient.mother = self.owner
-        child.sapient.father = self.spouse
-
-        child.sapient.generation = self.spouse.sapient.generation + 1
-
-        return child
-
-    def set_initial_traits(self):
-        ## Give the person a few traits
-        trait_num = roll(3, 4)
-        while trait_num > 0:
-            trait = random.choice(TRAITS)
-
-            usable = 1
-            for otrait in self.traits:
-                if trait in TRAIT_INFO[otrait]['opposed_traits'] or trait == otrait:
-                    usable = 0
-                    break
-            if usable:
-                # "Somewhat = .5, regular = 1, "very" = 2
-                multiplier = random.choice((.5, .5, 1, 1, 1, 1, 2))
-                self.traits[trait] = multiplier
-                trait_num -= 1
-
-    def set_opinions(self):
-        # Set opinions on various things according to our profession and personality
-        self.opinions = {}
-
-        for issue in PROF_OPINIONS.keys():
-            prof_opinion = 0
-            personal_opinion = 0
-            reasons = {}
-
-            ## Based on profession ##
-            if self.profession is not None and self.profession.category in PROF_OPINIONS[issue].keys():
-                prof_opinion = PROF_OPINIONS[issue][self.profession.category]
-                reasons['profession'] = prof_opinion
-
-            ## Based on personal traits ##
-            for trait, multiplier in self.traits.iteritems():
-                if trait in PERSONAL_OPINIONS[issue].keys():
-                    amount = PERSONAL_OPINIONS[issue][trait] * multiplier
-                    reasons[trait] = amount
-                    personal_opinion += amount
-
-            # A total tally of the opinion
-            opinion = prof_opinion + personal_opinion
-            # Now we save the issue, our opinion, and the reasoning
-            self.opinions[issue] = [opinion, reasons]
-
-
-
-    def add_person_knowledge(self, other_person, info_type, info):
-        ''' Checks whether we know of the person and then updates info '''
-        if not other_person in self.knowledge.keys():
-            self.add_awareness_of_person(other_person)
-
-        self.knowledge[other_person][info_type] = info
-
-
-    def get_relations(self, other_person):
-        # set initial relationship with another person
-        # Needs to be greatly expanded, and able to see reasons why
-        reasons = {}
-
-        for trait, multiplier in self.traits.iteritems():
-            for otrait in other_person.sapient.traits.keys():
-                if trait == otrait:
-                    reasons['Both ' + trait] = 4 * multiplier
-                    break
-                elif trait in TRAIT_INFO[otrait]['opposed_traits']:
-                    reasons[trait + ' vs ' + otrait] = -2 * multiplier
-                    break
-
-        # Things other than traits can modify this, must be stored in self.extra_relations
-        # Basically merge this into the "reasons" dict
-        if other_person in self.knowledge.keys():
-            for reason, amount in self.knowledge[other_person]['relations'].iteritems():
-                reasons[reason] = amount
-
-        return reasons
-
-
-    def modify_relations(self, other_person, reason, amount):
-        # Anything affecting relationship not covered by traits
-
-        # Add them to relation list if not already there
-        if not other_person in self.knowledge.keys():
-            self.add_awareness_of_person(other_person)
-
-        # Then add the reason
-        if not reason in self.knowledge[other_person]['relations'].keys():
-            self.knowledge[other_person]['relations'][reason] = amount
-        else:
-            self.knowledge[other_person]['relations'][reason] += amount
-
-    def add_awareness_of_person(self, other_person):
-        ''' To set up the knowledge dict '''
-        self.knowledge[other_person] = {'relations':{},
-                                        'profession':None,
-                                        'age':None,
-                                        'city':None,
-                                        'goals':None
-                                        }
-
-    def meet(self, other):
-        # Use to set recipricol relations with another person
-        self.modify_relations(other, 'Knows personally', 2)
-        other.sapient.modify_relations(self.owner, 'Knows personally', 2)
-
-
-class Creature:
-    def __init__(self, creature_type, sex, intelligence_level):
-        self.creature_type = creature_type
-        self.sex = sex
-        self.intelligence_level = intelligence_level
-
-        self.next_tick = 1
-        self.turns_since_move = 0
-
-
-        self.current_weapon = None
-        self.status = 'alive'
-
-        self.combat_target = []
-        self.needs_to_calculate_combat = 0
-        self.last_turn_moves = []
-
-        self.natural_combat_moves = {
-                             'bite': 10,
-                             'high punch': 100,
-                             'middle punch': 100,
-                             'low punch': 100,
-                             'kick': 100
-                             }
-
-
-        self.skills = {}
-        for skill, value in phys.creature_dict[self.creature_type]['creature']['skills'].iteritems():
-            self.skills[skill] = value
-
-
-        self.experience = {}
-        for skill, value in self.skills.iteritems():
-            self.experience[skill] = EXPERIENCE_PER_SKILL_LEVEL[value] - 1
-
-
-        self.attributes = {}
-        for attribute, value in phys.creature_dict[self.creature_type]['creature']['attributes'].iteritems():
-            self.attributes[attribute] = value
-
-        self.alert_sight_radius = g.ALERT_FOV_RADIUS
-        self.unalert_sight_radius = g.UNALERT_FOV_RADIUS
-
-
-        self.pain = 0
-        ## Blood ##
-        self.blood = 5.6 # in liters - should also scale with body's volume
-        self.max_blood = self.blood
-        self.bleeding = 0
-        self.clotting = .05
-
-        self.set_stance(random.choice(('Aggressive', 'Defensive')) )
-        # 8 cardinal directions, 0 = north, every +1 is a turn clockwise
-        self.facing = 0
-
-        # To be set later
-        self.dijmap_desires = {}
-
-        # To be set when it is added to the object component
-        self.owner = None
 
     def modify_experience(self, skill, amount):
         self.experience[skill] += amount
@@ -6288,6 +5698,600 @@ class Creature:
         creature_obj.local_brain = None
         libtcod.map_set_properties(g.M.fov_map, creature_obj.x, creature_obj.y, True, True)
         creature_obj.name = 'Corpse of {0}'.format(creature_obj.fulltitle())
+
+
+    #def add_enemy_faction(self, faction):
+    #    self.enemy_factions.add(faction)
+
+    #def remove_enemy_faction(self, faction):
+    #    self.enemy_factions.remove(faction)
+
+    def set_as_faction_leader(self, faction):
+        self.is_faction_leader = faction
+
+    def unset_as_faction_leader(self, faction):
+        self.is_faction_leader = None
+
+
+    def is_commander(self):
+        return len(self.commanded_figures) or len(self.commanded_populations)
+
+    def get_total_number_of_commanded_beings(self):
+        ''' Returns the number of beings under tis character's command'''
+        if self.is_commander():
+            number_of_figures = len(self.commanded_figures)
+            total_number = number_of_figures + 1 #(add 1, which is ourself)
+            # Dig down into the population breakdown to get the total number
+            for population in self.commanded_populations:
+                total_number += population.get_number_of_beings()
+        # If we're not a commander, return 0, meaning no men under our command
+        else:
+            total_number = 0
+
+        return total_number
+
+    def add_commanded_figure(self, figure):
+        figure.creature.commander = self.owner
+        self.commanded_figures.append(figure)
+
+    def remove_commanded_figure(self, figure):
+        figure.creature.commander = None
+        self.commanded_figures.remove(figure)
+
+    def add_commanded_population(self, population):
+        population.commander = self.owner
+        self.commanded_populations.append(population)
+
+    def remove_commanded_population(self, population):
+        population.commander = None
+        self.commanded_populations.remove(population)
+
+    #def handle_question(self, asker, target, question_type):
+    #    ''' Handles all functions relating to asking questions '''
+    #    # First determine answer ('no response', 'truth', later will implement 'lie')
+    #    # This also handles updating knowledge
+    #    answer_type = self.ask_question(asker=asker, target=target, question_type=question_type)
+    #    # Verbal responses to the questions
+    #    if g.player in self.participants:
+    #        self.verbalize_question(asker=asker, target=target, question_type=question_type)
+    #        self.verbalize_answer(asker=asker, target=target, question_type=question_type, answer_type=answer_type)
+
+    def ask_question(self, target, question_type):
+        ''' Handles the information transfer between questions.
+        The verbalization component is handled in the "verbalize" functions '''
+        # Send the prompt over to the target
+        self.verbalize_question(target, question_type)
+
+        target.creature.pending_conversations.append((self.owner, question_type))
+
+        # TODO - move this g.player-specific bit somewhere where it makes more sense?
+        if self.owner == g.player:
+            g.game.player_advance_time(ticks=1)
+
+
+    def verbalize_question(self, target, question_type):
+        # Ask the question
+        g.game.add_message(self.owner.fullname() + ': ' + CONVERSATION_QUESTIONS[question_type], libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5))
+
+
+    def verbalize_answer(self, asker, question_type, answer_type):
+        ''' Sending the answer through the game messages '''
+
+        if answer_type == 'no answer':
+            self.say('I don\'t want to tell you that.')
+
+        elif answer_type == 'truth':
+            if question_type == 'name':
+                self.say('My name is %s.' % self.owner.fullname() )
+
+            elif question_type == 'profession':
+                if self.profession:
+                    self.say('I am a %s.' % self.profession.name)
+                else:
+                    self.say('I do not have any profession.')
+
+            elif question_type == 'age':
+                age = self.get_age()
+                self.say('I am %i.' % age)
+
+            elif question_type == 'city':
+                current_citizen_of = self.current_citizenship
+
+                if current_citizen_of:
+                    self.say('I currently live in %s.' % current_citizen_of.name)
+                else:
+                    self.say('I currently do not hold any citizenship.')
+
+            elif question_type == 'goals':
+                if len(self.owner.world_brain.goals):
+                    if len(self.owner.world_brain.goals) == 1:
+                        self.say('My current goal is to {0}.'.format(self.owner.world_brain.goals[0].get_name()) )
+                    elif len(self.owner.world_brain.goals) > 1:
+                        goal_names = join_list([g.get_name() for g in self.owner.world_brain.goals[1:]])
+                        self.say('My current plan is to {0}. Later, I\'m going to {1}'.format(self.owner.world_brain.goals[0].get_name(), goal_names))
+                # IF we're travelling under someone's command
+                elif self.commander and len(self.commander.world_brain.goals):
+                    if len(self.commander.world_brain.goals) == 1:
+                        self.say('I\'m with {0}. Our current plan is to {1}.'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name()) )
+                    elif len(self.commander.world_brain.goals) > 1:
+                        goal_names = join_list([g.get_name() for g in self.commander.world_brain.goals[1:]])
+                        self.say('I\'m with {0}. Our current plan is to {1}. Later, we\'ll {2}'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name(), goal_names))
+                else:
+                    self.say('I don\'t really have any goals at the moment.')
+
+        ## Shouldn't break the mold here... but answer_type is different
+        if question_type == 'recruit':
+            if answer_type == 'yes':
+                self.say('I will gladly join you!')
+                ### TODO - put this into a function!
+                self.profession = Profession('Adventurer', 'commoner')
+                g.player.creature.add_commanded_figure(self.owner)
+
+            elif answer_type == 'no':
+                ## Decline, with a reason why
+                if self.commander:
+                    self.say('I am already a member of %s.' % self.commander.name)
+                elif self.get_profession:
+                    self.say('As a %s, I cannot join you.' % self.get_profession() )
+                else:
+                    self.say('I cannot join you.')
+
+        # Same with greetings...
+        elif question_type == 'greet':
+            if answer_type == 'return greeting':
+                self.say('Hello there.')
+            elif answer_type == 'no answer':
+                self.nonverbal_behavior('does not answer')
+            elif answer_type == 'busy':
+                self.say('I\m sorry, I am busy right now.')
+
+
+    def get_valid_questions(self, target):
+        ''' Valid questions to ask '''
+        valid_questions = []
+        if target not in self.recent_interlocutors:
+            return ['greet']
+
+        if target not in self.knowledge.keys():
+            return ['name']
+
+        if self.knowledge[target]['city'] is None:
+            valid_questions.append('city')
+
+        if self.knowledge[target]['age'] is None:
+            valid_questions.append('age')
+
+        if self.knowledge[target]['profession'] is None:
+            valid_questions.append('profession')
+
+        if self.knowledge[target]['goals'] is None:
+            valid_questions.append('goals')
+
+        ## TODO - allow NPCs to recruit, under certain circumstances
+        if self.is_commander() and target.creature.commander != self.owner and self.owner == g.player:
+            valid_questions.append('recruit')
+
+        return valid_questions
+
+
+    #def get_valid_topics(self, target):
+    #    ''' Valid topics of conversation '''
+    #    return self.topics
+
+    #def change_topic(self, topic):
+    #    self.topic = topic
+    #    g.game.add_message('You begin talking about ' + self.topic + '.', libtcod.color_lerp(g.player.color, PANEL_FRONT, .5))
+
+
+    def determine_response(self, asker, question_type):
+
+        if question_type == 'greet':
+            self.recent_interlocutors.append(asker)
+            asker.creature.recent_interlocutors.append(self.owner)
+
+            return 'return greeting'
+
+        elif question_type == 'name':
+            ''' Ask the target's name '''
+            asker.creature.meet(self.owner)
+
+            return 'truth'
+
+        elif question_type == 'profession':
+            ''' Ask about their profession '''
+            profession = self.profession
+            if profession is None:
+                profession = 'No profession'
+
+            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=profession)
+
+            return 'truth'
+
+        elif question_type == 'age':
+            ''' Ask about their profession '''
+            age = self.get_age()
+
+            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=age)
+            return 'truth'
+
+        elif question_type == 'city':
+            ''' Ask about the city they live in '''
+
+            current_citizen_of = self.current_citizenship
+            if current_citizen_of is None:
+                current_citizen_of = 'No citizenship'
+
+            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=current_citizen_of)
+
+            return 'truth'
+
+        elif question_type == 'goals':
+            ''' Ask about their goals '''
+
+            goals = []
+            if len(self.goals):
+                for goal in self.goals:
+                    goals.append(goal)
+
+            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=goals)
+
+            return 'truth'
+
+        elif question_type == 'recruit':
+            ''' Try to recruit person into actor's party '''
+            if self.get_age() >= MIN_MARRIAGE_AGE and (self.sex == 1 or self.spouse is None) \
+                and self.profession is None and not self.commander:
+                return 'yes'
+
+            else:
+                return 'no'
+
+
+    def handle_pending_conversations(self):
+        for (asker, question_type) in self.pending_conversations:
+
+            #if self.owner == g.player:
+                ## TODO - prompt GUI for g.player to choose his answer
+            #    answer_type = self.determine_response(asker, question_type)
+            #    self.verbalize_answer(asker, question_type, answer_type)
+            #else:
+
+            answer_type = self.determine_response(asker, question_type)
+            self.verbalize_answer(asker, question_type, answer_type)
+
+            # GUI stuff - must update when NPC gives response
+            if asker == g.player:
+                for panel in g.game.interface.get_panels(panel_name='talk_screen'):
+                    panel.button_refresh_func(*panel.button_refresh_args)
+
+
+        self.pending_conversations = []
+
+    #def score_question(self, conversation, asker, target, question_type):
+    #    score = 5
+    #    return score
+
+    def say(self, text_string):
+        msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
+
+        g.game.add_message('{0}: {1}'.format(self.owner.fullname(), text_string), msg_color)
+
+    def nonverbal_behavior(self, behavior, msg_color=None):
+        ''' Any nonverbal behavior that this creature can undertake '''
+        if g.game.map_scale == 'human':
+            if msg_color is None:
+                msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
+
+            g.game.add_message('%s %s.' % (self.owner.fullname(), behavior), msg_color)
+
+    def verbalize_pain(self, damage, sharpness, pain_ratio):
+        ''' The creature will verbalize its pain '''
+        # Damage/pain ratio are decimals, so divide and multiply are opposite
+        pain_composite = (damage * 3) + (pain_ratio / 2)
+        will_verbalize = roll(1, 100) <= (pain_composite * 100)
+        #will_verbalize = 1
+
+        if will_verbalize:
+            if pain_composite > .8:
+                self.nonverbal_behavior('lets loose a bloodcurdling scream')
+            elif pain_composite > .7:
+                self.nonverbal_behavior('lets loose a shrill scream')
+            elif pain_composite > .6:
+                self.nonverbal_behavior('screams in pain')
+            elif pain_composite > .5:
+                self.nonverbal_behavior('screams')
+            elif pain_composite > .4:
+                self.nonverbal_behavior('grunts loudly')
+            elif pain_composite > .3:
+                self.nonverbal_behavior('grunts')
+
+    def take_captive(self, figure):
+        figure.creature.captor = self.owner
+        self.captives.append(figure)
+
+    def is_captive(self):
+        ''' Function simply returns whether or not this guy is a captive '''
+        return self.captor is not None
+
+    def sapient_free_from_captivity(self):
+        ''' Handles setting a sapient free from captivity, and making sure any army holding it captive is also properly handled '''
+        #if self.captor.sapient.army and self.owner in self.captor.sapient.army.captives:
+        #    self.captor.sapient.army.captives.remove(self.owner)
+
+        self.captor.creature.captives.remove(self.owner)
+        self.captor = None
+
+        # Unsure if this will work properly, but, once freed, all sapients should re-evaluate to make sure captives show up as enemies properly
+        for figure in g.M.sapients:
+            if figure.local_brain:
+                figure.local_brain.set_enemy_perceptions_from_cached_factions()
+        ############################################################
+
+        self.say('I\'m free!')
+
+
+    def change_citizenship(self, new_city, new_house):
+        ''' Transfer citizenship from one city to another '''
+        # Remove from old citizenship
+        if self.current_citizenship:
+            self.current_citizenship.citizens.remove(self.owner)
+        # Remove old housing stuff
+        if self.house:
+            self.house.remove_inhabitant(self.owner)
+        # Remove old faction stuff
+        if self.faction:
+            self.faction.remove_member(self.owner)
+
+        # Change to new city, and add to that city's citizens
+        if new_city is not None:
+            self.current_citizenship = new_city
+            new_city.citizens.append(self.owner)
+            new_city.faction.add_member(self.owner)
+        ## Otherwise switch to the faction that owns the house you're moving to
+        elif new_house.faction:
+            self.current_citizenship = None
+            new_house.faction.add_member(self.owner)
+
+        self.house = new_house
+        if self.house:
+            self.house.add_inhabitant(self.owner)
+
+    def get_minor_successor(self):
+        ''' A way for minor figures to pass down their profession, in cases where it's not a huge deal'''
+        possible_successors = [child for child in self.children if
+                               child.sex == 1 and child.creatire.get_age() >= MIN_MARRIAGE_AGE]
+        if possible_successors != []:
+            return possible_successors[0]
+        else:
+            return self.current_citizenship.create_inhabitant(sex=1, age=roll(18, 35), char='o', dynasty=None, important=self.important)
+
+    def add_event(self, date, event):
+        ''' Should add an event to our memory'''
+        (year, month, day) = date
+        if (year, month, day) in self.events.keys():
+            self.events[(year, month, day)].append(event)
+        else:
+            self.events[(year, month, day)] = [event]
+
+
+    def die(self, reason):
+        figure = self.owner
+        self.set_status('dead')
+        #if g.WORLD.tiles[figure.wx][figure.wy].site:  location = g.WORLD.tiles[figure.wx][figure.wy].site.name
+        location = g.WORLD.tiles[figure.wx][figure.wx].get_location_description()
+
+        # Notify world!
+        g.game.add_message('{0} has died in {1} due to{2}! ({3}, {4})'.format(figure.fulltitle(), location, reason, figure.wx, figure.wy), libtcod.red)
+
+        # Remo
+        if self.current_citizenship:
+            self.current_citizenship.citizens.remove(figure)
+
+        g.WORLD.tiles[figure.wx][figure.wy].entities.remove(figure)
+        # Remove from the list of all figures, and the important ones if we're important
+        g.WORLD.all_figures.remove(figure)
+        if figure in g.WORLD.important_figures:
+            g.WORLD.important_figures.remove(figure)
+
+        if self.faction:
+            self.faction.remove_member(figure)
+
+        successor = None
+        # The faction lead passes on, if we lead a faction
+        if self.is_faction_leader:
+            self.is_faction_leader.standard_succession()
+
+        # Only check profession if we didn't have a title, so profession associated with title doesn't get weird
+        elif self.profession:
+            # Find who will take over all our stuff
+            successor = self.get_minor_successor()
+            self.profession.give_profession_to(successor)
+
+        ## If we were set to inherit anything, that gets updated now
+        #  File "E:\Dropbox\Code\Iron Testament\it.py", line 8650, in year_tick
+        #    if figure.sapient.get_age() > 70:
+        #    File "E:\Dropbox\Code\Iron Testament\it.py", line 7485, in die
+        #    RuntimeError: dictionary changed size during iteration
+        for faction, position in self.inheritance.iteritems():
+            heirs = faction.get_heirs(3) # Should ignore us now since we're dead
+            # If our position was 1st in line, let the world know who is now first in line
+            if position == 1 and heirs != []:
+                g.game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.faction_name), libtcod.light_blue)
+
+            elif position == 1:
+                g.game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.faction_name), libtcod.light_blue)
+
+
+        # Remove self from any armies we might be in
+        if self.commander:
+            if self in self.commander.creature.commanded_figures:
+                self.commander.remove_commanded_figure(figure)
+        elif self.is_commander():
+            ## The is a possibility that this is a caravan at another city; this will bring the successor there if needed
+            # TODO - should just have the person walk there and join up with the army
+#             if successor:
+#                 ## Pretty ugly hack for now. When a merchant dies naturally, we're gonna teleport
+#                 ## a successor to his location. In order to do this, we may have to leave our
+#                 ## current city and then get added to the new city.
+#                 try:
+#                     for city in g.WORLD.cities:
+#                         if army in city.caravans and successor.sapient.current_city != city:
+#                             print '%s was teleported to %s upon the death of %s'%(successor.fulltitle(), city.name, figure.fulltitle())
+#                             break
+#                 except:
+#                     print ('%s, successor to %s, looked for caravan in %s but something went wrong!'%(successor.fulltitle(), figure.fulltitle(), city.name))
+#
+#                 # Actually join the army
+#                 successor.sapient.join_army(army)
+
+
+            if self.economy_agent and successor:
+                self.economy_agent.update_holder(successor)
+                #g.game.add_message(successor.fulltitle() + ' is now ' + successor.sapient.economy_agent.name, libtcod.light_green)
+
+        if self.house:
+            try:
+                self.house.remove_inhabitant(figure)
+            except:
+                print figure.fulltitle(), 'was not in his house!'
+                g.game.add_message(figure.fulltitle(), 'was not in his house!')
+
+    def get_age(self):
+        return g.WORLD.time_cycle.current_year - self.born
+
+    def get_profession(self):
+        if self.profession:
+            return self.profession.name
+        elif self.get_age() < MIN_CHILDBEARING_AGE:
+            return 'Child'
+        elif self.sex == 0 and self.spouse:
+            return 'Housewife'
+        elif self.sex == 0:
+            return 'Maiden'
+        return 'No profession'
+
+    def take_spouse(self, spouse):
+        self.spouse = spouse
+        spouse.creature.spouse = self.owner
+
+    def have_child(self):
+
+        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), age=0, char='o', dynasty=self.spouse.creature.dynasty, race=self.creature_type, important=self.important)
+
+        self.children.append(child)
+        self.spouse.creature.children.append(child)
+
+        child.creature.mother = self.owner
+        child.creature.father = self.spouse
+
+        child.creature.generation = self.spouse.creature.generation + 1
+
+        return child
+
+    def set_initial_traits(self):
+        ## Give the person a few traits
+        trait_num = roll(3, 4)
+        while trait_num > 0:
+            trait = random.choice(TRAITS)
+
+            usable = 1
+            for otrait in self.traits:
+                if trait in TRAIT_INFO[otrait]['opposed_traits'] or trait == otrait:
+                    usable = 0
+                    break
+            if usable:
+                # "Somewhat = .5, regular = 1, "very" = 2
+                multiplier = random.choice((.5, .5, 1, 1, 1, 1, 2))
+                self.traits[trait] = multiplier
+                trait_num -= 1
+
+    def set_opinions(self):
+        # Set opinions on various things according to our profession and personality
+        self.opinions = {}
+
+        for issue in PROF_OPINIONS.keys():
+            prof_opinion = 0
+            personal_opinion = 0
+            reasons = {}
+
+            ## Based on profession ##
+            if self.profession is not None and self.profession.category in PROF_OPINIONS[issue].keys():
+                prof_opinion = PROF_OPINIONS[issue][self.profession.category]
+                reasons['profession'] = prof_opinion
+
+            ## Based on personal traits ##
+            for trait, multiplier in self.traits.iteritems():
+                if trait in PERSONAL_OPINIONS[issue].keys():
+                    amount = PERSONAL_OPINIONS[issue][trait] * multiplier
+                    reasons[trait] = amount
+                    personal_opinion += amount
+
+            # A total tally of the opinion
+            opinion = prof_opinion + personal_opinion
+            # Now we save the issue, our opinion, and the reasoning
+            self.opinions[issue] = [opinion, reasons]
+
+
+
+    def add_person_knowledge(self, other_person, info_type, info):
+        ''' Checks whether we know of the person and then updates info '''
+        if not other_person in self.knowledge.keys():
+            self.add_awareness_of_person(other_person)
+
+        self.knowledge[other_person][info_type] = info
+
+
+    def get_relations(self, other_person):
+        # set initial relationship with another person
+        # Needs to be greatly expanded, and able to see reasons why
+        reasons = {}
+
+        for trait, multiplier in self.traits.iteritems():
+            for otrait in other_person.creature.traits.keys():
+                if trait == otrait:
+                    reasons['Both ' + trait] = 4 * multiplier
+                    break
+                elif trait in TRAIT_INFO[otrait]['opposed_traits']:
+                    reasons[trait + ' vs ' + otrait] = -2 * multiplier
+                    break
+
+        # Things other than traits can modify this, must be stored in self.extra_relations
+        # Basically merge this into the "reasons" dict
+        if other_person in self.knowledge.keys():
+            for reason, amount in self.knowledge[other_person]['relations'].iteritems():
+                reasons[reason] = amount
+
+        return reasons
+
+
+    def modify_relations(self, other_person, reason, amount):
+        # Anything affecting relationship not covered by traits
+
+        # Add them to relation list if not already there
+        if not other_person in self.knowledge.keys():
+            self.add_awareness_of_person(other_person)
+
+        # Then add the reason
+        if not reason in self.knowledge[other_person]['relations'].keys():
+            self.knowledge[other_person]['relations'][reason] = amount
+        else:
+            self.knowledge[other_person]['relations'][reason] += amount
+
+    def add_awareness_of_person(self, other_person):
+        ''' To set up the knowledge dict '''
+        self.knowledge[other_person] = {'relations':{},
+                                        'profession':None,
+                                        'age':None,
+                                        'city':None,
+                                        'goals':None
+                                        }
+
+    def meet(self, other):
+        # Use to set recipricol relations with another person
+        self.modify_relations(other, 'Knows personally', 2)
+        other.creature.modify_relations(self.owner, 'Knows personally', 2)
+
+
 
 
 class DijmapSapient:
