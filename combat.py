@@ -100,7 +100,7 @@ class WorldBattle:
         current_commander = None
         current_num_commanded_figs = -1 # Non-commanders have 0 commanded figs
         for entity in faction_named:
-            commanded_figs = entity.sapient.get_total_number_of_commanded_beings()
+            commanded_figs = entity.creature.get_total_number_of_commanded_beings()
             if commanded_figs > current_num_commanded_figs:
                 current_commander = entity
                 current_num_commanded_figs = commanded_figs
@@ -123,10 +123,10 @@ class WorldBattle:
 
             # Generate message for the game to display!
             if len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
-            else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.sapient.faction.faction_name, self.faction1_commander.fullname())
+            else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.faction_name, self.faction1_commander.fullname())
 
             if len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
-            else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.sapient.faction.faction_name, self.faction2_commander.fullname())
+            else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.faction_name, self.faction2_commander.fullname())
 
             g.game.add_message('{0} attacks {1} at {2}'.format(faction1_desc, faction2_desc, g.WORLD.tiles[self.wx][self.wy].get_location_description()))
 
@@ -148,8 +148,8 @@ class WorldBattle:
             g.WORLD.has_battled.add(member)
 
         # Now that the populations have been de-abstracted, we can make a list of all members in each faction
-        f1_all_members = [e for e in g.M.sapients if e.sapient.faction == self.faction1_commander.sapient.faction]
-        f2_all_members = [e for e in g.M.sapients if e.sapient.faction == self.faction2_commander.sapient.faction]
+        f1_all_members = [e for e in g.M.sapients if e.creature.faction == self.faction1_commander.creature.faction]
+        f2_all_members = [e for e in g.M.sapients if e.creature.faction == self.faction2_commander.creature.faction]
 
         f1_in_combat = f1_all_members[:]
         f2_in_combat = f2_all_members[:]
@@ -158,8 +158,6 @@ class WorldBattle:
 
         while f1_in_combat and f2_in_combat:
             # Faction 1
-            print len(f1_in_combat), len(f2_in_combat)
-
             for entity in reversed(f1_in_combat):
                 if entity.creature.is_available_to_act():
                     if target_tracking_dict[entity] not in f2_in_combat and f2_in_combat:
@@ -207,7 +205,7 @@ class WorldBattle:
         # if len(f1_remaining) > len(f2_remaining):
         #     for member in self.faction2_named:
         #         if member.creature.status == 'alive' and not member.creature.is_available_to_act():
-        #             f1_remaining[0].sapient.take_captive(member)
+        #             f1_remaining[0].creature.take_captive(member)
 
 
 

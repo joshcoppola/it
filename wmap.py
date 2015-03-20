@@ -163,10 +163,10 @@ class Wmap:
         ''' Run when map is created, so it understands the various factions present '''
         self.factions_on_map = {}
         for obj in self.sapients:
-            if obj.sapient.faction in self.factions_on_map.keys():
-                self.factions_on_map[obj.sapient.faction].add(obj)
+            if obj.creature.faction in self.factions_on_map.keys():
+                self.factions_on_map[obj.creature.faction].add(obj)
             else:
-                self.factions_on_map[obj.sapient.faction] = set([obj])
+                self.factions_on_map[obj.creature.faction] = set([obj])
 
         # Now add a dmap for each
         for faction, member_set in self.factions_on_map.iteritems():
@@ -414,9 +414,9 @@ class Wmap:
         self.create_and_add_object(name='door', x=x, y=y)
 
 
-    def create_and_add_object(self, name, x, y, creature=None, sapient=None, local_brain=None, world_brain=None, force_material=None):
+    def create_and_add_object(self, name, x, y, creature=None, local_brain=None, world_brain=None, force_material=None):
         # Add an object to a tile
-        obj = it.assemble_object(object_blueprint=phys.object_dict[name], force_material=force_material, wx=self.wx, wy=self.wy, creature=creature, sapient=sapient, local_brain=local_brain, world_brain=world_brain)
+        obj = it.assemble_object(object_blueprint=phys.object_dict[name], force_material=force_material, wx=self.wx, wy=self.wy, creature=creature, local_brain=local_brain, world_brain=world_brain)
 
         # Check to see if the obj blocks movement
         if not obj.creature and (obj.blocks_mov or obj.blocks_vis):
@@ -432,7 +432,7 @@ class Wmap:
 
         self.tiles[x][y].objects.append(obj)
 
-        if obj.sapient:
+        if obj.creature and obj.creature.intelligence_level > 1:
             self.sapients.append(obj)
             obj.creature.next_tick = self.world.time_cycle.current_tick + 1
         elif obj.creature:

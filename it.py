@@ -1480,7 +1480,7 @@ class World:
 
             # Object will be owned by the High Priest
             for worker in temple.current_workers:
-                if worker.sapient.profession.name == 'High Priest':
+                if worker.creature.profession.name == 'High Priest':
                     obj.set_current_owner(worker)
                     break
 
@@ -2105,7 +2105,7 @@ class World:
             leader = culture.create_being(sex=1, age=roll(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
-            sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
+            sentients = {leader.creature.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
             self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
             if roll(1, 10) >= 2:
@@ -2151,11 +2151,11 @@ class World:
         profession.set_building(building=hideout_building)
 
         # Give him the house
-        leader.sapient.change_citizenship(new_city=None, new_house=hideout_building)
+        leader.creature.change_citizenship(new_city=None, new_house=hideout_building)
         # Have him actually go there
         leader.w_teleport(wx, wy)
 
-        sentients = {leader.sapient.culture:{leader.creature.creature_type:{'Bandit':10}}}
+        sentients = {leader.creature.culture:{leader.creature.creature_type:{'Bandit':10}}}
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
@@ -2307,8 +2307,8 @@ class Site:
         else:
             house.add_inhabitant(human)
 
-        human.sapient.change_citizenship(new_city=self, new_house=house)
-        human.sapient.hometown = hometown
+        human.creature.change_citizenship(new_city=self, new_house=house)
+        human.creature.hometown = hometown
 
         return human
 
@@ -2547,7 +2547,7 @@ class City(Site):
         market = self.get_building('Market')
 
         for caravan_leader, destination in self.departing_merchants:
-            for figure in caravan_leader.sapient.commanded_figures:
+            for figure in caravan_leader.creature.commanded_figures:
                 if figure in market.current_workers:
                     market.remove_worker(figure)
                 else:
@@ -2570,20 +2570,20 @@ class City(Site):
         market = self.get_building('Market')
 
         # Unload the goods
-        if self.econ == caravan_leader.sapient.economy_agent.sell_economy:
-            for i in xrange(caravan_leader.sapient.economy_agent.travel_inventory.count(caravan_leader.sapient.economy_agent.traded_item)):
-                caravan_leader.sapient.economy_agent.travel_inventory.remove(caravan_leader.sapient.economy_agent.traded_item)
-                caravan_leader.sapient.economy_agent.sell_inventory.append(caravan_leader.sapient.economy_agent.traded_item)
+        if self.econ == caravan_leader.creature.economy_agent.sell_economy:
+            for i in xrange(caravan_leader.creature.economy_agent.travel_inventory.count(caravan_leader.creature.economy_agent.traded_item)):
+                caravan_leader.creature.economy_agent.travel_inventory.remove(caravan_leader.creature.economy_agent.traded_item)
+                caravan_leader.creature.economy_agent.sell_inventory.append(caravan_leader.creature.economy_agent.traded_item)
 
         # Add workers to the market
-        for figure in caravan_leader.sapient.commanded_figures + [caravan_leader]:
-            if figure.sapient.economy_agent:
-                figure.sapient.economy_agent.current_location = self.econ
+        for figure in caravan_leader.creature.commanded_figures + [caravan_leader]:
+            if figure.creature.economy_agent:
+                figure.creature.economy_agent.current_location = self.econ
                 market.add_worker(figure)
 
                 ## cheap trick for now - add a little of the resource to the city stockpile
-                if figure.sapient.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
-                    self.warehouses[figure.sapient.economy_agent.traded_item].add(figure.sapient.economy_agent.traded_item, 2)
+                if figure.creature.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
+                    self.warehouses[figure.creature.economy_agent.traded_item].add(figure.creature.economy_agent.traded_item, 2)
         #g.WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
         #g.WORLD.travelers.remove(caravan_leader)
         self.caravans.append(caravan_leader)
@@ -2689,12 +2689,12 @@ class City(Site):
             wife_dynasty = None
 
         leader = self.create_inhabitant(sex=1, age=roll(28, 40), char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
-        wife = self.create_inhabitant(sex=0, age=roll(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.sapient.house)
+        wife = self.create_inhabitant(sex=0, age=roll(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.creature.house)
         # Make sure wife takes husband's name
-        wife.sapient.lastname = new_dynasty.lastname
+        wife.creature.lastname = new_dynasty.lastname
 
-        leader.sapient.spouse = wife
-        wife.sapient.spouse = leader
+        leader.creature.spouse = wife
+        wife.creature.spouse = leader
 
         all_new_figures = [leader, wife]
 
@@ -2716,34 +2716,34 @@ class City(Site):
                 wife_siblings.append(sibling)
                 all_new_figures.append(sibling)
 
-            wife.sapient.siblings = wife_siblings
+            wife.creature.siblings = wife_siblings
             for sibling in wife_siblings:
-                sibling.sapient.siblings.append(wife)
+                sibling.creature.siblings.append(wife)
 
         # children
         children = []
         for i in xrange(roll(1, 3)):
             sex = roll(0, 1)
-            child = self.create_inhabitant(sex=sex, age=roll(1, 10), char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=leader.sapient.house)
+            child = self.create_inhabitant(sex=sex, age=roll(1, 10), char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=leader.creature.house)
             children.append(child)
             all_new_figures.append(child)
 
-        leader.sapient.siblings = leader_siblings
+        leader.creature.siblings = leader_siblings
         for sibling in leader_siblings:
-            sibling.sapient.siblings.append(leader)
+            sibling.creature.siblings.append(leader)
 
-        leader.sapient.children = children
-        wife.sapient.children = children
+        leader.creature.children = children
+        wife.creature.children = children
 
         for child in children:
-            child.sapient.mother = wife
-            child.sapient.father = leader
+            child.creature.mother = wife
+            child.creature.father = leader
             for other_child in children:
-                if other_child != child and other_child not in child.sapient.siblings:
-                    child.sapient.siblings.append(other_child)
+                if other_child != child and other_child not in child.creature.siblings:
+                    child.creature.siblings.append(other_child)
 
         # Give a "Noble" profession to any new male members
-        for figure in filter(lambda f: f.sapient.get_age() >= MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
+        for figure in filter(lambda f: f.creature.get_age() >= MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
             profession = Profession(name='Noble', category='noble')
             profession.give_profession_to(figure=figure)
 
@@ -2842,11 +2842,11 @@ class Building:
         self.housed_objects.remove(obj)
 
     def add_inhabitant(self, inhabitant):
-        inhabitant.sapient.house = self
+        inhabitant.creature.house = self
         self.inhabitants.append(inhabitant)
 
     def remove_inhabitant(self, figure):
-        figure.sapient.house = None
+        figure.creature.house = None
         self.inhabitants.remove(figure)
 
 
@@ -2895,11 +2895,11 @@ class Building:
 
     def add_worker(self, worker):
         self.current_workers.append(worker)
-        worker.sapient.profession.current_work_building = self
+        worker.creature.profession.current_work_building = self
 
     def remove_worker(self, worker):
         self.current_workers.remove(worker)
-        worker.sapient.profession.current_work_building = None
+        worker.creature.profession.current_work_building = None
 
     def add_profession(self, profession):
         profession.building = self
@@ -2909,7 +2909,7 @@ class Building:
     def fill_position(self, profession):
         # Give temples and nobles and stuff an initial dynasty to begin with
         potential_employees = [figure for figure in g.WORLD.tiles[self.site.x][self.site.y].entities if
-                               figure.sapient.profession is None and figure.creature.sex == 1 and figure.sapient.get_age() > MIN_MARRIAGE_AGE]
+                               figure.creature.profession is None and figure.creature.sex == 1 and figure.creature.get_age() > MIN_MARRIAGE_AGE]
         if profession.name in ('High Priest', 'General'):
             # Create new dynasty
             human, all_new_figures = self.site.create_initial_dynasty()
@@ -3030,20 +3030,20 @@ class Profession:
             g.game.add_message('{0} has replaced {1} as {2}{3}'.format(figure.fullname(), self.holder.fullname(), self.name, location), libtcod.light_green)
             if self.current_work_building:
                 self.current_work_building.remove_worker(self.holder)
-            self.holder.sapient.profession.remove_profession_from(self.holder)
+            self.holder.creature.profession.remove_profession_from(self.holder)
 
-        figure.sapient.profession = self
+        figure.creature.profession = self
         self.holder = figure
         # Has to be done afterward, so the profession's current building can be set
         if self.current_work_building:
             self.current_work_building.add_worker(figure)
 
-        figure.sapient.set_opinions()
+        figure.creature.set_opinions()
 
     def remove_profession_from(self, figure):
-        figure.sapient.profession = None
+        figure.creature.profession = None
         self.holder = None
-        figure.sapient.set_opinions()
+        figure.creature.set_opinions()
 
 class Faction:
     def __init__(self, leader_prefix, faction_name, color, succession, defaultly_hostile=0):
@@ -3128,21 +3128,21 @@ class Faction:
             self.site.faction = self
 
     def add_member(self, figure):
-        figure.sapient.faction = self
+        figure.creature.faction = self
         figure.set_color(self.color)
 
         self.members.append(figure)
 
     def remove_member(self, figure):
-        figure.sapient.faction = None
+        figure.creature.faction = None
         self.members.remove(figure)
 
     def set_leader(self, leader):
         if self.leader:
-            self.leader.sapient.unset_as_faction_leader(self)
+            self.leader.creature.unset_as_faction_leader(self)
         # Now install new leader
         self.leader = leader
-        self.leader.sapient.set_as_faction_leader(self)
+        self.leader.creature.set_as_faction_leader(self)
         # Keep track of when leader became leader
         self.leader_change_year = g.WORLD.time_cycle.current_year
 
@@ -3170,7 +3170,7 @@ class Faction:
                 reasons[reason] = amount
 
         # Culture
-        if other_faction.get_leader().sapient.culture != self.get_leader().sapient.culture:
+        if other_faction.get_leader().creature.culture != self.get_leader().creature.culture:
             reasons['Different culture'] = -10
 
         if other_faction in self.subfactions or self in other_faction.subfactions:
@@ -3205,11 +3205,11 @@ class Faction:
 
     def set_heir(self, heir, number_in_line):
         self.heirs.append(heir)
-        heir.sapient.inheritance[self] = number_in_line
+        heir.creature.inheritance[self] = number_in_line
 
     def unset_heir(self, heir):
-        assert self in heir.sapient.inheritance.keys(), '%s not in %s\'s inheritance' %(self.faction_name, heir.fulltitle())
-        del heir.sapient.inheritance[self]
+        assert self in heir.creature.inheritance.keys(), '%s not in %s\'s inheritance' %(self.faction_name, heir.fulltitle())
+        del heir.creature.inheritance[self]
 
     def get_heirs(self, number):
         # First, make sure to clear the knowledge of inheritance from all heirs
@@ -3220,12 +3220,12 @@ class Faction:
             if self.leader and self.succession == 'dynasty':
                 self.heirs = []
 
-                child_heirs = [child for child in self.leader.sapient.children if child.creature.sex == 1 and not child.creature.status == 'dead']
-                child_heirs = sorted(child_heirs, key=lambda child: child.sapient.born)
+                child_heirs = [child for child in self.leader.creature.children if child.creature.sex == 1 and not child.creature.status == 'dead']
+                child_heirs = sorted(child_heirs, key=lambda child: child.creature.born)
                 ## Look at other heirs - make sure it does not include the title holder himself or his children, since they're already accounted for
-                if self.leader.sapient.dynasty is not None:
-                    other_heirs = [member for member in self.leader.sapient.dynasty.members if member.creature.sex == 1 and member != self.leader and member not in child_heirs and not member.creature.status == 'dead']
-                    other_heirs = sorted(other_heirs, key=lambda member: member.sapient.born)
+                if self.leader.creature.dynasty is not None:
+                    other_heirs = [member for member in self.leader.creature.dynasty.members if member.creature.sex == 1 and member != self.leader and member not in child_heirs and not member.creature.status == 'dead']
+                    other_heirs = sorted(other_heirs, key=lambda member: member.creature.born)
 
                 else:
                     print 'BUG:', self.leader.fullname(), ' has no dynasty'
@@ -3276,7 +3276,7 @@ class Faction:
 
             # Pick weapon name, either by culture of leader or culture of site
             if self.leader:
-                weapon_name = self.leader.sapient.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
+                weapon_name = self.leader.creature.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
             else:
                 weapon_name = self.site.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
 
@@ -3292,7 +3292,7 @@ class Faction:
 ## The object itself is basically a list of components
 class Object:
     def __init__(self, name, char, color, components, blocks_mov, blocks_vis, description,
-                 creature=None, sapient=None, local_brain=None, world_brain=None,
+                 creature=None, local_brain=None, world_brain=None,
                  weapon=None, wearable=None,
                  x=None, y=None, wx=None, wy=None):
 
@@ -3313,10 +3313,6 @@ class Object:
         self.creature = creature
         if self.creature:  #let the creature component know who owns it
             self.creature.owner = self
-
-        self.sapient = sapient
-        if self.sapient:
-            self.sapient.owner = self
 
         # For the local map
         self.set_local_brain(local_brain)
@@ -3383,8 +3379,8 @@ class Object:
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
         ## Remove from current owner
         if self.current_owner:
-            self.current_owner.sapient.possessions.remove(self)
-            self.current_owner.sapient.former_possessions.add(self)
+            self.current_owner.creature.possessions.remove(self)
+            self.current_owner.creature.former_possessions.add(self)
 
             #g.game.add_message('%s has taken possession of %s from %s' %(figure.fullname(), self.fullname(), self.current_owner.fullname()), libtcod.orange)
         else:
@@ -3393,12 +3389,12 @@ class Object:
 
         ## Give to new owner
         self.current_owner = figure
-        figure.sapient.possessions.add(self)
+        figure.creature.possessions.add(self)
 
 
     def clear_current_owner(self):
-        self.current_owner.sapient.possessions.remove(self)
-        self.current_owner.sapient.former_possessions.add(self)
+        self.current_owner.creature.possessions.remove(self)
+        self.current_owner.creature.former_possessions.add(self)
 
         self.current_owner = None
 
@@ -3461,7 +3457,7 @@ class Object:
         if self in g.M.objects:
             g.M.objects.remove(self)
 
-        if self in g.M.sapients:
+        if self in g.M.creatures:
             g.M.sapients.remove(self)
 
     def put_on_clothing(self, clothing):
@@ -3790,7 +3786,7 @@ class Object:
 
         obj = Object(name=new_name, char=new_char, color=new_color,components=[],
                      blocks_mov=0, blocks_vis=0, description='This is a piece of %s'%self.fullname(), creature=None,
-                     sapient=None, weapon=None, wearable=None)
+                     weapon=None, wearable=None)
         # I think this was done to prevent components trying to attach in weird ways when passed to the obj
         for component in component_list:
             obj.components.append(component)
@@ -3902,7 +3898,7 @@ class Object:
 
         if target_faction == 'enemies':
             for actor in g.M.sapients:
-                if actor.creature.is_available_to_act() and self.sapient.faction.is_hostile_to(actor.sapient.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
+                if actor.creature.is_available_to_act() and self.creature.faction.is_hostile_to(actor.creature.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     dist = self.distance_to(actor)
                     if dist < closest_dist:
                         closest_enemy = actor
@@ -3910,7 +3906,7 @@ class Object:
 
         else:
             for actor in g.M.sapients:
-                if actor.creature.is_available_to_act() and actor.sapient.faction == target_faction: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
+                if actor.creature.is_available_to_act() and actor.creature.faction == target_faction: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     #calculate distance between this object and the g.player
                     dist = self.distance_to(actor)
                     if dist < closest_dist:  #it's closer, so remember it
@@ -3950,8 +3946,8 @@ class Object:
         self.world_last_dir = (0, 0)
         self.turns_since_move = 0
 
-        if self.sapient and self.sapient.is_commander():
-            for commanded_figure_or_population in self.sapient.commanded_figures + self.sapient.commanded_populations:
+        if self.creature and self.creature.is_commander():
+            for commanded_figure_or_population in self.creature.commanded_figures + self.creature.commanded_populations:
                 commanded_figure_or_population.w_teleport(x, y)
 
 
@@ -3971,8 +3967,8 @@ class Object:
             self.turns_since_move = 0
 
             # Make sure to also move any units commanded with us
-            if self.sapient:
-                for commanded_figure_or_population in self.sapient.commanded_figures + self.sapient.commanded_populations:
+            if self.creature:
+                for commanded_figure_or_population in self.creature.commanded_figures + self.creature.commanded_populations:
                     commanded_figure_or_population.w_move(dx=dx, dy=dy)
 
         #self.update_figures_and_check_for_city()
@@ -4031,29 +4027,29 @@ class Object:
             libtcod.console_put_char(g.game.interface.map_console.con, x, y, ' ', libtcod.BKGND_NONE)
 
     def firstname(self):
-        if self.sapient:
-            return self.sapient.firstname
+        if self.creature and self.creature.firstname:
+            return self.creature.firstname
         else:
             return self.name
 
     def lastname(self):
-        if self.sapient:
-            return self.sapient.lastname
+        if self.creature and self.creature.lastname:
+            return self.creature.lastname
         else:
             return self.name
 
     def fullname(self):
-        if self.sapient and self.sapient.epithet: # and self.creature.status != 'dead':
-            return '{0} \"{1}\" {2}'.format(self.sapient.firstname, self.sapient.epithet, self.sapient.lastname)
-        if self.sapient:
-            return '{0} {1}'.format(self.sapient.firstname, self.sapient.lastname)
+        if self.creature and self.creature.firstname and self.creature.epithet: # and self.creature.status != 'dead':
+            return '{0} \"{1}\" {2}'.format(self.creature.firstname, self.creature.epithet, self.creature.lastname)
+        if self.creature and self.creature.firstname:
+            return '{0} {1}'.format(self.creature.firstname, self.creature.lastname)
         else:
             return self.name
 
     def fulltitle(self):
-        if self.sapient and self.creature.intelligence_level == 3:
-            return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.creature_type), self.sapient.get_profession())
-        if self.sapient and self.creature.intelligence_level == 2:
+        if self.creature and self.creature.intelligence_level == 3:
+            return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.creature_type), self.creature.get_profession())
+        if self.creature and self.creature.intelligence_level == 2:
             return '{0}, {1} savage'.format(self.fullname(), lang.spec_cap(self.creature.creature_type))
         else:
             return self.name
@@ -4225,10 +4221,10 @@ def talk_screen(actor, target):
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
-        talk_options = g.player.sapient.get_valid_questions(target)
+        talk_options = g.player.creature.get_valid_questions(target)
 
         for option in talk_options:
-            button = gui.Button(gui_panel=wpanel, func=g.player.sapient.ask_question, args=(target, option),
+            button = gui.Button(gui_panel=wpanel, func=g.player.creature.ask_question, args=(target, option),
                                 text=option, topleft=(atx, aty), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
 
             buttons.append(button)
@@ -4253,21 +4249,21 @@ def talk_screen(actor, target):
 
         # Character name + title
         libtcod.console_print(wpanel.con, b1x, 2, target.fullname())
-        libtcod.console_print(wpanel.con, b1x, 3, target.sapient.get_profession())
+        libtcod.console_print(wpanel.con, b1x, 3, target.creature.get_profession())
 
         # Dynasty
-        if target.sapient.dynasty:
-            dynasty_info = ''.join([target.sapient.dynasty.lastname, ' dynasty'])
-            libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.sapient.dynasty.symbol, target.sapient.dynasty.symbol_color, target.sapient.dynasty.background_color)
+        if target.creature.dynasty:
+            dynasty_info = ''.join([target.creature.dynasty.lastname, ' dynasty'])
+            libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.creature.dynasty.symbol, target.creature.dynasty.symbol_color, target.creature.dynasty.background_color)
         else:
             dynasty_info = 'No major dynasty'
-            libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.sapient.lastname[0], PANEL_FRONT, libtcod.darker_grey)
+            libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.creature.lastname[0], PANEL_FRONT, libtcod.darker_grey)
 
         libtcod.console_print(wpanel.con, b1x + 2, 4, dynasty_info)
 
         # Age
-        libtcod.console_print(wpanel.con, b1x, 6, 'Age ' + str(target.sapient.get_age()))
-        libtcod.console_print(wpanel.con, b1x, 7, str(len(target.sapient.children)) + ' children')
+        libtcod.console_print(wpanel.con, b1x, 6, 'Age ' + str(target.creature.get_age()))
+        libtcod.console_print(wpanel.con, b1x, 7, str(len(target.creature.children)) + ' children')
 
     # Ugly ugly...
     wpanel.update_button_refresh_func(refresh_buttons, () )
@@ -4308,7 +4304,7 @@ def player_give_order(target, order):
 
             g.game.render_handler.render_all(do_flush=False)
 
-            libtcod.console_print(con=g.game.interface.map_console.con, x=int(g.game.interface.map_console.width/2)-30, y=8, fmt='Click where you would like %s to move (right click to cancel)'%target.sapient.firstname)
+            libtcod.console_print(con=g.game.interface.map_console.con, x=int(g.game.interface.map_console.width/2)-30, y=8, fmt='Click where you would like %s to move (right click to cancel)'%target.creature.firstname)
             ## Draw the path that the guy will take
             path = libtcod.path_compute(p=M.path_map, ox=target.x, oy=target.y, dx=x, dy=y)
             while not libtcod.path_is_empty(p=M.path_map):
@@ -4319,7 +4315,7 @@ def player_give_order(target, order):
             libtcod.console_put_char_ex(con=g.game.interface.map_console.con, x=mx, y=my, c='X', fore=libtcod.grey, back=libtcod.black)
 
             if mouse.lbutton:
-                g.player.sapient.say('%s, move over there'%target.fullname())
+                g.player.creature.say('%s, move over there'%target.fullname())
                 target.local_brain.set_state('moving', target_location=(x, y))
                 break
             elif mouse.rbutton:
@@ -4332,17 +4328,17 @@ def player_give_order(target, order):
 
     elif order == 'follow':
         target.local_brain.set_state('following', target_figure=g.player)
-        g.player.sapient.say('%s, follow me!'%target.fullname())
+        g.player.creature.say('%s, follow me!'%target.fullname())
 
 def player_order_follow():
     ''' Player orders all nearby allies to follow him '''
-    g.player.sapient.say('Everyone, follow me!')
-    for figure in filter(lambda figure: figure.sapient.commander == g.player and figure != g.player and figure.distance_to(g.player) <= 50 and figure.local_brain.perception_info['closest_enemy'] is None, g.M.sapients):
+    g.player.creature.say('Everyone, follow me!')
+    for figure in filter(lambda figure: figure.creature.commander == g.player and figure != g.player and figure.distance_to(g.player) <= 50 and figure.local_brain.perception_info['closest_enemy'] is None, g.M.creatures):
         figure.local_brain.set_state('following', target_figure=g.player)
 
 def player_order_move():
 
-    figures = filter(lambda figure: figure.local_brain and figure.creature.is_available_to_act() and figure.sapient.commander == g.player, g.M.sapients)
+    figures = filter(lambda figure: figure.local_brain and figure.creature.is_available_to_act() and figure.creature.commander == g.player, g.M.creatures)
     sq_size = int(round(math.sqrt(len(figures))))
     offset = int(sq_size/2)
 
@@ -4365,7 +4361,7 @@ def player_order_move():
                     libtcod.console_put_char_ex(con=g.game.interface.map_console.con, x=i, y=j, c='X', fore=libtcod.grey, back=libtcod.black)
 
         if mouse.lbutton_pressed and len(locs) >= len(figures):
-            g.player.sapient.say('Everyone, move over there')
+            g.player.creature.say('Everyone, move over there')
             for i, figure in enumerate(figures):
                 figure.local_brain.set_state('moving', target_location=locs[i])
             break
@@ -4513,7 +4509,7 @@ def choose_object_to_interact_with(objs, x, y):
     if len(objs) == 1 and (not g.M.tiles[x][y].interactable):
 
         obj = objs[0]
-        if obj.creature and obj.sapient and obj.creature.status == 'alive':
+        if obj.creature and obj.creature and obj.creature.status == 'alive':
             talk_screen(actor=g.player, target=obj)
         else:
             attack_menu(actor=g.player, target=obj)
@@ -4627,7 +4623,7 @@ def list_people():
         leader = faction.get_leader()
         if leader is not None:
             y += 1
-            buttons.append(gui.Button(gui_panel=wpanel, func=leader.sapient.die, args=['godly debug powers'],
+            buttons.append(gui.Button(gui_panel=wpanel, func=leader.creature.die, args=['godly debug powers'],
                  text=leader.fulltitle(), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
@@ -4708,7 +4704,7 @@ class Population:
         self.site = site
         self.commander = commander
         if self.commander:
-            self.commander.sapient.add_commanded_population(self)
+            self.commander.creature.add_commanded_population(self)
 
 
     def get_number_of_beings(self):
@@ -4756,13 +4752,13 @@ class Population:
                     for i in xrange(self.sentients[culture][race][profession_name]):
                         human = culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1)
                         # TODO - this should be improved
-                        human.sapient.commander = self.commander
+                        human.creature.commander = self.commander
 
                         profession = Profession(name=profession_name, category='commoner')
                         profession.give_profession_to(figure=human)
 
                         #if self.origin_city:
-                        #    human.sapient.change_citizenship(new_city=self.origin_city, new_house=None)
+                        #    human.creature.change_citizenship(new_city=self.origin_city, new_house=None)
                         allmembers.append(human)
 
         ####### PATROLS ####################
@@ -4863,7 +4859,7 @@ class Meeting:
         self.date = (future_year, future_month, future_day)
         g.WORLD.time_cycle.add_event(date=(future_year, future_month, future_day), event=self.hold_meeting)
         ## Add to the leader's calendar too
-        self.leader.sapient.add_event(date=(future_year, future_month, future_day), event=self)
+        self.leader.creature.add_event(date=(future_year, future_month, future_day), event=self)
 
         for figure in self.invitees:
             self.respond_to_meeting(figure)
@@ -4895,11 +4891,11 @@ class Plot:
         self.chance_to_succeed = 20
 
         # Other init stuff
-        self.target.sapient.targeted_plots.append({self: 0})
+        self.target.creature.targeted_plots.append({self: 0})
         g.WORLD.plots.append(self)
 
         for member in self.members:
-            member.sapient.involved_plots.append(self)
+            member.creature.involved_plots.append(self)
 
 
     def check_for_fire(self):
@@ -4915,13 +4911,13 @@ class Plot:
         if success:
             g.game.add_message(''.join([self.name, ' was successful!']), libtcod.light_red)
             if self.action == 'kill':
-                self.target.sapient.die(reason='a successful plot')
+                self.target.creature.die(reason='a successful plot')
 
         else:
             g.game.add_message(''.join([self.name, ' was unsuccessful']), libtcod.red)
 
         for member in self.members:
-            member.sapient.involved_plots.remove(self)
+            member.creature.involved_plots.remove(self)
         g.WORLD.plots.remove(self)
 
 
@@ -5110,7 +5106,7 @@ class KillTargBehavior:
         self.has_attempted_kill = 1
 
         #if roll(0, 1):
-        #    self.target.sapient.die()
+        #    self.target.creature.die()
 
 
 class CaptureTargBehavior:
@@ -5126,7 +5122,7 @@ class CaptureTargBehavior:
         self.is_active= 1
 
     def is_completed(self):
-        return self.target in self.figure.sapient.captives
+        return self.target in self.figure.creature.captives
 
     def take_behavior_action(self):
         pass
@@ -5152,7 +5148,7 @@ class ImprisonTargBehavior:
 
     def take_behavior_action(self):
         pass
-        #self.figure.sapient.army.transfer_captive_to_building(figure=self.target, target_building=self.building)
+        #self.figure.creature.army.transfer_captive_to_building(figure=self.target, target_building=self.building)
 
 
 class WanderBehavior:
@@ -5237,7 +5233,8 @@ class Creature:
         # To be set when it is added to the object component
         self.owner = None
 
-        ### Sapient ###
+
+        ###################### Sapient #####################
 
         self.culture = culture
         self.born = born
@@ -5262,7 +5259,7 @@ class Creature:
         self.captives = []
 
         self.faction = None
-        # Sort of ugly, but a sapient needs to know if they are a faction leader
+        # Sort of ugly, but a creature needs to know if they are a faction leader
         self.is_faction_leader = 0
 
         #self.army = None
@@ -5301,7 +5298,6 @@ class Creature:
         self.events = {}
         self.is_plotting = 0
 
-        self.gold = 1000
         # Objects that we own
         self.possessions = set([])
         self.former_possessions = set([])
@@ -5348,7 +5344,7 @@ class Creature:
         ## TODO - more elegant way to become aware of all factions
         ## !! currently doesn't know about any factions other than ourselves and enemies
         self.dijmap_desires =     {
-                                   self.owner.sapient.faction.faction_name:0,
+                                   self.owner.creature.faction.faction_name:0,
                                    'map_center':0
                                   }
 
@@ -5374,7 +5370,7 @@ class Creature:
 
     def is_available_to_act(self):
         ''' Way to check whether the figure can act of their own accord.'''
-        return not (self.owner.sapient.is_captive() or self.status in ('unconscious', 'dead'))
+        return not (self.owner.creature.is_captive() or self.status in ('unconscious', 'dead'))
 
     def set_status(self, status):
         self.status = status
@@ -5506,7 +5502,7 @@ class Creature:
 
     def handle_renegade_faction(self, target):
         utterance = random.choice(('HEY!', 'WHAT ARE YOU DOING?!', 'AAAAHHHH!!!'))
-        target.sapient.say(utterance)
+        target.creature.say(utterance)
 
         if target.creature.current_weapon is not None and target.creature.current_weapon.weapon:
             target.local_brain.set_state('attacking')
@@ -5518,7 +5514,7 @@ class Creature:
     def standard_combat_attack(self, attacking_object_component, force, target, target_component):
         # '' Calculates whether an attack will hit or not ''
 
-        if target.sapient and target.local_brain and target.local_brain.ai_state == 'idle':
+        if target.creature and target.local_brain and target.local_brain.ai_state == 'idle':
             self.handle_renegade_faction(target)
 
 
@@ -5543,7 +5539,7 @@ class Creature:
         combat_log = []
 
 
-        if target.sapient and not self.owner.sapient.faction.is_hostile_to(target.sapient.faction) and target.local_brain and target.local_brain.ai_state == 'idle':
+        if target.creature and not self.owner.creature.faction.is_hostile_to(target.creature.faction) and target.local_brain and target.local_brain.ai_state == 'idle':
             self.handle_renegade_faction(target)
 
         # Hacking in some defaults for now
@@ -5655,8 +5651,8 @@ class Creature:
         if pain_ratio > .95 and self.status == 'alive':
             self.pass_out(reason='pain')
 
-        if self.status == 'alive' and self.owner.sapient:
-            self.owner.sapient.verbalize_pain(damage, sharpness, pain_ratio)
+        if self.status == 'alive' and self.owner.creature:
+            self.owner.creature.verbalize_pain(damage, sharpness, pain_ratio)
 
 
     def pass_out(self, reason):
@@ -5670,7 +5666,7 @@ class Creature:
                 self.owner.drop_object(own_component=component, obj=component.grasped_item)
 
         self.owner.set_display_color(self.owner.pass_out_color)
-        self.owner.sapient.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
+        self.owner.creature.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
 
 
     def map_death(self, reason):
@@ -5684,8 +5680,8 @@ class Creature:
                 # Drop the object (and release hold on it)
                 creature_obj.drop_object(own_component=component, obj=component.grasped_item)
 
-        if creature_obj.sapient.commander and self.owner in creature_obj.sapient.commander.sapient.commanded_figures:
-            creature_obj.sapient.commander.sapient.remove_commanded_figure(creature_obj)
+        if creature_obj.creature.commander and self.owner in creature_obj.creature.commander.creature.commanded_figures:
+            creature_obj.creature.commander.creature.remove_commanded_figure(creature_obj)
 
         g.M.sapients.remove(creature_obj)
         g.M.objects.append(creature_obj)
@@ -6324,22 +6320,22 @@ class DijmapSapient:
 
     def set_enemy_perceptions_from_cached_factions(self):
         ''' Make sure We are not a captive (later, if freed, captives will need to run this routine) '''
-        if not self.owner.sapient.is_captive():
+        if not self.owner.creature.is_captive():
 
             for faction, members in g.M.factions_on_map.iteritems():
                 #g.game.add_message('{0}'.format(faction.faction_name), faction.color)
 
-                if self.owner.sapient.faction.is_hostile_to(faction):
-                    #g.game.add_message('{0} hostile to {1}'.format(self.owner.sapient.faction.faction_name, faction), self.owner.sapient.faction.color)
+                if self.owner.creature.faction.is_hostile_to(faction):
+                    #g.game.add_message('{0} hostile to {1}'.format(self.owner.creature.faction.faction_name, faction), self.owner.creature.faction.color)
 
                     for member in members:
-                        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
+                        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.creature.is_captive():
                             self.unperceived_enemies.append(member)
                             #g.game.add_message(new_msg="{0} adding {1} to enemies".format(self.owner.fullname(), member.fullname()), color=self.owner.color)
 
-            #for enemy_faction in self.owner.sapient.enemy_factions:
+            #for enemy_faction in self.owner.creature.enemy_factions:
             #    for member in g.M.factions_on_map[enemy_faction]:
-            #        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.sapient.is_captive():
+            #        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.creature.is_captive():
             #            self.unperceived_enemies.append(member)
 
 
@@ -6357,7 +6353,7 @@ class DijmapSapient:
             perceived, threat_level = actor.creature.check_to_perceive(figure)
 
             if perceived:
-                #self.owner.sapient.say('I see you, %s'%figure.fullname())
+                #self.owner.creature.say('I see you, %s'%figure.fullname())
                 self.perceived_enemies[figure] = threat_level
                 self.unperceived_enemies.remove(figure)
 
@@ -6492,7 +6488,7 @@ class DijmapSapient:
 
     def set_state(self, ai_state, **kwargs):
         actor = self.owner
-        actor.sapient.nonverbal_behavior(' is now %s'%ai_state )
+        actor.creature.nonverbal_behavior(' is now %s'%ai_state )
         self.ai_state  = ai_state
 
         if self.ai_state  == 'attacking':
@@ -6501,14 +6497,14 @@ class DijmapSapient:
 
             for faction in g.M.factions_on_map.keys():
             #for faction in actor.creature.dijmap_desires.keys():
-                if actor.sapient.faction.is_hostile_to(faction):
+                if actor.creature.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = 2
 
         elif self.ai_state  == 'fleeing':
 
             for faction in g.M.factions_on_map.keys():
             #for faction in actor.creature.dijmap_desires.keys():
-                if actor.sapient.faction.is_hostile_to(faction):
+                if actor.creature.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.faction_name] = -4
 
             actor.creature.dijmap_desires['map_center'] = -2
@@ -6649,8 +6645,8 @@ class BasicWorldBrain:
             self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason=reason))
 
         # Auto return home
-        if self.goals[-1].reason != 'I like to be home when I can.' and self.owner.sapient.current_citizenship:
-            home_city = self.owner.sapient.current_citizenship
+        if self.goals[-1].reason != 'I like to be home when I can.' and self.owner.creature.current_citizenship:
+            home_city = self.owner.creature.current_citizenship
             return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return home')
             behavior_list = [return_from_site]
 
@@ -6670,28 +6666,28 @@ class BasicWorldBrain:
 
 
     def monthly_life_check(self):
-        sapient = self.owner.sapient
-        age = sapient.get_age()
+        creature = self.owner.creature
+        age = creature.get_age()
 
         if self.owner.creature.intelligence_level == 3:
             # Pick a spouse and get married immediately
-            if sapient.spouse is None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
+            if creature.spouse is None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
                 if roll(1, 48) >= 48:
                     self.pick_spouse()
 
             # Have kids! Currenly limiting to 2 for non-important, 5 for important (will need to be fixed/more clear later)
             # Check female characters, and for now, a random chance they can have kids
-            if sapient.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(sapient.children) <= (sapient.important * 3) + 2:
+            if creature.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(creature.children) <= (creature.important * 3) + 2:
                 if roll(1, 20) == 20:
-                    sapient.have_child()
+                    creature.have_child()
 
             ####### GOALS #######
 
-            if not sapient.economy_agent \
+            if not creature.economy_agent \
                     and self.owner.creature.sex == 1 \
                     and age >= 18 \
-                    and not sapient.is_commander() \
-                    and not sapient.is_captive() \
+                    and not creature.is_commander() \
+                    and not creature.is_captive() \
                     and roll(1, 50) == 1:
 
                 moving = self.check_for_move_city()
@@ -6719,35 +6715,35 @@ class BasicWorldBrain:
                 '''
 
     def pick_spouse(self):
-        sapient = self.owner.sapient
+        creature = self.owner.creature
         # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
         if g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
             potential_spouses = [figure for figure in g.WORLD.tiles[self.owner.wx][self.owner.wy].entities
                                  if figure.creature.sex != self.owner.creature.sex
                                  and figure.creature.creature_type == self.owner.creature.creature_type
-                                 and figure.sapient.dynasty != sapient.dynasty
-                                 and MIN_MARRIAGE_AGE < figure.sapient.get_age() < MAX_MARRIAGE_AGE]
+                                 and figure.creature.dynasty != creature.dynasty
+                                 and MIN_MARRIAGE_AGE < figure.creature.get_age() < MAX_MARRIAGE_AGE]
 
-            if len(potential_spouses) == 0 and sapient.current_citizenship:
+            if len(potential_spouses) == 0 and creature.current_citizenship:
                 # Make a person out of thin air to marry
                 sex = abs(self.owner.creature.sex-1)
-                potential_spouses = [sapient.current_citizenship.create_inhabitant(sex=sex, age=sapient.get_age()+roll(-5, 5), char='o', dynasty=None, race=self.owner.creature.creature_type, important=sapient.important, house=sapient.house)]
-            elif sapient.current_citizenship is None:
+                potential_spouses = [creature.current_citizenship.create_inhabitant(sex=sex, age=creature.get_age()+roll(-5, 5), char='o', dynasty=None, race=self.owner.creature.creature_type, important=creature.important, house=creature.house)]
+            elif creature.current_citizenship is None:
                 g.game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
                 return
 
             spouse = random.choice(potential_spouses)
-            sapient.take_spouse(spouse=spouse)
+            creature.take_spouse(spouse=spouse)
             ## Notify world
-            # g.game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', sapient.current_citizenship.name]) )
+            # g.game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', creature.current_citizenship.name]) )
             # Update last names
-            if self.owner.creature.sex == 1:    spouse.sapient.lastname = sapient.lastname
-            else:                               sapient.lastname = spouse.sapient.lastname
+            if self.owner.creature.sex == 1:    spouse.creature.lastname = creature.lastname
+            else:                               creature.lastname = spouse.creature.lastname
 
             ## Move in
-            if spouse.sapient.current_citizenship != sapient.current_citizenship:
-                #g.game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.sapient.current_citizenship.name, sapient.current_citizenship.name ), libtcod.dark_red)
-                spouse.sapient.change_citizenship(new_city=sapient.current_citizenship, new_house=sapient.house)
+            if spouse.creature.current_citizenship != creature.current_citizenship:
+                #g.game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.creature.current_citizenship.name, creature.current_citizenship.name ), libtcod.dark_red)
+                spouse.creature.change_citizenship(new_city=creature.current_citizenship, new_house=creature.house)
             # Make sure the spouse meets them
             if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
                 spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
@@ -6771,12 +6767,12 @@ class BasicWorldBrain:
 
 
     def check_for_move_city(self):
-        sapient = self.owner.sapient
-        if sapient.profession is None and roll(1, 1000) >= 950:
-            target_city = random.choice([city for city in g.WORLD.cities if city != sapient.current_citizenship])
+        creature = self.owner.creature
+        if creature.profession is None and roll(1, 1000) >= 950:
+            target_city = random.choice([city for city in g.WORLD.cities if city != creature.current_citizenship])
             reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
 
-            sapient.change_citizenship(new_city=target_city, new_house=None)
+            creature.change_citizenship(new_city=target_city, new_house=None)
             self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
             # Return whether the goal was fired or not
             return 1
@@ -6784,12 +6780,12 @@ class BasicWorldBrain:
 
 
     def check_for_liesure_travel(self):
-        sapient = self.owner.sapient
-        if (sapient.profession is None or sapient.profession == 'Adventurer') and roll(1, 1000) >= 500:
+        creature = self.owner.creature
+        if (creature.profession is None or creature.profession == 'Adventurer') and roll(1, 1000) >= 500:
 
             # More interesting alternative - visiting a holy site
-            if roll(0, 1) and len(sapient.culture.pantheon.holy_sites):
-                holy_site = random.choice(sapient.culture.pantheon.holy_sites)
+            if roll(0, 1) and len(creature.culture.pantheon.holy_sites):
+                holy_site = random.choice(creature.culture.pantheon.holy_sites)
                 target_x, target_y = holy_site.x, holy_site.y
                 travel_verb = 'go on a pilgrimmage to'
                 activity = 'meditate'
@@ -6844,25 +6840,25 @@ class BasicWorldBrain:
             enemy_factions_in_this_tile = []
             for entity in g.WORLD.tiles[wx][wy].entities[:]:
                 if entity.creature and entity.creature.is_available_to_act() and not entity in g.WORLD.has_battled \
-                        and self.owner.sapient.faction.is_hostile_to(entity.sapient.faction) \
-                        and not entity.sapient.faction in enemy_factions_in_this_tile:
+                        and self.owner.creature.faction.is_hostile_to(entity.creature.faction) \
+                        and not entity.creature.faction in enemy_factions_in_this_tile:
 
-                    enemy_factions_in_this_tile.append(entity.sapient.faction)
+                    enemy_factions_in_this_tile.append(entity.creature.faction)
             #########################################################
 
             ## Our faction
             faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
                             and not e in g.WORLD.has_battled
-                            and e.sapient.faction == self.owner.sapient.faction]
+                            and e.creature.faction == self.owner.creature.faction]
 
-            faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.sapient.faction]
+            faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.creature.faction]
 
             ### Do battle with each potential enemy
             for faction in enemy_factions_in_this_tile:
                 ## Enemy faction
                 faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
                             and not e in g.WORLD.has_battled
-                            and e.sapient.faction == faction]
+                            and e.creature.faction == faction]
 
                 faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
 
@@ -6878,11 +6874,11 @@ class BasicWorldBrain:
         for option in decisions[decision_name]:
             weighed_options[option] = {}
 
-            if self.owner.sapient.profession and self.owner.sapient.profession.name in option['professions']:
-                weighed_options[option][self.owner.sapient.profession.name] = decisions[decision_name][option][self.owner.sapient.profession.name]
+            if self.owner.creature.profession and self.owner.creature.profession.name in option['professions']:
+                weighed_options[option][self.owner.creature.profession.name] = decisions[decision_name][option][self.owner.creature.profession.name]
 
             for trait in option['traits']:
-                if trait in self.owner.sapient.traits:
+                if trait in self.owner.creature.traits:
                     weighed_options[option][trait] = decisions[decision_name][trait]
 
             for misc_reason in option['misc']:
@@ -7046,7 +7042,7 @@ class TimeCycle(object):
         ### Sapients
         for actor in g.M.sapients:
             # Talk
-            actor.sapient.handle_pending_conversations()
+            actor.creature.handle_pending_conversations()
             # Bleed every tick, if necessary
             actor.creature.handle_tick()
 
@@ -7085,8 +7081,8 @@ class TimeCycle(object):
             city.dispatch_caravans()
 
         # Player econ preview - to show items we're gonna bid on
-        if g.game.state == 'playing' and g.player.sapient.economy_agent:
-            g.player.sapient.economy_agent.g.player_auto_manage()
+        if g.game.state == 'playing' and g.player.creature.economy_agent:
+            g.player.creature.economy_agent.g.player_auto_manage()
             panel4.tiles_dynamic_buttons = []
             panel4.recalculate_wmap_dyn_buttons = True
 
@@ -7115,8 +7111,8 @@ class TimeCycle(object):
         #g.game.add_message('It is now ' + str(self.current_year), libtcod.light_sea)
         for figure in g.WORLD.all_figures[:]:
             # Die from old age
-            if figure.sapient.get_age() > phys.creature_dict[figure.creature.creature_type]['creature']['lifespan']:
-                figure.sapient.die(reason='old age')
+            if figure.creature.get_age() > phys.creature_dict[figure.creature.creature_type]['creature']['lifespan']:
+                figure.creature.die(reason='old age')
 
     def rapid_tick(self, ticks):
         ticks = ticks
@@ -7379,9 +7375,6 @@ class Culture:
         if not race:
             race = random.choice(self.races)
 
-        # The creature component
-        creature_component = Creature(creature_type=race, sex=sex, intelligence_level=intelligence_level)
-
         # Look up the creature (imported as a dict with a million nested dicts
         info = phys.creature_dict[race]
 
@@ -7394,9 +7387,12 @@ class Culture:
 
 
         born = g.WORLD.time_cycle.years_ago(age)
-        sapient_comp = SapientComponent(firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
-        human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, sapient=sapient_comp, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
+        # The creature component
+        creature_component = Creature(creature_type=race, sex=sex, intelligence_level=intelligence_level, firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
+
+
+        human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
         faction.add_member(human)
 
         if dynasty is not None:
@@ -7436,11 +7432,11 @@ class Culture:
         return human
 
 
-def assemble_object(object_blueprint, force_material, wx, wy, creature=None, sapient=None, local_brain=None, world_brain=None):
+def assemble_object(object_blueprint, force_material, wx, wy, creature=None, local_brain=None, world_brain=None):
     ''' Build an object from the blueprint dictionary '''
     ## TODO - Currently only force_material works...
 
-    if sapient and sapient.faction: color = sapient.faction.color
+    if creature and creature.faction: color = creature.faction.color
     elif force_material:            color = force_material.color
     else:
         # Not ideal, but when importing xml, we cache all possible materials the object can include - pick a random one for the color
@@ -7457,7 +7453,6 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, sap
                     description = object_blueprint['description'],
 
                     creature = creature,
-                    sapient = sapient,
                     local_brain = local_brain,
                     world_brain = world_brain,
                     weapon = object_blueprint['weapon_component'],
@@ -7563,18 +7558,18 @@ def get_info_under_mouse():
                 info.append(('{0} ({1})'.format(site.name.capitalize(), site.site_type), color))
                 if site.site_type == 'city':
                     info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
-                    num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.sapient.is_commander() or not f.sapient.commander)])
+                    num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.creature.is_commander() or not f.creature.commander)])
                     info.append(('{0} figures or parties here'.format(num_figures), color))
             else:
                 # Entities
                 for entity in g.WORLD.tiles[x][y].entities:
                     # Commanders of parties or armies
-                    if entity.sapient and entity.sapient.is_commander():
-                        info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.sapient.get_total_number_of_commanded_beings()), libtcod.color_lerp(color, entity.sapient.faction.color, .3)))
+                    if entity.creature and entity.creature.is_commander():
+                        info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.creature.get_total_number_of_commanded_beings()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
 
                     # Individual travellers
-                    elif entity.sapient and not entity.sapient.commander:
-                        info.append(('{0}'.format(entity.fulltitle()), libtcod.color_lerp(color, entity.sapient.faction.color, .3)))
+                    elif entity.creature and not entity.creature.commander:
+                        info.append(('{0}'.format(entity.fulltitle()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
                     info.append((' ', color))
 
                 # Only show uncommanded populations
@@ -7662,14 +7657,14 @@ class RenderHandler:
             # Current date and time info
             libtcod.console_print(panel2.con, 2, 2, g.WORLD.time_cycle.get_current_date())
             if g.game.map_scale == 'world':
-                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.WORLD.time_cycle.current_year - g.player.sapient.faction.leader_change_year), g.player.sapient.faction.leader.fullname() ))
+                libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.WORLD.time_cycle.current_year - g.player.creature.faction.leader_change_year), g.player.creature.faction.leader.fullname() ))
                 libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(g.WORLD.time_cycle.current_year, len(g.WORLD.all_figures), len(g.WORLD.important_figures)))
 
             ##### PANEL 4 - ECONOMY STUFF
-            if g.player.sapient.economy_agent is not None:
+            if g.player.creature.economy_agent is not None:
                 libtcod.console_set_default_foreground(panel4.con, PANEL_FRONT)
 
-                agent = g.player.sapient.economy_agent
+                agent = g.player.creature.economy_agent
                 y = 5
                 libtcod.console_print(panel4.con, 2, y, agent.name + ' (' + agent.economy.owner.name + ')')
                 y +=  1
@@ -7702,14 +7697,14 @@ class RenderHandler:
 
 
                     if panel4.recalculate_wmap_dyn_buttons:
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_price, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-3, y), width=2, height=2, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_price, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-2, y), width=2, height=2, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_quant, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-5, y), width=2, height=2, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_bid_quant, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-4, y), width=2, height=2, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                 y += 1
@@ -7720,14 +7715,14 @@ class RenderHandler:
 
 
                     if panel4.recalculate_wmap_dyn_buttons:
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_price, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_price, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_price, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_price, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_quant, args=(item, -1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_quant, args=(item, -1),
                                                                       text='<', topleft=(PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
-                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.sapient.economy_agent.change_sell_quant, args=(item, 1),
+                        panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_quant, args=(item, 1),
                                                                       text='>', topleft=(PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
 
@@ -7833,11 +7828,11 @@ def battle_hover_information():
             gui.HoverInfo(header=oheader, text=otext, cx=mouse.cx+1, cy=mouse.cy+1, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface, xy_corner=1)
 
         ######## FOR SAPIENTS ###########
-        if target and target.sapient:
+        if target and target.creature:
             header = [target.fulltitle()]
 
-            #if target.sapient.army:
-            #    header.append(target.sapient.army.name)
+            #if target.creature.army:
+            #    header.append(target.creature.army.name)
 
             inventory = target.get_inventory()
 
@@ -7872,7 +7867,7 @@ def battle_hover_information():
 
             gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
 
-        ### If it's a non-sapient creature....
+        ### If it's a non-creature creature....
         elif target:
             header = [target.fullname()]
             text = [target.description]
@@ -8373,7 +8368,7 @@ class Game:
                 #try to find an attackable object there
                 target = None
                 for obj in g.M.tiles[x][y].objects:
-                    if obj.creature and obj.creature.is_available_to_act() and (obj.sapient and g.player.sapient.faction.is_hostile_to(obj.sapient.faction) ):
+                    if obj.creature and obj.creature.is_available_to_act() and (obj.creature and g.player.creature.faction.is_hostile_to(obj.creature.faction) ):
                         target = obj
                         break
                 #attack if target found, move otherwise
@@ -8468,14 +8463,14 @@ def show_people(world):
         libtcod.console_print(0, 2, 2, 'Civ people (ESC to exit, LEFT and RIGHT arrows to scroll)')
 
         selected_person = world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p]
-        s_att = selected_person.sapient
+        s_att = selected_person.creature
         ## Traits ##
         y = 7
         ## Skills ##
         y += 2
         libtcod.console_print(0, x_att_offset, y, 'Traits')
         y += 1
-        for trait, m in selected_person.sapient.traits.iteritems():
+        for trait, m in selected_person.creature.traits.iteritems():
             y += 1
             libtcod.console_print(0, x_att_offset, y, tdesc(trait, m))
 
@@ -8486,13 +8481,13 @@ def show_people(world):
         libtcod.console_print(0, x_att_offset, 4, '<< ' + world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p].fullname() + ' >>')
         ##### Only show people who this person knows personally for now
         y = 0
-        for other_person in selected_person.sapient.knowledge.keys():
+        for other_person in selected_person.creature.knowledge.keys():
             if y + 20 > SCREEN_HEIGHT: # Just make sure we don't write off the screen...
                 libtcod.console_print(0, x_list_offset, y + 9, '<<< more >>>')
                 break
 
             # Use total opinions (includes trait info)
-            total_opinion = selected_person.sapient.get_relations(other_person)
+            total_opinion = selected_person.creature.get_relations(other_person)
             opinion = sum(total_opinion.values())
 
             y += 1
@@ -8505,7 +8500,7 @@ def show_people(world):
 
             libtcod.console_set_default_foreground(0, color)
             libtcod.console_print(0, x_list_offset, y + 8,
-                                  other_person.sapient.owner.fullname() + ' (' + str(opinion) + ')')
+                                  other_person.creature.owner.fullname() + ' (' + str(opinion) + ')')
             y += 1
             for reason, amount in total_opinion.iteritems():
                 libtcod.console_print(0, x_list_offset, y + 8, reason + ': ' + str(amount))
@@ -8669,7 +8664,7 @@ def show_civs(world):
         root_con.draw_box(1, 28, 8, SCREEN_HEIGHT - 2, PANEL_FRONT) # Around relations
         # Check for title holder
         if city.faction.leader:
-            title_info = '{0} {1}, age {2}'.format(city.faction.leader_prefix, city.faction.get_leader().fullname(), city.faction.get_leader().sapient.get_age())
+            title_info = '{0} {1}, age {2}'.format(city.faction.leader_prefix, city.faction.get_leader().fullname(), city.faction.get_leader().creature.get_age())
         else:
             title_info = 'No holder'
         libtcod.console_print(0, 2, 11, title_info)
@@ -8677,7 +8672,7 @@ def show_civs(world):
 
         y = 13
         for heir in city.faction.heirs:
-            libtcod.console_print(0, 2, y, '{0}, age {1}'.format(heir.fullname(), heir.sapient.get_age()))
+            libtcod.console_print(0, 2, y, '{0}, age {1}'.format(heir.fullname(), heir.creature.get_age()))
             y += 1
 
         ######### Cities and governers #############
@@ -8862,7 +8857,7 @@ def show_civs(world):
 
                 ##
                 #if 34 <= mouse.cx <= 34+len(figure.fullname()) and mouse.cy == y:
-                if 34 <= mouse.cx <= 60 + len(figure.sapient.get_profession()) and mouse.cy == y:
+                if 34 <= mouse.cx <= 60 + len(figure.creature.get_profession()) and mouse.cy == y:
                     selected = True
 
                     if figure.creature.sex:
@@ -8878,18 +8873,18 @@ def show_civs(world):
 
                     libtcod.console_print(0, 87, ny, figure.fullname())
                     libtcod.console_print(0, 85, ny + 1,
-                                          figure.sapient.get_profession() + ', age ' + str(figure.sapient.get_age()))
+                                          figure.creature.get_profession() + ', age ' + str(figure.creature.get_age()))
 
                     spouseinfo = 'No spouse'
-                    if figure.sapient.spouse:
+                    if figure.creature.spouse:
                         end = ''
-                        if figure.sapient.spouse.creature.status == 'dead':
+                        if figure.creature.spouse.creature.status == 'dead':
                             end = ' (dead)'
-                        spouseinfo = 'Married to ' + figure.sapient.spouse.fulltitle() + end
+                        spouseinfo = 'Married to ' + figure.creature.spouse.fulltitle() + end
 
                     libtcod.console_print(0, 85, ny + 2, spouseinfo)
 
-                    if figure.sapient.current_citizenship == city:
+                    if figure.creature.current_citizenship == city:
                         info = 'Currently lives here'
                     else:
                     #    info = 'Staying at ' + random.choice(city.get_building_type('Tavern')).get_name()
@@ -8898,12 +8893,12 @@ def show_civs(world):
                     libtcod.console_print(0, 85, ny + 3, info)
 
                     ny += 4
-                    for trait, m in figure.sapient.traits.iteritems():
+                    for trait, m in figure.creature.traits.iteritems():
                         libtcod.console_print(0, 85, ny + 1, tdesc(trait, m))
                         ny += 1
 
                     ny += 1
-                    for issue, (opinion, reasons) in figure.sapient.opinions.iteritems():
+                    for issue, (opinion, reasons) in figure.creature.opinions.iteritems():
                         ny += 1
                         ##
                         s = issue + ': ' + str(opinion)
@@ -8921,14 +8916,14 @@ def show_civs(world):
 
                 libtcod.console_print(0, 34, y, figure.fullname())
 
-                libtcod.console_print(0, 57, y, str(figure.sapient.get_age()))
+                libtcod.console_print(0, 57, y, str(figure.creature.get_age()))
 
-                libtcod.console_print(0, 60, y, figure.sapient.get_profession())
+                libtcod.console_print(0, 60, y, figure.creature.get_profession())
 
-                if figure.sapient.dynasty:
-                    libtcod.console_put_char_ex(0, 32, y, figure.sapient.dynasty.symbol,
-                                                figure.sapient.dynasty.symbol_color,
-                                                figure.sapient.dynasty.background_color)
+                if figure.creature.dynasty:
+                    libtcod.console_put_char_ex(0, 32, y, figure.creature.dynasty.symbol,
+                                                figure.creature.dynasty.symbol_color,
+                                                figure.creature.dynasty.background_color)
 
                 if figure.creature.sex:
                     symb = chr(11)

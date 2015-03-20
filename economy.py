@@ -258,14 +258,14 @@ class Agent(object):
         '''If the original holder we're attached to dies, we can be passed on to others'''
         # Remove self from who we were previously attached to
         if self.attached_to is not None:
-            self.attached_to.sapient.economy_agent = None
+            self.attached_to.creature.economy_agent = None
 
-        if figure.sapient.economy_agent is not None:
-            figure.sapient.economy_agent.attached_to = None
-            figure.sapient.economy_agent = None
+        if figure.creature.economy_agent is not None:
+            figure.creature.economy_agent.attached_to = None
+            figure.creature.economy_agent = None
 
         self.attached_to = figure
-        self.attached_to.sapient.economy_agent = self
+        self.attached_to.creature.economy_agent = self
 
 
     def has_token(self, type_of_item):
@@ -423,7 +423,7 @@ class ResourceGatherer(Agent):
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
             if self.attached_to is not None:
-                self.attached_to.sapient.economy_agent = None
+                self.attached_to.creature.economy_agent = None
                 self.attached_to = None
 
             if roll(0, 1):
@@ -654,7 +654,7 @@ class GoodProducer(Agent):
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
             if self.attached_to is not None:
-                self.attached_to.sapient.economy_agent = None
+                self.attached_to.creature.economy_agent = None
                 self.attached_to = None
 
             if roll(0, 1):
@@ -846,7 +846,7 @@ class Merchant(object):
 
         self.attached_to = attached_to
         if self.attached_to is not None:
-            self.attached_to.sapient.economy_agent = self
+            self.attached_to.creature.economy_agent = self
 
         self.turns_alive = 0
         self.buys = 0
@@ -889,15 +889,15 @@ class Merchant(object):
         '''If the original holder we're attached to dies, we can be passed on to others'''
         # Remove self from who we were previously attached to
         if self.attached_to is not None:
-            self.attached_to.sapient.economy_agent = None
+            self.attached_to.creature.economy_agent = None
 
 
-        if figure.sapient.economy_agent is not None:
-            figure.sapient.economy_agent.attached_to = None
-            figure.sapient.economy_agent = None
+        if figure.creature.economy_agent is not None:
+            figure.creature.economy_agent.attached_to = None
+            figure.creature.economy_agent = None
 
         self.attached_to = figure
-        self.attached_to.sapient.economy_agent = self
+        self.attached_to.creature.economy_agent = self
 
 
     def take_bought_item(self, item):
