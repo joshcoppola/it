@@ -376,7 +376,6 @@ class World:
         self.dynasties = []
         self.all_figures = []
         self.important_figures = []
-        self.plots = []
 
         self.tiles = None # Reset each time a new map is genned
         self.famous_objects = set([])
@@ -4842,84 +4841,6 @@ class Dynasty:
         #libtcod.console_put_char_ex(panel, x, y, self.symbol, self.symbol_color, self.background_color)
         #libtcod.console_blit(panel, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0)
 
-class Meeting:
-    def __init__(self, name, leader, invitees, days_ahead, world_coords, place, reason, secret, importance):
-        self.name = name
-        self.leader = leader
-        self.invitees = invitees
-        self.world_coords = world_coords
-        self.place = place
-        self.reason = reason # tuple, index 0 is type (plot, etc), 1 is subtype (kill etc), 2 is target
-        self.secret = secret
-        self.importance = importance
-
-        self.attending = [self.leader]
-
-        (future_year, future_month, future_day) = g.WORLD.time_cycle.days_to_date(days_in_advance=days_ahead)
-        self.date = (future_year, future_month, future_day)
-        g.WORLD.time_cycle.add_event(date=(future_year, future_month, future_day), event=self.hold_meeting)
-        ## Add to the leader's calendar too
-        self.leader.creature.add_event(date=(future_year, future_month, future_day), event=self)
-
-        for figure in self.invitees:
-            self.respond_to_meeting(figure)
-
-    def respond_to_meeting(self, figure):
-        # Really barebones for now
-        self.attending.append(figure)
-
-
-    def hold_meeting(self):
-        g.game.add_message(''.join([self.leader.fullname(), ' is holding a meeting at ', self.place.get_name()]))
-        if self.reason[0] == 'plot':
-            if self.reason[1] == 'kill':
-                name = ''.join(['Plot to kill ', self.reason[2].fullname()])
-
-                plot = Plot(name=name, leader=self.leader, action=self.reason[1], target=self.reason[2],
-                            members=self.attending)
-
-
-class Plot:
-    def __init__(self, name, leader, action, target, members):
-        self.name = name
-        self.leader = leader
-        self.action = action
-        self.target = target
-        self.members = members
-
-        self.chance_to_fire = 5
-        self.chance_to_succeed = 20
-
-        # Other init stuff
-        self.target.creature.targeted_plots.append({self: 0})
-        g.WORLD.plots.append(self)
-
-        for member in self.members:
-            member.creature.involved_plots.append(self)
-
-
-    def check_for_fire(self):
-        if roll(1, 100) <= self.chance_to_fire:
-            g.game.add_message(''.join([self.name, 'has fired!']), libtcod.light_red)
-            self.fire()
-
-    def fire(self):
-        success = 0
-        if roll(1, 100) <= self.chance_to_succeed:
-            success = 1
-
-        if success:
-            g.game.add_message(''.join([self.name, ' was successful!']), libtcod.light_red)
-            if self.action == 'kill':
-                self.target.creature.die(reason='a successful plot')
-
-        else:
-            g.game.add_message(''.join([self.name, ' was unsuccessful']), libtcod.red)
-
-        for member in self.members:
-            member.creature.involved_plots.remove(self)
-        g.WORLD.plots.remove(self)
-
 
 class Goal:
     ''' This is the container for behaviors. It controls
@@ -5291,12 +5212,6 @@ class Creature:
 
         self.traits = {}
         self.goals = []
-
-        self.targeted_plots = [] # List of dicts for plots targeting us, key = plot, val = 0 or 1, whether we know about it or not
-        self.involved_plots = [] # List of plots
-
-        self.events = {}
-        self.is_plotting = 0
 
         # Objects that we own
         self.possessions = set([])
@@ -7099,10 +7014,6 @@ class TimeCycle(object):
             ## TODO - make sure this check works out all the time
             if figure.creature.is_available_to_act():
                 figure.world_brain.monthly_life_check()
-
-        for plot in g.WORLD.plots[:]:
-            if plot.check_for_fire():
-                plot.fire()
 
 
     def year_tick(self):
