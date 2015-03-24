@@ -8602,7 +8602,7 @@ def show_civs(world):
         elif key_pressed == 'e':
             view = 'economy'
         elif key_pressed == 'd':
-            economy_tab(world=world)
+            economy_tab(world=world, city=city)
         elif key_pressed == 'b':
             view = 'building'
         elif key_pressed == 'f':
@@ -8686,7 +8686,7 @@ def show_civs(world):
 
 
             all_agents = (city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants)
-            merchants = (city.econ.buy_merchants + city.econ.sell_merchants)
+            merchants = city.econ.buy_merchants + city.econ.sell_merchants
 
             for agent in all_agents[minr:maxr]:
                 y += 1
@@ -8698,6 +8698,8 @@ def show_civs(world):
                     agent_name = agent.name + ' (here)'
                 elif agent in merchants and agent.current_location is not None:
                     agent_name = agent.name + ' (' + agent.current_location.owner.name + ')'
+                elif agent in merchants and agent.current_location is None:
+                    agent_name = agent.name + ' (traveling)'
                 else:
                     agent_name = agent.name
 
@@ -8811,7 +8813,7 @@ def show_civs(world):
             y = 16
             ny = y # for opinions
 
-            libtcod.console_print(0, 34, y - 2, str(len(world.tiles[city.x][city.y].entities)) + ' notable characters')
+            libtcod.console_print(0, 34, y - 2, '{0} notable characters'.format(len(world.tiles[city.x][city.y].entities)))
             for figure in world.tiles[city.x][city.y].entities:
                 if y > SCREEN_HEIGHT - 5:
                     break
@@ -8906,9 +8908,7 @@ def show_civs(world):
         event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
         key_pressed = g.game.get_key(key)
 
-def economy_tab(world):
-    global mouse, key
-    city_number = 0
+def economy_tab(world, city):
     agent_index = 0
 
     key_pressed = None
@@ -8924,10 +8924,8 @@ def economy_tab(world):
             agent_index += 1
 
         if key_pressed == libtcod.KEY_UP:
-            city_number -= 1
             agent_index = 0
         if key_pressed == libtcod.KEY_DOWN:
-            city_number += 1
             agent_index = 0
 
         elif key_pressed == 'p':
@@ -8937,18 +8935,9 @@ def economy_tab(world):
         elif key_pressed == 'b':
             view = 'building'
         elif key_pressed == 'r':
-            world.cities[city_number].econ.run_simulation()
-
-        if city_number < 0:
-            city_number = len(world.cities) - 1
-        elif city_number > len(world.cities) - 1:
-            city_number = 0
+            city.econ.run_simulation()
 
         libtcod.console_clear(0) ## 0 should be variable "con"?
-
-        #### Set current variables ####
-        city = world.cities[city_number]
-        ################################
 
         #### General ######
         root_con.draw_box(0, SCREEN_WIDTH - 1, 0, SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
@@ -8970,7 +8959,7 @@ def economy_tab(world):
         libtcod.console_set_default_foreground(0, PANEL_FRONT)
         #for agent in city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants:
         iy, cy, ly = y, y, y
-        agent_list = city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants
+        agent_list = city.econ.resource_gatherers + city.econ.good_producers #+ city.econ.buy_merchants + city.econ.sell_merchants
         if agent_index > len(agent_list) - 6:
             agent_index = len(agent_list) - 6
         for agent in agent_list[agent_index:agent_index + 6]:
