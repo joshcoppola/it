@@ -24,9 +24,31 @@ class RegionChunk(Chunk):
 
         self.entities = []
         self.populations = []
+
         self.sites = []
         self.minor_sites = []
+        self.caves = []
 
+    def add_site(self, site):
+        self.sites.append(site)
+
+    def add_minor_site(self, site):
+        self.minor_sites.append(site)
+
+    def add_cave(self, cave):
+        self.caves.append(cave)
+
+    def add_entity(self, entity):
+        self.entities.append(entity)
+
+    def remove_entity(self, entity):
+        self.entities.remove(entity)
+
+    def add_population(self, population):
+        self.populations.append(population)
+
+    def remove_population(self, population):
+        self.populations.remove(population)
 
 class TileChunk(Chunk):
     def __init__(self, x, y):

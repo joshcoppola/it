@@ -335,6 +335,7 @@ class Region:
     def add_minor_site(self, world, site_type, x, y, char, name, color, culture, faction):
         site = Site(world, site_type, x, y, char, name, color, culture, faction)
         self.minor_sites.append(site)
+        self.chunk.add_minor_site(site)
 
         return site
 
@@ -352,7 +353,9 @@ class Region:
                 return 'the {0}s just to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist <= 15:
                 return 'the {0}s to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
-            elif dist > 30:
+            elif dist > 75:
+                return 'the distant {0}ern {1}s'.format(cart2card(city.x, city.y, self.x, self.y), self.region)
+            elif dist > 50:
                 return 'the {0}s far, far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist > 15:
                 return 'the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
@@ -1161,6 +1164,7 @@ class World(Map):
                 if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > g.MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
                     cave = Site(world=self, site_type='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
                     self.tiles[x][y].caves.append(cave)
+                    self.tiles[x][y].chunk.add_cave(cave)
                     self.tiles[x][y].char = 'C'
 
 
@@ -2037,6 +2041,7 @@ class World(Map):
         city = City(world=self, site_type='city', x=cx, y=cy, char=char, name=name, color=color, culture=self.tiles[cx][cy].culture, faction=faction)
 
         self.tiles[cx][cy].site = city
+        self.tiles[cx][cy].chunk.add_site(city)
         self.make_world_road(cx, cy)
 
         self.sites.append(city)
@@ -2095,7 +2100,7 @@ class World(Map):
             sentients = {leader.creature.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
             self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
-            if roll(1, 10) >= 2:
+            if roll(1, 10) >= 9:
                 closest_city = self.get_closest_city(x, y)[0]
                 closest_city.culture.pantheon.add_holy_site(ruin_site)
 
@@ -2155,6 +2160,8 @@ class World(Map):
 
     def create_population(self, char, name, faction, creatures, sentients, goods, wx, wy, site=None, commander=None):
         population = Population(char, name, faction, creatures, sentients, goods, wx, wy, site, commander)
+        g.WORLD.tiles[wx][wy].populations.append(population)
+        g.WORLD.tiles[wx][wy].chunk.add_population(population)
 
         return population
 
@@ -4705,7 +4712,6 @@ class Population:
 
         self.wx = wx
         self.wy = wy
-        g.WORLD.tiles[wx][wy].populations.append(self)
 
         self.world_last_dir = (0, 0)
         self.turns_since_move = 0
@@ -4727,8 +4733,15 @@ class Population:
         return total_number
 
 
+    def w_handle_chunk_move(self, x1, y1, x2, y2):
+        ''' Handle this object moving between chunks of the world '''
+        if g.WORLD.tiles[x1][y1].chunk != g.WORLD.tiles[x2][y2].chunk:
+            g.WORLD.tiles[x1][y1].chunk.populations.remove(self)
+            g.WORLD.tiles[x2][y2].chunk.populations.append(self)
+
     def w_teleport(self, x, y):
         g.WORLD.tiles[self.wx][self.wy].populations.remove(self)
+        self.w_handle_chunk_move(self.wx, self.wy, x, y)
         self.wx = x
         self.wy = y
         g.WORLD.tiles[self.wx][self.wy].populations.append(self)
@@ -4742,6 +4755,7 @@ class Population:
         #move by the given amount, if the destination is not blocked
         if not g.WORLD.tile_blocks_mov(self.wx + dx, self.wy + dy):
             g.WORLD.tiles[self.wx][self.wy].populations.remove(self)
+            self.w_handle_chunk_move(self.wx, self.wy, self.wx + dx, self.wy + dy)
             self.wx += dx
             self.wy += dy
             g.WORLD.tiles[self.wx][self.wy].populations.append(self)
