@@ -482,7 +482,7 @@ class CityMap:
                 ## Fill positions
                 new_building.fill_initial_positions()
                 # The first employee listed is the actual economy agent
-                new_building.current_workers[0].sapient.economy_agent = good_producer
+                new_building.current_workers[0].creature.economy_agent = good_producer
 
 
                 for x in xrange(work_tiles.x1, work_tiles.x2 + 1):
@@ -531,7 +531,7 @@ class CityMap:
         for i, building in enumerate(self.city_class.buildings):
             big_house = False
             for figure in building.inhabitants:
-                if figure.sapient.profession and figure.sapient.profession.category in big_house_categories:
+                if figure.creature.profession and figure.creature.profession.category in big_house_categories:
                     big_house = True
                     break
 

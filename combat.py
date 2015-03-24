@@ -148,8 +148,8 @@ class WorldBattle:
             g.WORLD.has_battled.add(member)
 
         # Now that the populations have been de-abstracted, we can make a list of all members in each faction
-        f1_all_members = [e for e in g.M.sapients if e.creature.faction == self.faction1_commander.creature.faction]
-        f2_all_members = [e for e in g.M.sapients if e.creature.faction == self.faction2_commander.creature.faction]
+        f1_all_members = [e for e in g.M.creatures if e.creature.faction == self.faction1_commander.creature.faction]
+        f2_all_members = [e for e in g.M.creatures if e.creature.faction == self.faction2_commander.creature.faction]
 
         f1_in_combat = f1_all_members[:]
         f2_in_combat = f2_all_members[:]

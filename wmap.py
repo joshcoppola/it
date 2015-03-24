@@ -10,6 +10,7 @@ from helpers import *
 import config as g
 import physics as phys
 import map_generation as mgen
+from map_base import Map
 import it
 
 
@@ -130,21 +131,21 @@ class Tile:
         self.set_color(libtcod.color_lerp(self.color, libtcod.dark_blue, .5))
 
 
-class Wmap:
-    def __init__(self, world, wx, wy, height, width):
+class Wmap(Map):
+    def __init__(self, world, wx, wy, width, height):
+        Map.__init__(self, width, height)
         # A walkable map, composed of an array of tiles
         self.world = world
         self.wx = wx
         self.wy = wy
 
-        self.height = height
         self.width = width
+        self.height = height
 
-        self.tiles = []
+
         # List of all objects inhabiting this map
         self.objects = []
         self.creatures = []
-        self.sapients = []
 
         # Key:Value pair, where keys = faction and value = set of all members of that faction on the map
         self.factions_on_map = {}
@@ -162,7 +163,7 @@ class Wmap:
     def cache_factions_for_dmap(self):
         ''' Run when map is created, so it understands the various factions present '''
         self.factions_on_map = {}
-        for obj in self.sapients:
+        for obj in self.creatures:
             if obj.creature.faction in self.factions_on_map.keys():
                 self.factions_on_map[obj.creature.faction].add(obj)
             else:
@@ -186,7 +187,7 @@ class Wmap:
             #        for obj in member_set:
             #            obj.sapient.add_enemy_faction(enemy_faction)
 
-        for figure in self.sapients:
+        for figure in self.creatures:
             if figure.local_brain:
                 figure.local_brain.set_enemy_perceptions_from_cached_factions()
 
@@ -226,12 +227,6 @@ class Wmap:
 
         #g.game.add_message('Dmap for %s created in %.2f seconds' %(key, end), libtcod.cyan)
 
-
-    def get_astar_distance_to(self, x, y, target_x, target_y):
-        libtcod.path_compute(self.path_map, x, y, target_x, target_y)
-        new_path_len = libtcod.path_size(self.path_map)
-
-        return new_path_len
 
     def tile_blocks_mov(self, x, y):
         ''' Check whether a map tile is impassable '''
@@ -392,6 +387,8 @@ class Wmap:
             # Finally, add the row to the map
             self.tiles.append(row)
 
+        self.setup_chunks(chunk_size=10, map_type='human')
+
 
     def add_minor_sites_to_map(self):
         for site in self.world.tiles[self.wx][self.wy].minor_sites:
@@ -431,11 +428,9 @@ class Wmap:
         ''' For adding an existing object to the map '''
 
         self.tiles[x][y].objects.append(obj)
+        self.tiles[x][y].chunk.objects.append(obj)
 
-        if obj.creature and obj.creature.intelligence_level > 1:
-            self.sapients.append(obj)
-            obj.creature.next_tick = self.world.time_cycle.current_tick + 1
-        elif obj.creature:
+        if obj.creature:
             self.creatures.append(obj)
             obj.creature.next_tick = self.world.time_cycle.current_tick + 1
         else:
@@ -480,22 +475,22 @@ class Wmap:
         ## DIJMAPS
         factions_on_map = self.cache_factions_for_dmap()
 
-        for obj in self.sapients:
+        for obj in self.creatures:
             obj.creature.set_initial_desires(factions_on_map)
 
         if g.game.map_scale == 'human':
-            g.game.add_message('%i objs; %i saps' %(len(self.objects), len(self.sapients)) )
+            g.game.add_message('%i objs; %i saps' %(len(self.objects), len(self.creatures)) )
 
         self.initialize_fov()
 
 
     def clear_objects(self):
-        for sap in self.sapients:
+        for sap in self.creatures:
             sap.x = None
             sap.y = None
 
         self.objects = []
-        self.sapients = []
+        self.creatures = []
 
     def initialize_fov(self):
         #create the FOV map, according to the generated map
@@ -503,7 +498,7 @@ class Wmap:
             for x in xrange(self.height):
                 libtcod.map_set_properties(self.fov_map, x, y, not self.tiles[x][y].blocks_vis, not self.tiles[x][y].blocks_mov)
 
-        for obj in self.objects + self.creatures + self.sapients:
+        for obj in self.objects + self.creatures:
             libtcod.map_set_properties(self.fov_map, obj.x, obj.y, not obj.blocks_vis, not obj.blocks_mov)
         self.path_map = libtcod.path_new_using_map(self.fov_map)
 
@@ -567,7 +562,7 @@ class Wmap:
             if self.tiles[creature.x][creature.y].explored:
                 creature.draw()
 
-        for sapient in self.sapients:
+        for sapient in self.creatures:
             if self.tiles[sapient.x][sapient.y].explored and sapient != g.player:
                 sapient.draw()
         g.player.draw()

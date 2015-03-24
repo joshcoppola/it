@@ -29,6 +29,7 @@ import combat
 from helpers import *
 import config as g
 from wmap import *
+from map_base import *
 
 # Code to detect screen resolution (libtcod's doesn't work for some reason?)
 try:
@@ -269,16 +270,16 @@ key = libtcod.Key()
 
 class Region:
     #a Region of the map and its properties
-    def __init__(self, region, x, y, color, blocks_mov, char=' ', char_color=libtcod.black, blocks_vis=None):
-        self.region = region
+    def __init__(self, x, y):
+        self.region = None
         self.x = x
         self.y = y
-        self.color = color
-        self.char = char
-        self.char_color = char_color
+        self.color = None
+        self.char = ' '
+        self.char_color = libtcod.black
 
-        self.blocks_mov = blocks_mov
-        self.blocks_vis = blocks_vis
+        self.blocks_mov = False
+        self.blocks_vis = False
 
         self.res = {}
         self.entities = []
@@ -296,6 +297,8 @@ class Region:
         self.moist = None
 
         self.region_number = None
+        # Chunk will be set after region has been created
+        self.chunk = None
 
         self.culture = None
         self.site = None
@@ -357,14 +360,10 @@ class Region:
                 return 'the unknown {0}s'.format(self.region)
 
 
-
-
-
-class World:
+class World(Map):
     def __init__(self, width, height):
+        Map.__init__(self, width, height)
 
-        self.height = height
-        self.width = width
 
         self.time_cycle = TimeCycle(self)
 
@@ -377,7 +376,6 @@ class World:
         self.all_figures = []
         self.important_figures = []
 
-        self.tiles = None # Reset each time a new map is genned
         self.famous_objects = set([])
         ### TODO - move this around; have it use the actual language of the first city
         self.moons, self.suns = religion.create_astronomy()
@@ -472,9 +470,6 @@ class World:
                                      text='Regenerate Map', topleft=(4, PANEL2_HEIGHT-6), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
                           ]
 
-    def is_val_xy(self, coords):
-        return (0 < coords[0] < self.width) and (0 < coords[1] < self.height)
-
     def tile_blocks_mov(self, x, y):
         if self.tiles[x][y].blocks_mov:
             return True
@@ -495,11 +490,6 @@ class World:
             g.player.w_draw()
 
     #####################################
-    def get_astar_distance_to(self, x, y, target_x, target_y):
-        libtcod.path_compute(self.path_map, x, y, target_x, target_y)
-        new_path_len = libtcod.path_size(self.path_map)
-
-        return new_path_len
 
     def make_world_road(self, x, y):
         ''' Add a road to the tile's features '''
@@ -648,10 +638,8 @@ class World:
 
     def setup_world(self):
         #fill g.WORLD with dummy regions
-        self.tiles = [
-            [Region(region=None, x=x, y=y, color=None, blocks_mov=False, char=' ', char_color=libtcod.black, blocks_vis=False)
-             for y in xrange(self.height)]
-            for x in xrange(self.width)]
+        self.tiles = [[Region(x=x, y=y) for y in xrange(self.height)] for x in xrange(self.width)]
+        self.setup_chunks(chunk_size=10, map_type='world')
 
         # Equator line - temperature depends on this. Varies slightly from map to map
         self.equator = int(round(self.height / 2)) + roll(-5, 5)
@@ -3332,6 +3320,7 @@ class Object:
         self.wx = wx
         self.wy = wy
         self.world_last_dir = (0, 0)
+        self.turns_since_move = 0
 
         # Will be set to an interact_obj class instance if used
         self.interactable = 0
@@ -3457,7 +3446,7 @@ class Object:
             g.M.objects.remove(self)
 
         if self in g.M.creatures:
-            g.M.sapients.remove(self)
+            g.M.creatures.remove(self)
 
     def put_on_clothing(self, clothing):
         ''' Add this clothing to a parent object '''
@@ -3794,6 +3783,12 @@ class Object:
         g.M.add_object_to_map(x=x, y=y, obj=obj)
 
 
+    def handle_chunk_move(self, x1, y1, x2, y2):
+        ''' Handle this object moving between chunks of the world '''
+        if g.M.tiles[x1][y1].chunk != g.M.tiles[x2][y2].chunk:
+            g.M.tiles[x1][y1].chunk.objects.remove(self)
+            g.M.tiles[x2][y2].chunk.objects.append(self)
+
     def move(self, dx, dy): #DON'T USE WITH A*,
         #move by the given amount, if the destination is not blocked
         blocks_mov = self.abs_pos_move(x=self.x+dx, y=self.y+dy)
@@ -3843,6 +3838,9 @@ class Object:
 
             g.M.tiles[self.x][self.y].objects.remove(self)
             libtcod.map_set_properties(g.M.fov_map, self.x, self.y, True, True)
+
+            self.handle_chunk_move(self.x, self.y, x, y)
+
             self.x = x
             self.y = y
             libtcod.map_set_properties(g.M.fov_map, self.x, self.y, True, False)
@@ -3896,7 +3894,7 @@ class Object:
         closest_dist = max_range + 1  #start with (slightly more than) maximum range
 
         if target_faction == 'enemies':
-            for actor in g.M.sapients:
+            for actor in g.M.creatures:
                 if actor.creature.is_available_to_act() and self.creature.faction.is_hostile_to(actor.creature.faction): #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     dist = self.distance_to(actor)
                     if dist < closest_dist:
@@ -3904,7 +3902,7 @@ class Object:
                         closest_dist = dist
 
         else:
-            for actor in g.M.sapients:
+            for actor in g.M.creatures:
                 if actor.creature.is_available_to_act() and actor.creature.faction == target_faction: #and libtcod.map_is_in_fov(fov_map, object.x, object.y):
                     #calculate distance between this object and the g.player
                     dist = self.distance_to(actor)
@@ -3935,8 +3933,17 @@ class Object:
         #return the distance to some coordinates
         return math.sqrt((x - self.wx) ** 2 + (y - self.wy) ** 2)
 
+    def w_handle_chunk_move(self, x1, y1, x2, y2):
+        ''' Handle this object moving between chunks of the world '''
+        if g.WORLD.tiles[x1][y1].chunk != g.WORLD.tiles[x2][y2].chunk:
+            g.WORLD.tiles[x1][y1].chunk.entities.remove(self)
+            g.WORLD.tiles[x2][y2].chunk.entities.append(self)
+
     def w_teleport(self, x, y):
         g.WORLD.tiles[self.wx][self.wy].entities.remove(self)
+
+        self.w_handle_chunk_move(self.wx, self.wy, x, y)
+
         self.wx = x
         self.wy = y
         g.WORLD.tiles[self.wx][self.wy].entities.append(self)
@@ -3957,6 +3964,9 @@ class Object:
         #move by the given amount, if the destination is not blocked
         if not g.WORLD.tile_blocks_mov(self.wx + dx, self.wy + dy):
             g.WORLD.tiles[self.wx][self.wy].entities.remove(self)
+
+            self.w_handle_chunk_move(self.wx, self.wy, self.wx + dx, self.wy + dy)
+
             self.wx += dx
             self.wy += dy
             g.WORLD.tiles[self.wx][self.wy].entities.append(self)
@@ -5598,7 +5608,7 @@ class Creature:
         if creature_obj.creature.commander and self.owner in creature_obj.creature.commander.creature.commanded_figures:
             creature_obj.creature.commander.creature.remove_commanded_figure(creature_obj)
 
-        g.M.sapients.remove(creature_obj)
+        g.M.creatures.remove(creature_obj)
         g.M.objects.append(creature_obj)
 
         if creature_obj.creature:
@@ -5932,8 +5942,8 @@ class Creature:
         self.captor.creature.captives.remove(self.owner)
         self.captor = None
 
-        # Unsure if this will work properly, but, once freed, all sapients should re-evaluate to make sure captives show up as enemies properly
-        for figure in g.M.sapients:
+        # Unsure if this will work properly, but, once freed, all creatures should re-evaluate to make sure captives show up as enemies properly
+        for figure in g.M.creatures:
             if figure.local_brain:
                 figure.local_brain.set_enemy_perceptions_from_cached_factions()
         ############################################################
@@ -6618,7 +6628,21 @@ class BasicWorldBrain:
             num = roll(1, 100)
             if num < 10:
 
-                self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
+                #self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
+
+                nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
+
+                dist = 10000
+                target = None
+                for chunk in nearby_chunks:
+                    for entity in chunk.entities:
+                        if entity != self.owner and self.owner.w_distance_to(entity) < dist:
+                            dist = self.owner.w_distance_to(entity)
+                            target = entity
+
+                if target:
+                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(target.wx, target.wy), travel_verb='travel', activity_verb='pillage', num_days=2)
+                    self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
 
                 '''
                 city = g.WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
@@ -6955,7 +6979,7 @@ class TimeCycle(object):
                 creature.local_brain.take_turn()
 
         ### Sapients
-        for actor in g.M.sapients:
+        for actor in g.M.creatures:
             # Talk
             actor.creature.handle_pending_conversations()
             # Bleed every tick, if necessary
@@ -6970,7 +6994,7 @@ class TimeCycle(object):
                 actor.local_brain.take_turn()
 
         # Now that entities have made their moves, calculate the outcome of any combats
-        combat.handle_combat_round(actors=g.M.creatures + g.M.sapients)
+        combat.handle_combat_round(actors=g.M.creatures)
 
         g.M.update_dmaps()
 
@@ -7335,6 +7359,7 @@ class Culture:
         # to be saved in the world - thus, we won't worry too much about them if we don't need to
         if save_being:
             g.WORLD.tiles[wx][wy].entities.append(human)
+            g.WORLD.tiles[wx][wy].chunk.entities.append(human)
 
             g.WORLD.all_figures.append(human)
             if important:
@@ -7427,7 +7452,7 @@ def get_info_under_mouse():
 						info.append((component.name, color))
 				'''
 
-    elif g.game.map_scale == 'world':
+    elif g.game.map_scale == 'world' and g.WORLD.is_val_xy((x, y)):
         color = PANEL_FRONT
         xc, yc = g.game.camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
@@ -8038,9 +8063,20 @@ class Game:
 
         self.switch_map_scale(map_scale='world')
 
+        #print g.WORLD.chunk_width, g.WORLD.chunk_height
+        #for x in xrange(g.WORLD.chunk_width):
+        #    for y in xrange(g.WORLD.chunk_height):
+        #        chunk = g.WORLD.chunk_tiles[x][y]
+        #        for entity in chunk.entities:
+        #            if g.WORLD.tiles[entity.wx][entity.wy].chunk != chunk:
+        #                print entity.fulltitle()
+
+
         g.playerciv = g.WORLD.cities[0]
         g.player = g.playerciv.culture.create_being(sex=1, age=roll(30, 40), char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
         g.WORLD.tiles[g.player.wx][g.player.wy].entities.append(g.player)
+        g.WORLD.tiles[g.player.wx][g.player.wy].chunk.entities.append(g.player)
+
         g.player.color = libtcod.cyan
         g.player.local_brain = None
         g.player.world_brain = None
