@@ -30,6 +30,7 @@ from helpers import *
 import config as g
 from wmap import *
 from map_base import *
+import history as hist
 
 # Code to detect screen resolution (libtcod's doesn't work for some reason?)
 try:
@@ -4935,12 +4936,22 @@ class WaitBehavior:
             self.goal.behavior_list.insert(0, MovLocBehavior(location=self.location, figure=self.figure, travel_verb=self.travel_verb))
             self.goal.behavior_list[0].initialize_behavior()
 
-            g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
+            #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
+
+            event = hist.TravelStart(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy), to_location=self.location, figure=self.figure)
+            g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
         else:
             self.is_active = 1
 
     def is_completed(self):
-        return self.num_days_left == 0
+        ''' Add event when we reach destination'''
+        if self.num_days_left == 0:
+            event = hist.TravelEnd(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy), figure=self.figure)
+            g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
+            return 1
+
+        else:
+            return 0
 
     def take_behavior_action(self):
         self.num_days_left -= 1
@@ -6982,7 +6993,7 @@ class TimeCycle(object):
         pass
 
     def get_current_date(self):
-        return ''.join([self.weekdays[self.current_weekday], ', ', self.months[self.current_month], ' ', str(self.current_day + 1)])
+        return '{0}, {1} {2}'.format(self.weekdays[self.current_weekday], self.months[self.current_month], self.current_day + 1)
 
     def get_current_time(self):
         minutes = int(math.floor(self.current_tick / 10))
