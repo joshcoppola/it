@@ -171,7 +171,7 @@ class Wmap(Map):
 
         # Now add a dmap for each
         for faction, member_set in self.factions_on_map.iteritems():
-            self.add_dmap(key=faction.faction_name, target_nodes=[(obj.x, obj.y) for obj in member_set], dmrange=g.DIJMAP_CREATURE_DISTANCE)
+            self.add_dmap(key=faction.name, target_nodes=[(obj.x, obj.y) for obj in member_set], dmrange=g.DIJMAP_CREATURE_DISTANCE)
 
 
             # Make sure all sapients know who their enemies are
@@ -201,7 +201,7 @@ class Wmap(Map):
 
         for faction, member_set in self.factions_on_map.iteritems():
             target_nodes = [(obj.x, obj.y) for obj in member_set if obj.creature.status == 'alive' and (obj == g.player or (obj != g.player and obj.local_brain.ai_state != 'idle'))]
-            self.dijmaps[faction.faction_name].update_map(target_nodes=target_nodes)
+            self.dijmaps[faction.name].update_map(target_nodes=target_nodes)
             #update_map_test(self.dijmaps[faction.faction_name], target_nodes)
 
             #j = multiprocessing.Process(target=self.dijmaps[faction.faction_name].update_map, args=(target_nodes))

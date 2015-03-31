@@ -305,19 +305,19 @@ class Region:
         self.territory = None
         self.explored = False
 
-    def has_feature(self, feature_type):
+    def has_feature(self, type_):
         ''' Check if certain feature is in region '''
         for feature in self.features:
-            if feature.site_type == feature_type:
+            if feature.type_ == type_:
                 return 1
 
         return 0
 
-    def get_features(self, feature_type):
+    def get_features(self, type_):
         ''' Returns a list of all features, so that one may get, say, all caves in the region '''
         feature_list = []
         for feature in self.features:
-            if feature.site_type == feature_type:
+            if feature.type_ == type_:
                 feature_list.append(feature)
 
         return feature_list
@@ -332,8 +332,8 @@ class Region:
 
         return base_color
 
-    def add_minor_site(self, world, site_type, x, y, char, name, color, culture, faction):
-        site = Site(world, site_type, x, y, char, name, color, culture, faction)
+    def add_minor_site(self, world, type_, x, y, char, name, color, culture, faction):
+        site = Site(world, type_, x, y, char, name, color, culture, faction)
         self.minor_sites.append(site)
         self.chunk.add_minor_site(site)
 
@@ -433,10 +433,10 @@ class World(Map):
         self.famous_objects.remove(obj)
 
     def add_to_site_index(self, site):
-        if site.site_type not in self.site_index.keys():
-            self.site_index[site.site_type] = [site]
+        if site.type_ not in self.site_index.keys():
+            self.site_index[site.type_] = [site]
         else:
-            self.site_index[site.site_type].append(site)
+            self.site_index[site.type_].append(site)
 
     def generate(self):
         #### Setup actual world ####
@@ -497,7 +497,7 @@ class World(Map):
     def make_world_road(self, x, y):
         ''' Add a road to the tile's features '''
         if not self.tiles[x][y].has_feature('road'):
-            self.tiles[x][y].features.append(Feature(site_type='road', x=x, y=y))
+            self.tiles[x][y].features.append(Feature(type_='road', x=x, y=y))
 
     def set_road_tile(self, x, y):
         N, S, E, W = 0, 0, 0, 0
@@ -1162,7 +1162,7 @@ class World(Map):
 
                 ################## OUT OF PLACE CAVE GEN CODE ###############
                 if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > g.MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
-                    cave = Site(world=self, site_type='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
+                    cave = Site(world=self, type_='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
                     self.tiles[x][y].caves.append(cave)
                     self.tiles[x][y].chunk.add_cave(cave)
                     self.tiles[x][y].char = 'C'
@@ -1283,8 +1283,13 @@ class World(Map):
             x, y = random.choice(self.play_tiles)
 
             race = random.choice(self.brutish_races)
-            faction = Faction(leader_prefix=None, faction_name="Neutrals", color=libtcod.black, succession='strongman', defaultly_hostile=1)
-            creature = self.default_mythic_culture.create_being(sex=1, age=50, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race=race, save_being=1, intelligence_level=2)
+            name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
+            faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
+            myth_creature = self.default_mythic_culture.create_being(sex=1, age=50, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race=race, save_being=1, intelligence_level=2)
+
+            num_creatures = roll(5, 25)
+            sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
+            population = self.create_population(char="L", name="myth creature group", faction=faction, creatures=None, sentients=sentients, goods={'food':1}, wx=x, wy=y, commander=myth_creature)
 
 
     def gen_sentient_races(self):
@@ -1408,7 +1413,7 @@ class World(Map):
             name = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
 
             profession = Profession(name='King', category='noble')
-            city_faction = Faction(leader_prefix='King', faction_name='City of %s'%name, color=civ_color, succession='dynasty')
+            city_faction = Faction(leader_prefix='King', name='City of %s'%name, color=civ_color, succession='dynasty')
 
             city = self.make_city(cx=nx, cy=ny, char=chr(10), color=civ_color, name=name, faction=city_faction)
 
@@ -1596,19 +1601,20 @@ class World(Map):
             for x in xrange(city.x-5, city.x+6):
                 for y in xrange(city.y-5, city.y+6):
                     # Try to add a mine somewhere near the city
-                    if not mine_added and g.MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < g.MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city):
+                    if not mine_added and g.MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < g.MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city) and self.get_astar_distance_to(city.x, city.y, x, y) < 8:
                         self.add_mine(x, y, city)
                         mine_added = 1
                         continue
 
-                    # Add farms around the city
-                    if get_distance_to(city.x, city.y, x, y) < 2.5 and self.is_valid_site(x, y, city):
-                        self.add_farm(x, y, city)
-                        continue
                     # Loop should only get here if no site is added, due to the continue syntax
                     if not shrine_added and self.is_valid_site(x=x, y=y, civ=city) and roll(1, 100) >= 97:
                         self.add_shrine(x, y, city)
                         shrine_added = 1
+
+            for (x, y) in city.territory:
+                # Add farms around the city
+                if self.is_valid_site(x, y, city) and not len(g.WORLD.tiles[x][y].minor_sites):
+                    self.add_farm(x, y, city)
 
             ### v original real reason for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
@@ -1712,7 +1718,7 @@ class World(Map):
                     if self.get_astar_distance_to(x, y, city.x, city.y) is not None:
                         # Add caves and ruins
                         possible_sites.extend(self.tiles[x][y].caves)
-                        if self.tiles[x][y].site and self.tiles[x][y].site.site_type == 'ruins':
+                        if self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'ruins':
                             possible_sites.append(self.tiles[x][y].site)
 
             # Attempt to place them in existing sites
@@ -1721,13 +1727,13 @@ class World(Map):
 
                 if possible_site.faction is None:
                     ## Right now creating a dummy building. Eventually we won't need to do this, since sites will have their own buildings already present
-                    possible_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+                    possible_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
                     leader, hideout_building = self.create_and_move_bandits_to_site(wx=possible_site.x, wy=possible_site.y, hideout_site=possible_site)
 
-                    g.game.add_message('Bandits moving to %s'%possible_site.site_type, libtcod.dark_grey)
+                    g.game.add_message('Bandits moving to %s'%possible_site.type_, libtcod.dark_grey)
 
                     # For now, chance of stealing holy relic and taking it to the site
-                    if possible_obj_to_steal and (roll(0, 1) or (force_steal and possible_site.site_type == 'cave')):
+                    if possible_obj_to_steal and (roll(0, 1) or (force_steal and possible_site.type_ == 'cave')):
                         # Flip off flag so future steals are left to chance0
                         force_steal = 0
 
@@ -1770,7 +1776,7 @@ class World(Map):
             self.time_cycle.day_tick(1)
         #g.game.add_message('History run in %.2f seconds' %(time.time() - begin))
         # List the count of site types
-        g.game.add_message(join_list(['{0} {1}s'.format(len(self.site_index[site_type]), site_type) for site_type in self.site_index.keys()]))
+        g.game.add_message(join_list(['{0} {1}s'.format(len(self.site_index[type_]), type_) for type_ in self.site_index.keys()]))
 
 
     def initialize_fov(self):
@@ -1885,7 +1891,7 @@ class World(Map):
         x, y = g.player.wx, g.player.wy
 
         ## Set size of map
-        if self.tiles[x][y].site and self.tiles[x][y].site.site_type == 'city':
+        if self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'city':
             g.M = Wmap(world=self, wx=x, wy=y, width=CITY_MAP_WIDTH, height=CITY_MAP_HEIGHT)
         else:
             g.M = Wmap(world=self, wx=x, wy=y, width=MAP_WIDTH, height=MAP_HEIGHT)
@@ -1893,7 +1899,7 @@ class World(Map):
 
 
         # Make map
-        if self.tiles[x][y].site and self.tiles[x][y].site.site_type == 'city':
+        if self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'city':
             hm = g.M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
             base_color = self.tiles[x][y].get_base_color()
             g.M.create_map_tiles(hm, base_color, explored=1)
@@ -2038,7 +2044,7 @@ class World(Map):
 
     def make_city(self, cx, cy, char, color, name, faction):
         # Make a city
-        city = City(world=self, site_type='city', x=cx, y=cy, char=char, name=name, color=color, culture=self.tiles[cx][cy].culture, faction=faction)
+        city = City(world=self, type_='city', x=cx, y=cy, char=char, name=name, color=color, culture=self.tiles[cx][cy].culture, faction=faction)
 
         self.tiles[cx][cy].site = city
         self.tiles[cx][cy].chunk.add_site(city)
@@ -2051,24 +2057,25 @@ class World(Map):
 
     def add_mine(self, x, y, city):
         name = '{0} mine'.format(city.name)
-        mine = self.tiles[x][y].add_minor_site(world=self, site_type='mine', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
-        mine.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-        #self.tiles[x][y].char = "#"
-        #self.tiles[x][y].char_color = city.faction.color
+        mine = self.tiles[x][y].add_minor_site(world=self, type_='mine', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+        mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+        self.tiles[x][y].char = "+"
+        self.tiles[x][y].char_color = city.faction.color
         return mine
 
     def add_farm(self, x, y, city):
         name = '{0} farm'.format(city.name)
-        farm = self.tiles[x][y].add_minor_site(world=self, site_type='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
-        farm.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-        #self.tiles[x][y].char = "#"
-        #self.tiles[x][y].char_color = city.faction.color
+        farm = self.tiles[x][y].add_minor_site(world=self, type_='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+        farm.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+        if not self.tiles[x][y].has_feature('road'):
+            self.tiles[x][y].char = "."
+            self.tiles[x][y].char_color = city.faction.color
         return farm
 
     def add_shrine(self, x, y, city):
         name = '{0} shrine'.format(city.culture.pantheon.name)
-        shrine = self.tiles[x][y].add_minor_site(world=self, site_type='shrine', x=x, y=y, char='^', name=name, color=libtcod.black, culture=None, faction=None)
-        shrine.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+        shrine = self.tiles[x][y].add_minor_site(world=self, type_='shrine', x=x, y=y, char='^', name=name, color=libtcod.black, culture=None, faction=None)
+        shrine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "^"
         self.tiles[x][y].char_color = libtcod.black
 
@@ -2081,23 +2088,23 @@ class World(Map):
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
 
-        ruin_site = self.tiles[x][y].add_minor_site(world=self, site_type='ruins', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ruins', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
         self.tiles[x][y].char = 259
         self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
-            building = ruin_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+            building = ruin_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
 
         # Move some unintelligent creatures in if it's near cities
         if 0 < self.get_astar_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
             race_name = random.choice(self.brutish_races)
             name = '{0} raiders'.format(race_name)
-            faction = Faction(leader_prefix='Chief', faction_name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
+            faction = Faction(leader_prefix='Chief', name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
             leader = culture.create_being(sex=1, age=roll(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
-            sentients = {leader.creature.culture:{leader.creature.creature_type:{'Swordsmen':10}}}
+            sentients = {leader.creature.culture:{leader.creature.type_:{'Swordsmen':10}}}
             self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
             if roll(1, 10) >= 9:
@@ -2108,7 +2115,7 @@ class World(Map):
 
 
     def add_cave(self, cx, cy, name):
-        cave = Site(world=self, site_type='cave', x=cx, y=cy, char='#', name=name, color=libtcod.black)
+        cave = Site(world=self, type_='cave', x=cx, y=cy, char='#', name=name, color=libtcod.black)
 
         self.tiles[cx][cy].site = cave
         self.sites.append(cave)
@@ -2123,12 +2130,12 @@ class World(Map):
             print 'Bandits could not find closest city'
 
         bname = lang.spec_cap(closest_city.culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
-        bandit_faction = Faction(leader_prefix='Bandit', faction_name=bname, color=libtcod.black, succession='strongman', defaultly_hostile=1)
+        bandit_faction = Faction(leader_prefix='Bandit', name=bname, color=libtcod.black, succession='strongman', defaultly_hostile=1)
 
         ## Choose building for site
         if hideout_site is None:
-            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, site_type='hideout', x=wx, y=wy, char='#', name='Hideout', color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
-            hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, type_='hideout', x=wx, y=wy, char='#', name='Hideout', color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
+            hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         else:
             hideout_building = random.choice(hideout_site.buildings)
         ##########################
@@ -2147,7 +2154,7 @@ class World(Map):
         # Have him actually go there
         leader.w_teleport(wx, wy)
 
-        sentients = {leader.creature.culture:{leader.creature.creature_type:{'Bandit':10}}}
+        sentients = {leader.creature.culture:{leader.creature.type_:{'Bandit':10}}}
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
@@ -2160,8 +2167,8 @@ class World(Map):
 
     def create_population(self, char, name, faction, creatures, sentients, goods, wx, wy, site=None, commander=None):
         population = Population(char, name, faction, creatures, sentients, goods, wx, wy, site, commander)
-        g.WORLD.tiles[wx][wy].populations.append(population)
-        g.WORLD.tiles[wx][wy].chunk.add_population(population)
+        self.tiles[wx][wy].populations.append(population)
+        self.tiles[wx][wy].chunk.add_population(population)
 
         return population
 
@@ -2209,8 +2216,8 @@ class DrunkWalker:
 
 
 class Feature:
-    def __init__(self, site_type, x, y):
-        self.site_type = site_type
+    def __init__(self, type_, x, y):
+        self.type_ = type_
         self.x = x
         self.y = y
         self.name = None
@@ -2222,7 +2229,7 @@ class Feature:
         if self.name:
             return self.name
         else:
-            return self.site_type
+            return self.type_
 
 class River(Feature):
     def __init__(self, x, y):
@@ -2238,9 +2245,9 @@ class River(Feature):
         self.connected_dirs.append(direction)
 
 class Site:
-    def __init__(self, world, site_type, x, y, char, name, color, culture=None, faction=None, underground=0):
+    def __init__(self, world, type_, x, y, char, name, color, culture=None, faction=None, underground=0):
         self.world = world
-        self.site_type = site_type
+        self.type_ = type_
         self.x = x
         self.y = y
         self.underground = underground
@@ -2270,8 +2277,8 @@ class Site:
 
         self.nearby_resources, self.nearby_resource_locations = self.world.find_nearby_resources(self.x, self.y, 6)
 
-    def create_building(self, zone, b_type, template, professions, inhabitants, tax_status):
-        building = Building(zone=zone, b_type=b_type, template=template, site=self, faction=self.faction, professions=professions, inhabitants=inhabitants, tax_status=tax_status, wx=self.x, wy=self.y)
+    def create_building(self, zone, type_, template, professions, inhabitants, tax_status):
+        building = Building(zone=zone, type_=type_, template=template, site=self, faction=self.faction, professions=professions, inhabitants=inhabitants, tax_status=tax_status, wx=self.x, wy=self.y)
         self.buildings.append(building)
         return building
 
@@ -2279,7 +2286,7 @@ class Site:
         if self.name:
             return self.name
         else:
-            return self.site_type
+            return self.type_
 
     def create_inhabitant(self, sex, age, char, dynasty, important, race=None, armed=0, house=None):
         ''' Add an inhabitant to the site '''
@@ -2297,7 +2304,7 @@ class Site:
 
         # Make sure our new inhabitant has a house
         if house is None:
-            house = self.create_building(zone='residential', b_type='house', template='TEST', professions=[], inhabitants=[human], tax_status='commoner')
+            house = self.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[human], tax_status='commoner')
         else:
             house.add_inhabitant(human)
 
@@ -2336,9 +2343,9 @@ class Site:
 
 
 class City(Site):
-    def __init__(self, world, site_type, x, y, char, name, color, culture, faction):
+    def __init__(self, world, type_, x, y, char, name, color, culture, faction):
         ## Initialize site ##
-        Site.__init__(self, world, site_type, x, y, char, name, color, culture, faction)
+        Site.__init__(self, world, type_, x, y, char, name, color, culture, faction)
 
         self.connected_to = []
         self.path_to = {}
@@ -2645,13 +2652,13 @@ class City(Site):
                                  Profession(name='Spymaster', category='commoner'),
                                  Profession(name='Vizier', category='noble'),
                                  Profession(name='Militia Captain', category='commoner')]
-        self.create_building(zone='municipal', b_type='City Hall', template='TEST', professions=city_hall_professions, inhabitants=[], tax_status='noble')
+        self.create_building(zone='municipal', type_='City Hall', template='TEST', professions=city_hall_professions, inhabitants=[], tax_status='noble')
 
         temple_professions = [Profession(name='High Priest', category='religion')]
-        self.create_building(zone='municipal', b_type='Temple', template='TEST', professions=temple_professions, inhabitants=[], tax_status='religious')
+        self.create_building(zone='municipal', type_='Temple', template='TEST', professions=temple_professions, inhabitants=[], tax_status='religious')
 
         market_professions = []
-        self.create_building(zone='market', b_type='Market', template='TEST', professions=market_professions, inhabitants=[], tax_status='general')
+        self.create_building(zone='market', type_='Market', template='TEST', professions=market_professions, inhabitants=[], tax_status='general')
 
         # Some nobles and estates
         #for i in xrange(roll(2, 4)):
@@ -2665,7 +2672,7 @@ class City(Site):
             else:
                 tavern_professions = [Profession(name='Tavern Keeper', category='commoner')]
 
-            self.create_building(zone='commercial', b_type='Tavern', template='TEST', professions=tavern_professions, inhabitants=[], tax_status='commoner')
+            self.create_building(zone='commercial', type_='Tavern', template='TEST', professions=tavern_professions, inhabitants=[], tax_status='commoner')
 
         ######### Fill positions #########
         for building in self.buildings:
@@ -2750,7 +2757,7 @@ class City(Site):
                 return building
 
     def get_building_type(self, building_type):
-        return [building for building in self.buildings if building.b_type == building_type]
+        return [building for building in self.buildings if building.type_ == building_type]
 
 
     def get_available_materials(self):
@@ -2792,11 +2799,11 @@ class Warehouse:
 class Building:
     '''A building'''
 
-    def __init__(self, zone, b_type, template, site, faction, professions, inhabitants, tax_status, wx, wy):
+    def __init__(self, zone, type_, template, site, faction, professions, inhabitants, tax_status, wx, wy):
         self.zone = zone
         self.template = template
-        self.b_type = b_type
-        self.name = b_type
+        self.type_ = type_
+        self.name = type_
 
         self.site = site
         self.faction = faction
@@ -2864,7 +2871,7 @@ class Building:
 
 
     def set_name(self):
-        if self.b_type == 'Tavern':
+        if self.type_ == 'Tavern':
             num = roll(1, 5)
             if num == 1:
                 front = 'The {0} {1}'.format(random.choice(TAVERN_ADJECTIVES), random.choice(TAVERN_NOUNS))
@@ -3040,10 +3047,10 @@ class Profession:
         figure.creature.set_opinions()
 
 class Faction:
-    def __init__(self, leader_prefix, faction_name, color, succession, defaultly_hostile=0):
+    def __init__(self, leader_prefix, name, color, succession, defaultly_hostile=0):
         # What the person will be referred to as, "Mayor" "governor" etc (None for no leader
         self.leader_prefix = leader_prefix
-        self.faction_name = faction_name
+        self.name = name
         self.color = color
 
         self.leader = None
@@ -3187,14 +3194,14 @@ class Faction:
             # Now that they're in the new position, remove them from the list of heirs
             self.unset_heir(heir)
             self.set_leader(heir)
-            g.game.add_message('{0} has is now {1} of {2}'.format(heir.fullname(), self.leader_prefix, self.faction_name))
+            g.game.add_message('{0} has is now {1} of {2}'.format(heir.fullname(), self.leader_prefix, self.name))
             # Re-calculate succession
             self.get_heirs(3)
 
         # Not sure if title should immediately pass onto someone, or have None be a valid holder for the title
         # while others fight it out.
         else:
-            g.game.add_message('{0} now has no heir!'.format(self.faction_name))
+            g.game.add_message('{0} now has no heir!'.format(self.name))
 
 
     def set_heir(self, heir, number_in_line):
@@ -3202,7 +3209,7 @@ class Faction:
         heir.creature.inheritance[self] = number_in_line
 
     def unset_heir(self, heir):
-        assert self in heir.creature.inheritance.keys(), '%s not in %s\'s inheritance' %(self.faction_name, heir.fulltitle())
+        assert self in heir.creature.inheritance.keys(), '%s not in %s\'s inheritance' %(self.name, heir.fulltitle())
         del heir.creature.inheritance[self]
 
     def get_heirs(self, number):
@@ -3244,7 +3251,7 @@ class Faction:
                 return [heir]
 
             else:
-                print self.faction_name, 'was queried for heirs but has no holder'
+                print self.name, 'was queried for heirs but has no holder'
                 return []
 
 
@@ -4064,9 +4071,9 @@ class Object:
 
     def fulltitle(self):
         if self.creature and self.creature.intelligence_level == 3:
-            return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.creature_type), self.creature.get_profession())
+            return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.type_), self.creature.get_profession())
         if self.creature and self.creature.intelligence_level == 2:
-            return '{0}, {1} savage'.format(self.fullname(), lang.spec_cap(self.creature.creature_type))
+            return '{0}, {1} savage'.format(self.fullname(), lang.spec_cap(self.creature.type_))
         else:
             return self.name
 
@@ -4659,7 +4666,7 @@ def list_factions():
 
         y += 1
         buttons.append(gui.Button(gui_panel=wpanel, func=dbg_faction_relations, args=[faction],
-             text='%s (%i)' % (faction.faction_name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
+             text='%s (%i)' % (faction.name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
 
@@ -4676,12 +4683,12 @@ def dbg_faction_relations(faction):
     def render_text_func():
         y = 2
 
-        libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=faction.faction_name)
+        libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=faction.name)
 
         y += 3
         for other_faction in g.WORLD.factions:
             y += 1
-            libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=' - ' + other_faction.faction_name + ' - ')
+            libtcod.console_print(con=wpanel.con, x=2, y=y, fmt=' - ' + other_faction.name + ' - ')
 
             relations = faction.get_faction_relations(other_faction)
 
@@ -4773,12 +4780,13 @@ class Population:
             for race in self.sentients[culture].keys():
                 for profession_name in self.sentients[culture][race].keys():
                     for i in xrange(self.sentients[culture][race][profession_name]):
-                        human = culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1)
+                        human = culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1, race=race)
                         # TODO - this should be improved
                         human.creature.commander = self.commander
 
-                        profession = Profession(name=profession_name, category='commoner')
-                        profession.give_profession_to(figure=human)
+                        if profession_name is not None:
+                            profession = Profession(name=profession_name, category='commoner')
+                            profession.give_profession_to(figure=human)
 
                         #if self.origin_city:
                         #    human.creature.change_citizenship(new_city=self.origin_city, new_house=None)
@@ -5118,8 +5126,8 @@ class WanderBehavior:
 
 
 class Creature:
-    def __init__(self, creature_type, sex, intelligence_level, firstname=None, lastname=None, culture=None, born=None, dynasty=None, important=0):
-        self.creature_type = creature_type
+    def __init__(self, type_, sex, intelligence_level, firstname=None, lastname=None, culture=None, born=None, dynasty=None, important=0):
+        self.type_ = type_
         self.sex = sex
         self.intelligence_level = intelligence_level
 
@@ -5144,7 +5152,7 @@ class Creature:
 
 
         self.skills = {}
-        for skill, value in phys.creature_dict[self.creature_type]['creature']['skills'].iteritems():
+        for skill, value in phys.creature_dict[self.type_]['creature']['skills'].iteritems():
             self.skills[skill] = value
 
 
@@ -5154,7 +5162,7 @@ class Creature:
 
 
         self.attributes = {}
-        for attribute, value in phys.creature_dict[self.creature_type]['creature']['attributes'].iteritems():
+        for attribute, value in phys.creature_dict[self.type_]['creature']['attributes'].iteritems():
             self.attributes[attribute] = value
 
         self.alert_sight_radius = g.ALERT_FOV_RADIUS
@@ -5283,13 +5291,13 @@ class Creature:
         ## TODO - more elegant way to become aware of all factions
         ## !! currently doesn't know about any factions other than ourselves and enemies
         self.dijmap_desires =     {
-                                   self.owner.creature.faction.faction_name:0,
+                                   self.owner.creature.faction.name:0,
                                    'map_center':0
                                   }
 
 
         for faction in factions_on_map.keys():
-            self.dijmap_desires[faction.faction_name] = 0
+            self.dijmap_desires[faction.name] = 0
 
 
     def handle_tick(self):
@@ -6051,10 +6059,10 @@ class Creature:
             heirs = faction.get_heirs(3) # Should ignore us now since we're dead
             # If our position was 1st in line, let the world know who is now first in line
             if position == 1 and heirs != []:
-                g.game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.faction_name), libtcod.light_blue)
+                g.game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.name), libtcod.light_blue)
 
             elif position == 1:
-                g.game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.faction_name), libtcod.light_blue)
+                g.game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.name), libtcod.light_blue)
 
 
         # Remove self from any armies we might be in
@@ -6111,7 +6119,7 @@ class Creature:
 
     def have_child(self):
 
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), age=0, char='o', dynasty=self.spouse.creature.dynasty, race=self.creature_type, important=self.important)
+        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), age=0, char='o', dynasty=self.spouse.creature.dynasty, race=self.type_, important=self.important)
 
         self.children.append(child)
         self.spouse.creature.children.append(child)
@@ -6262,10 +6270,10 @@ class DijmapSapient:
         if not self.owner.creature.is_captive():
 
             for faction, members in g.M.factions_on_map.iteritems():
-                #g.game.add_message('{0}'.format(faction.faction_name), faction.color)
+                #g.game.add_message('{0}'.format(faction.name), faction.color)
 
                 if self.owner.creature.faction.is_hostile_to(faction):
-                    #g.game.add_message('{0} hostile to {1}'.format(self.owner.creature.faction.faction_name, faction), self.owner.creature.faction.color)
+                    #g.game.add_message('{0} hostile to {1}'.format(self.owner.creature.faction.name, faction), self.owner.creature.faction.color)
 
                     for member in members:
                         if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.creature.is_captive():
@@ -6437,14 +6445,14 @@ class DijmapSapient:
             for faction in g.M.factions_on_map.keys():
             #for faction in actor.creature.dijmap_desires.keys():
                 if actor.creature.faction.is_hostile_to(faction):
-                    actor.creature.dijmap_desires[faction.faction_name] = 2
+                    actor.creature.dijmap_desires[faction.name] = 2
 
         elif self.ai_state  == 'fleeing':
 
             for faction in g.M.factions_on_map.keys():
             #for faction in actor.creature.dijmap_desires.keys():
                 if actor.creature.faction.is_hostile_to(faction):
-                    actor.creature.dijmap_desires[faction.faction_name] = -4
+                    actor.creature.dijmap_desires[faction.name] = -4
 
             actor.creature.dijmap_desires['map_center'] = -2
 
@@ -6639,8 +6647,24 @@ class BasicWorldBrain:
 
         ## Lesser intelligent creatures
         elif self.owner.creature.intelligence_level == 2:
-            num = roll(1, 100)
-            if num < 10:
+
+            # Start by making sure we have shelter
+            # if not self.owner.creature.house:
+            #     nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
+            #     dist = 10000
+            #     target = None
+            #     for chunk in nearby_chunks:
+            #         for shelter in chunk.caves:
+            #             if self.owner.w_distance(shelter.x, shelter.y) < dist:
+            #                 dist = self.owner.w_distance(shelter.x, shelter.y)
+            #                 target = shelter
+            #
+            #     if target:
+            #         self.add_goal(priority=1, goal_type='travel', reason='I need shelter', location=(target.x, target.y), travel_verb='travel')
+            #
+            #         # TODO - need to update house with a building in the site
+
+            if roll(1, 100) < 10:
 
                 #self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
 
@@ -6673,14 +6697,14 @@ class BasicWorldBrain:
         if g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
             potential_spouses = [figure for figure in g.WORLD.tiles[self.owner.wx][self.owner.wy].entities
                                  if figure.creature.sex != self.owner.creature.sex
-                                 and figure.creature.creature_type == self.owner.creature.creature_type
+                                 and figure.creature.type_ == self.owner.creature.type_
                                  and figure.creature.dynasty != creature.dynasty
                                  and MIN_MARRIAGE_AGE < figure.creature.get_age() < MAX_MARRIAGE_AGE]
 
             if len(potential_spouses) == 0 and creature.current_citizenship:
                 # Make a person out of thin air to marry
                 sex = abs(self.owner.creature.sex-1)
-                potential_spouses = [creature.current_citizenship.create_inhabitant(sex=sex, age=creature.get_age()+roll(-5, 5), char='o', dynasty=None, race=self.owner.creature.creature_type, important=creature.important, house=creature.house)]
+                potential_spouses = [creature.current_citizenship.create_inhabitant(sex=sex, age=creature.get_age()+roll(-5, 5), char='o', dynasty=None, race=self.owner.creature.type_, important=creature.important, house=creature.house)]
             elif creature.current_citizenship is None:
                 g.game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
                 return
@@ -6705,7 +6729,7 @@ class BasicWorldBrain:
 
     def check_for_adventure(self):
         do_adventure = 0
-        targets = [e for e in g.WORLD.all_figures if e.creature.creature_type in g.WORLD.brutish_races ]
+        targets = [e for e in g.WORLD.all_figures if e.creature.type_ in g.WORLD.brutish_races ]
         if roll(1, 10) == 1 and targets != []:
             target = random.choice(targets)
 
@@ -7060,7 +7084,7 @@ class TimeCycle(object):
         #g.game.add_message('It is now ' + str(self.current_year), libtcod.light_sea)
         for figure in g.WORLD.all_figures[:]:
             # Die from old age
-            if figure.creature.get_age() > phys.creature_dict[figure.creature.creature_type]['creature']['lifespan']:
+            if figure.creature.get_age() > phys.creature_dict[figure.creature.type_]['creature']['lifespan']:
                 figure.creature.die(reason='old age')
 
     def rapid_tick(self, ticks):
@@ -7311,7 +7335,7 @@ class Culture:
 
 
     def add_village(self, x, y):
-        village = Site(world=g.WORLD, site_type='village', x=x, y=y, char=chr(7), name=self.name + ' village', color=self.color)
+        village = Site(world=g.WORLD, type_='village', x=x, y=y, char=chr(7), name=self.name + ' village', color=self.color)
         g.WORLD.sites.append(village)
         g.WORLD.tiles[x][y].site = village
         self.villages.append(village)
@@ -7338,7 +7362,7 @@ class Culture:
         born = g.WORLD.time_cycle.years_ago(age)
 
         # The creature component
-        creature_component = Creature(creature_type=race, sex=sex, intelligence_level=intelligence_level, firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
+        creature_component = Creature(type_=race, sex=sex, intelligence_level=intelligence_level, firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
 
         human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
@@ -7505,8 +7529,8 @@ def get_info_under_mouse():
             # Sites
             site = g.WORLD.tiles[x][y].site
             if site:
-                info.append(('{0} ({1})'.format(site.name.capitalize(), site.site_type), color))
-                if site.site_type == 'city':
+                info.append(('{0} ({1})'.format(site.name.capitalize(), site.type_), color))
+                if site.type_ == 'city':
                     info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
                     num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.creature.is_commander() or not f.creature.commander)])
                     info.append(('{0} figures or parties here'.format(num_figures), color))
@@ -8132,8 +8156,8 @@ class Game:
                 g.WORLD.tiles[x][y].height = 120
 
         ########### Factions ################
-        faction1 = Faction(leader_prefix='King', faction_name='Player faction', color=random.choice(civ_colors), succession='dynasty')
-        faction2 = Faction(leader_prefix='King', faction_name='Enemy faction', color=random.choice(civ_colors), succession='dynasty', defaultly_hostile=1)
+        faction1 = Faction(leader_prefix='King', name='Player faction', color=random.choice(civ_colors), succession='dynasty')
+        faction2 = Faction(leader_prefix='King', name='Enemy faction', color=random.choice(civ_colors), succession='dynasty', defaultly_hostile=1)
         # Set them as enemies (function will do so reciprocally)
         #faction1.set_enemy_faction(faction=faction2)
 
@@ -8152,8 +8176,8 @@ class Game:
         enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
 
-        hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, site_type='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
-        hideout_building = hideout_site.create_building(zone='residential', b_type='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
+        hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, type_='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
+        hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
         faction1.set_leader(leader=g.player)
         faction2.set_leader(leader=leader)
@@ -8165,9 +8189,9 @@ class Game:
         wname = random.choice(faction1.weapons)
         weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=phys.materials['iron'], wx=None, wy=None)
         g.player.initial_give_object_to_hold(weapon)
-        #g.WORLD.tiles[1][0].features.append(Feature(site_type='river', x=1, y=0))
-        #g.WORLD.tiles[1][1].features.append(Feature(site_type='river', x=1, y=1))
-        #g.WORLD.tiles[1][2].features.append(Feature(site_type='river', x=1, y=2))
+        #g.WORLD.tiles[1][0].features.append(Feature(type_='river', x=1, y=0))
+        #g.WORLD.tiles[1][1].features.append(Feature(type_='river', x=1, y=1))
+        #g.WORLD.tiles[1][2].features.append(Feature(type_='river', x=1, y=2))
         #####################################################################
 
         self.switch_map_scale(map_scale='human')

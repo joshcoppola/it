@@ -475,7 +475,7 @@ class CityMap:
                 ## Choose a title for the business
                 professions = [Profession(name=good_producer.name, category='commoner')]
                 ptype = good_producer.name.split(' ')[1]
-                new_building = self.city_class.create_building(zone='commercial', b_type=profession_to_business[ptype],
+                new_building = self.city_class.create_building(zone='commercial', type_=profession_to_business[ptype],
                                         template='TEST', professions=professions, inhabitants=[], tax_status='commoner')
 
 
@@ -496,7 +496,7 @@ class CityMap:
 
                 #### WILL ONLY CREATE HOUSE FOR FIRST EMPLOYEE
                 # And will not place employee in house
-                household = self.city_class.create_building(zone='residential', b_type='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
+                household = self.city_class.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
 
                 for x in xrange(home_tiles.x1, home_tiles.x2 + 1):
                     for y in xrange(home_tiles.y1, home_tiles.y2 + 1):
@@ -509,7 +509,7 @@ class CityMap:
 
         print '{0} unplaced figures looking for either home or work'.format(unplaced_homeseekers)
 
-        taverns = [building for building in self.city_class.buildings if building.b_type == 'Tavern']
+        taverns = [building for building in self.city_class.buildings if building.type_ == 'Tavern']
         #for figure in self.city_class.figures:
         for entity in self.figures:
             if entity not in placed_figures:

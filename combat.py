@@ -122,11 +122,11 @@ class WorldBattle:
             self.battle_type = 'small-scale'
 
             # Generate message for the game to display!
-            if len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
-            else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.faction_name, self.faction1_commander.fullname())
+            if f1_total_number + len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
+            else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.name, self.faction1_commander.fullname())
 
-            if len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
-            else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.faction_name, self.faction2_commander.fullname())
+            if f2_total_number + len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
+            else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.name, self.faction2_commander.fullname())
 
             g.game.add_message('{0} attacks {1} at {2}'.format(faction1_desc, faction2_desc, g.WORLD.tiles[self.wx][self.wy].get_location_description()))
 
@@ -187,6 +187,8 @@ class WorldBattle:
             # Execute combat
             handle_combat_round(actors=f1_in_combat + f2_in_combat)
 
+        victor = max(f1_in_combat, f2_in_combat, key=len)
+        g.game.add_message(' - {0} is victorious with {1} men remaining'.format(victor[0].creature.faction.name, len(victor)))
 
         # for f1_member in self.faction1_named:
         #     target = random.choice(self.faction2_named)
