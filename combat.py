@@ -6,9 +6,11 @@ import os
 import random
 from random import randint as roll
 
-from helpers import weighted_choice
+from helpers import weighted_choice, determine_commander
+from history import HistoricalEvent
 import config as g
 import wmap
+
 
 def load_combat_data():
     global combat_matrix, combat_moves, melee_armed_moves
@@ -78,34 +80,27 @@ class CombatAttack:
         self.distance = distance
 
 
-class WorldBattle:
-    def __init__(self, wx, wy, faction1_named, faction1_populations, faction2_named, faction2_populations):
-
-        self.wx = wx
-        self.wy = wy
+class WorldBattle(HistoricalEvent):
+    def __init__(self, date, location, faction1_named, faction1_populations, faction2_named, faction2_populations):
+        HistoricalEvent.__init__(self, date, location)
 
         self.faction1_named = faction1_named
-        self.faction1_commander = self.determine_commander(faction1_named)
+        self.faction1_commander = determine_commander(faction1_named)
         self.faction1_populations = faction1_populations
 
         self.faction2_named = faction2_named
-        self.faction2_commander = self.determine_commander(faction2_named)
+        self.faction2_commander = determine_commander(faction2_named)
         self.faction2_populations = faction2_populations
+
+        self.faction1_remaining = None
+        self.faction2_remaining = None
 
         self.battle_type = None
         self.determine_battle_type_and_execute_battle()
 
-    def determine_commander(self, faction_named):
-        ''' Find the figure with the greatest number of commanded beings and set as commander '''
-        current_commander = None
-        current_num_commanded_figs = -1 # Non-commanders have 0 commanded figs
-        for entity in faction_named:
-            commanded_figs = entity.creature.get_total_number_of_commanded_beings()
-            if commanded_figs > current_num_commanded_figs:
-                current_commander = entity
-                current_num_commanded_figs = commanded_figs
-
-        return current_commander
+        # Add links between figures and this historical event
+        for figure in faction1_named + faction2_named:
+            figure.associated_events.add(self.id_)
 
     def determine_battle_type_and_execute_battle(self):
 
@@ -118,22 +113,11 @@ class WorldBattle:
             f2_total_number += population.get_number_of_beings()
 
 
-        if f1_total_number < 20 and f2_total_number < 20:
-            self.battle_type = 'small-scale'
-
-            # Generate message for the game to display!
-            if f1_total_number + len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
-            else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.name, self.faction1_commander.fullname())
-
-            if f2_total_number + len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
-            else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.name, self.faction2_commander.fullname())
-
-            g.game.add_message('{0} attacks {1} at {2}'.format(faction1_desc, faction2_desc, g.WORLD.tiles[self.wx][self.wy].get_location_description()))
-
-            self.small_scale_battle()
+        #if f1_total_number < 20 and f2_total_number < 20:
+        self.battle_type = 'small-scale'
+        self.small_scale_battle()
 
     def small_scale_battle(self):
-
         # Minimum necessary to create a map
         g.M = wmap.Wmap(world=g.WORLD, wx=1, wy=1, height=20, width=20)
         hm = g.M.create_heightmap_from_surrounding_tiles()
@@ -187,29 +171,40 @@ class WorldBattle:
             # Execute combat
             handle_combat_round(actors=f1_in_combat + f2_in_combat)
 
-        victor = max(f1_in_combat, f2_in_combat, key=len)
-        g.game.add_message(' - {0} is victorious with {1} men remaining'.format(victor[0].creature.faction.name, len(victor)))
-
-        # for f1_member in self.faction1_named:
-        #     target = random.choice(self.faction2_named)
-        #
-        #     while f1_member.creature.is_available_to_act() and target.creature.is_available_to_act():
-        #
-        #         f1_member.local_brain.attack_enemy(enemy=target)
-        #         target.local_brain.attack_enemy(enemy=f1_member)
-        #
-        #         #print "{0} vs {1} combat".format(f1_member.fullname(), target.fullname())
-        #         handle_combat_round(actors=[f1_member, target])
-        #
-        # f1_remaining = [e for e in self.faction1_named if e.creature.is_available_to_act()]
-        # f2_remaining = [e for e in self.faction2_named if e.creature.is_available_to_act()]
-        #
-        # if len(f1_remaining) > len(f2_remaining):
-        #     for member in self.faction2_named:
-        #         if member.creature.status == 'alive' and not member.creature.is_available_to_act():
-        #             f1_remaining[0].creature.take_captive(member)
+        # Set remaining members
+        self.faction1_remaining = f1_in_combat
+        self.faction2_remaining = f2_in_combat
 
 
+    def describe(self):
+        ### Count total # in populaitons - redundant with above code, must rewrite !
+        f1_total_number = 0
+        for population in self.faction1_populations:
+            f1_total_number += population.get_number_of_beings()
+
+        f2_total_number = 0
+        for population in self.faction2_populations:
+            f2_total_number += population.get_number_of_beings()
+
+
+        # Generate message for the game to display!
+        if f1_total_number + len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
+        else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.name, self.faction1_commander.fullname())
+
+        if f2_total_number + len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
+        else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.name, self.faction2_commander.fullname())
+
+        if self.battle_type == 'small-scale':
+            victor = max(self.faction1_remaining, self.faction2_remaining, key=len)
+            victory_info = '{0} was victorious with {1} men remaining.'.format(victor[0].creature.faction.name, len(victor))
+
+            des = 'On {0}, {1} attacked {2} at {3}. {4}'.format(self.date, faction1_desc, faction2_desc, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), victory_info)
+
+            return des
+
+        else:
+            des = 'On {0}, {1} attacked {2} at {3}.'.format(self.date, faction1_desc, faction2_desc, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
+            return  des
 
 
 def handle_combat_round(actors):

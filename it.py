@@ -290,6 +290,8 @@ class Region:
         self.minor_sites = []
         self.caves = []
 
+        self.associated_events = set([])
+
         self.height = 0
         self.temp = 0
         # self.rainfall = 0
@@ -2273,6 +2275,7 @@ class Site:
         # Manage the world's dict of site types
         self.world.add_to_site_index(self)
         self.is_holy_site_to = []
+        self.associated_events = set([])
         # For resources
         self.native_res = {}
 
@@ -3336,6 +3339,7 @@ class Object:
         self.wy = wy
         self.world_last_dir = (0, 0)
         self.turns_since_move = 0
+        self.associated_events = set([])
 
         # Will be set to an interact_obj class instance if used
         self.interactable = 0
@@ -4938,7 +4942,8 @@ class WaitBehavior:
 
             #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
 
-            event = hist.TravelStart(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy), to_location=self.location, figure=self.figure)
+            event = hist.TravelStart(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
+                                     to_location=self.location, figures=self.figure.creature.commanded_figures + [self.figure], populations=self.figure.creature.commanded_populations)
             g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
         else:
             self.is_active = 1
@@ -4946,7 +4951,8 @@ class WaitBehavior:
     def is_completed(self):
         ''' Add event when we reach destination'''
         if self.num_days_left == 0:
-            event = hist.TravelEnd(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy), figure=self.figure)
+            event = hist.TravelEnd(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
+                                   figures=self.figure.creature.commanded_figures  + [self.figure], populations=self.figure.creature.commanded_populations)
             g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
             return 1
 
@@ -5065,7 +5071,9 @@ class KillTargBehavior:
 
     def take_behavior_action(self):
 
-        battle = combat.WorldBattle(wx=self.figure.wx, wy=self.figure.wy, faction1_named=[self.figure], faction1_populations=[], faction2_named=[self.target], faction2_populations=[])
+        battle = combat.WorldBattle(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
+                                    faction1_named=[self.figure], faction1_populations=[], faction2_named=[self.target], faction2_populations=[])
+        g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
 
         self.has_attempted_kill = 1
 
@@ -5196,7 +5204,6 @@ class Creature:
 
         # To be set when it is added to the object component
         self.owner = None
-
 
         ###################### Sapient #####################
 
@@ -6703,38 +6710,43 @@ class BasicWorldBrain:
                 '''
 
     def pick_spouse(self):
-        creature = self.owner.creature
         # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
         if g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
             potential_spouses = [figure for figure in g.WORLD.tiles[self.owner.wx][self.owner.wy].entities
                                  if figure.creature.sex != self.owner.creature.sex
                                  and figure.creature.type_ == self.owner.creature.type_
-                                 and figure.creature.dynasty != creature.dynasty
+                                 and figure.creature.dynasty != self.owner.creature.dynasty
                                  and MIN_MARRIAGE_AGE < figure.creature.get_age() < MAX_MARRIAGE_AGE]
 
-            if len(potential_spouses) == 0 and creature.current_citizenship:
+            if len(potential_spouses) == 0 and self.owner.creature.current_citizenship:
                 # Make a person out of thin air to marry
                 sex = abs(self.owner.creature.sex-1)
-                potential_spouses = [creature.current_citizenship.create_inhabitant(sex=sex, age=creature.get_age()+roll(-5, 5), char='o', dynasty=None, race=self.owner.creature.type_, important=creature.important, house=creature.house)]
-            elif creature.current_citizenship is None:
+                potential_spouses = [self.owner.creature.current_citizenship.create_inhabitant(sex=sex, age=self.owner.creature.get_age()+roll(-5, 5),
+                                                                                char='o', dynasty=None, race=self.owner.creature.type_,
+                                                                                important=self.owner.creature.important,
+                                                                                house=self.owner.creature.house)]
+            elif self.owner.creature.current_citizenship is None:
                 g.game.add_message('{0} wanted to pick a spouse, but was not a citizen of any city'.format(self.owner.fulltitle()), libtcod.dark_red)
                 return
 
             spouse = random.choice(potential_spouses)
-            creature.take_spouse(spouse=spouse)
+            self.owner.creature.take_spouse(spouse=spouse)
             ## Notify world
             # g.game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', creature.current_citizenship.name]) )
             # Update last names
-            if self.owner.creature.sex == 1:    spouse.creature.lastname = creature.lastname
-            else:                               creature.lastname = spouse.creature.lastname
+            if self.owner.creature.sex == 1:    spouse.creature.lastname = self.owner.creature.lastname
+            else:                self.owner.creature.lastname = spouse.creature.lastname
 
             ## Move in
-            if spouse.creature.current_citizenship != creature.current_citizenship:
+            if spouse.creature.current_citizenship != self.owner.creature.current_citizenship:
                 #g.game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.creature.current_citizenship.name, creature.current_citizenship.name ), libtcod.dark_red)
-                spouse.creature.change_citizenship(new_city=creature.current_citizenship, new_house=creature.house)
+                spouse.creature.change_citizenship(new_city=self.owner.creature.current_citizenship, new_house=self.owner.creature.house)
             # Make sure the spouse meets them
             if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
                 spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
+
+            event = hist.Marriage(date=g.WORLD.time_cycle.get_current_date(), location=(self.owner.wy, self.owner.wy), figures=[self.owner, spouse])
+            g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
 
             return spouse
 
@@ -6853,7 +6865,11 @@ class BasicWorldBrain:
                 if faction1_named and faction2_named:
                     if not g.player in faction1_named + faction2_named:
                         # This will handle placing these people in the has_battled set, as well as resolving the battle
-                        battle = combat.WorldBattle(wx=wx, wy=wy, faction1_named=faction1_named, faction1_populations=faction1_populations, faction2_named=faction2_named, faction2_populations=faction2_populations)
+                        battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
+                                                    faction1_named=faction1_named, faction1_populations=faction1_populations,
+                                                    faction2_named=faction2_named, faction2_populations=faction2_populations)
+
+                        g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, faction1_named[0].color, .3))
 
 
     '''
@@ -7644,6 +7660,7 @@ class RenderHandler:
             if g.game.map_scale == 'world':
                 libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.WORLD.time_cycle.current_year - g.player.creature.faction.leader_change_year), g.player.creature.faction.leader.fullname() ))
                 libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(g.WORLD.time_cycle.current_year, len(g.WORLD.all_figures), len(g.WORLD.important_figures)))
+                libtcod.console_print(panel2.con, 2, 5, '{0} events'.format(len(hist.historical_events)))
 
             ##### PANEL 4 - ECONOMY STUFF
             if g.player.creature.economy_agent is not None:

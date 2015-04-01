@@ -25,6 +25,18 @@ def join_list(string_list, null_value="nothing"):
         return '{0}, and {1}'.format(', '.join([s for s in string_list[:-1]]), string_list[-1])
 
 
+def determine_commander(figures):
+        ''' Find the figure with the greatest number of commanded beings and set as commander '''
+        current_commander = None
+        current_num_commanded_figs = -1 # Non-commanders have 0 commanded figs
+        for entity in figures:
+            commanded_figs = entity.creature.get_total_number_of_commanded_beings()
+            if commanded_figs > current_num_commanded_figs:
+                current_commander = entity
+                current_num_commanded_figs = commanded_figs
+
+        return current_commander
+
 def centroid(data):
     x, y = zip(*data)
     l = len(x)
