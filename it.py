@@ -6212,19 +6212,32 @@ class Creature:
         self.knowledge['entities'][other_person]['stats'][info_type] = info
 
     def add_person_location_knowledge(self, other_person, date, date_at_loc, location, heading, source):
+        ''' Updates knowledge of the last time we learned about the location of the other '''
         self.knowledge['entities'][other_person]['location']['coords'] = location
         self.knowledge['entities'][other_person]['location']['date'] = date
         self.knowledge['entities'][other_person]['location']['date_at_loc'] = date_at_loc
         self.knowledge['entities'][other_person]['location']['source'] = source
         self.knowledge['entities'][other_person]['location']['heading'] = heading
 
+    def update_meeting_info(self, other, date):
+        ''' Updates knowledge of the last time we met the other '''
+        if self.knowledge['entities'][other]['meetings']['date_met'] is not None:
+            self.knowledge['entities'][other]['meetings'] = {'date_met': date, 'date_of_last_meeting': date, 'number_of_meetings': 1}
+        else:
+            self.knowledge['entities'][other]['meetings']['date_of_last_meeting'] = date
+            self.knowledge['entities'][other]['meetings']['number_of_meetings'] += 1
 
-    def first_time_meeting(self, other):
-        self.knowledge['entities'][other]['meetings'] = {
-                                'date_met': g.WORLD.time_cycle.get_current_date(),
-                                'date_of_last_meeting': g.WORLD.time_cycle.get_current_date(),
-                                'number_of_meetings': 1
-                                }
+
+    def encounter(self, other):
+        ''' Encounter another entity, updating knowledge as necessary '''
+        date = g.WORLD.time_cycle.get_current_date()
+
+        if not other in self.knowledge['entities'].keys():
+            self.add_awareness_of_person(other)
+
+        self.add_person_location_knowledge(other_person=other, date=date, date_at_loc=date, location=(self.owner.wx, self.owner.wy), heading=other.world_last_dir, source=self.owner)
+        self.update_meeting_info(other, date)
+
 
     def get_relations(self, other_person):
         # set initial relationship with another person
@@ -6270,26 +6283,15 @@ class Creature:
         self.knowledge['entities'][other_person]['meetings'] = {'date_met': None, 'date_of_last_meeting': None, 'number_of_meetings': 0}
         self.knowledge['entities'][other_person]['relations'] = {}
         self.knowledge['entities'][other_person]['location'] = {}
-        self.knowledge['entities'][other_person]['stats'] = {
-                                        'profession':None,
-                                        'age':None,
-                                        'city':None,
-                                        'goals':None
-                                        }
+        self.knowledge['entities'][other_person]['stats'] = {'profession':None, 'age':None, 'city':None, 'goals':None}
 
     def meet(self, other):
         # Use to set recipricol relations with another person
-        date = g.WORLD.time_cycle.get_current_date()
         self.modify_relations(other, 'Knows personally', 2)
-        self.first_time_meeting(other)
-        self.add_person_location_knowledge(other_person=other, date=date, date_at_loc=date,
-                                           location=(other.wx, other.wy), source=self.owner, heading=other.world_last_dir)
+        self.encounter(other)
 
         other.creature.modify_relations(self.owner, 'Knows personally', 2)
-        other.creature.first_time_meeting(self.owner)
-        other.creature.add_person_location_knowledge(other_person=self.owner, date=date, date_at_loc=date,
-                                           location=(self.owner.wx, self.owner.wy), source=other, heading=self.owner.world_last_dir)
-
+        other.creature.encounter(self.owner)
 
 
 class DijmapSapient:
@@ -6868,48 +6870,59 @@ class BasicWorldBrain:
             if self.goals:
                 self.handle_goal_behavior()
 
+        if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
             self.check_for_battle()
+        elif roll(1, 1000) > 995:
+            other = random.choice(g.WORLD.tiles[self.owner.wx][self.owner.wy].entities)
+            if other != self.owner:
+                self.owner.creature.encounter(other=other)
+                other.creature.encounter(other=self.owner)
+                # g.game.add_message('    -*- ~ {0} encounters {1} ~ -*-'.format(self.owner.fulltitle(), other.fulltitle()))
 
     def check_for_battle(self):
         ## See whether we ended a turn on a tile with an enemy
         wx = self.owner.wx
         wy = self.owner.wy
 
-        if not g.WORLD.tiles[wx][wy].site:
+        enemy_factions_in_this_tile = []
+        for entity in g.WORLD.tiles[wx][wy].entities[:]:
 
-            enemy_factions_in_this_tile = []
-            for entity in g.WORLD.tiles[wx][wy].entities[:]:
-                if entity.creature and entity.creature.is_available_to_act() and not entity in g.WORLD.has_battled \
-                        and self.owner.creature.faction.is_hostile_to(entity.creature.faction) \
-                        and not entity.creature.faction in enemy_factions_in_this_tile:
+            ## Update knowledge
+            if self.owner.creature.important or entity.creature.important:
+                self.owner.creature.encounter(other=entity)
+                entity.creature.encounter(other=self.owner)
 
-                    enemy_factions_in_this_tile.append(entity.creature.faction)
-            #########################################################
+            if entity.creature.is_available_to_act() and not entity in g.WORLD.has_battled \
+                    and self.owner.creature.faction.is_hostile_to(entity.creature.faction) \
+                    and not entity.creature.faction in enemy_factions_in_this_tile:
 
-            ## Our faction
-            faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
-                            and not e in g.WORLD.has_battled
-                            and e.creature.faction == self.owner.creature.faction]
+                enemy_factions_in_this_tile.append(entity.creature.faction)
+        #########################################################
 
-            faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.creature.faction]
+        ## Our faction
+        faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
+                        and not e in g.WORLD.has_battled
+                        and e.creature.faction == self.owner.creature.faction]
 
-            ### Do battle with each potential enemy
-            for faction in enemy_factions_in_this_tile:
-                ## Enemy faction
-                faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
-                            and not e in g.WORLD.has_battled
-                            and e.creature.faction == faction]
+        faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.creature.faction]
 
-                faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
+        ### Do battle with each potential enemy
+        for faction in enemy_factions_in_this_tile:
+            ## Enemy faction
+            faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
+                        and not e in g.WORLD.has_battled
+                        and e.creature.faction == faction]
 
-                if faction1_named and faction2_named:
-                    if not g.player in faction1_named + faction2_named:
-                        # This will handle placing these people in the has_battled set, as well as resolving the battle
-                        battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
-                                                    faction1_named=faction1_named, faction1_populations=faction1_populations,
-                                                    faction2_named=faction2_named, faction2_populations=faction2_populations)
+            faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
 
-                        g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, faction1_named[0].color, .3))
+            if faction1_named and faction2_named:
+                if not g.player in faction1_named + faction2_named:
+                    # This will handle placing these people in the has_battled set, as well as resolving the battle
+                    battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
+                                                faction1_named=faction1_named, faction1_populations=faction1_populations,
+                                                faction2_named=faction2_named, faction2_populations=faction2_populations)
+
+                    g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, faction1_named[0].color, .3))
 
 
     '''
