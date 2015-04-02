@@ -9,8 +9,8 @@ import textwrap
 import time
 import os
 #import multiprocessing
-#import cProfile as prof
-#import pstats
+import cProfile as prof
+import pstats
 #import pdb
 import copy
 from collections import Counter
@@ -2316,6 +2316,16 @@ class Site:
         human.creature.hometown = hometown
 
         return human
+
+    def run_random_encounter(self):
+        # Random chance of 2 people encountering each other in a city.
+        if len(g.WORLD.tiles[self.x][self.y].entities) > 2:
+            entity1 = random.choice(g.WORLD.tiles[self.x][self.y].entities)
+            entity2 = random.choice(g.WORLD.tiles[self.x][self.y].entities)
+            if entity1 != entity2:
+                entity1.creature.encounter(other=entity2)
+                entity2.creature.encounter(other=entity1)
+                # g.game.add_message(' -*- {0} encounters {1} in {2} -*-'.format(entity1.fulltitle(), entity2.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.color, .3))
 
     def distance_to(self, other):
         #return the distance to another object
@@ -6866,18 +6876,12 @@ class BasicWorldBrain:
         if self.owner.creature.is_available_to_act():
 
             ## Here will be the check for immediate threats and / or re-evaluation of goals
-
             if self.goals:
                 self.handle_goal_behavior()
 
-        if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
-            self.check_for_battle()
-        elif roll(1, 1000) > 995:
-            other = random.choice(g.WORLD.tiles[self.owner.wx][self.owner.wy].entities)
-            if other != self.owner:
-                self.owner.creature.encounter(other=other)
-                other.creature.encounter(other=self.owner)
-                # g.game.add_message('    -*- ~ {0} encounters {1} ~ -*-'.format(self.owner.fulltitle(), other.fulltitle()))
+            # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
+            if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
+                self.check_for_battle()
 
     def check_for_battle(self):
         ## See whether we ended a turn on a tile with an enemy
@@ -6885,44 +6889,42 @@ class BasicWorldBrain:
         wy = self.owner.wy
 
         enemy_factions_in_this_tile = []
-        for entity in g.WORLD.tiles[wx][wy].entities[:]:
-
-            ## Update knowledge
+        ## Originally made a copy of entities - why?
+        for entity in g.WORLD.tiles[wx][wy].entities:
+            ## Piggybacking on this existing loop through entities in order to update knowledge
+            # TODO - should have a chance of spreading rumors too
             if self.owner.creature.important or entity.creature.important:
                 self.owner.creature.encounter(other=entity)
                 entity.creature.encounter(other=self.owner)
 
-            if entity.creature.is_available_to_act() and not entity in g.WORLD.has_battled \
-                    and self.owner.creature.faction.is_hostile_to(entity.creature.faction) \
-                    and not entity.creature.faction in enemy_factions_in_this_tile:
+            # Building a list of enemy factions in this tile
+            if self.owner.creature.faction.is_hostile_to(entity.creature.faction) \
+                    and not entity.creature.faction in enemy_factions_in_this_tile \
+                    and not entity in g.WORLD.has_battled and entity.creature.is_available_to_act():
 
                 enemy_factions_in_this_tile.append(entity.creature.faction)
         #########################################################
 
-        ## Our faction
-        faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
-                        and not e in g.WORLD.has_battled
-                        and e.creature.faction == self.owner.creature.faction]
+        if enemy_factions_in_this_tile:
+            ## Our faction
+            faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature.faction == self.owner.creature.faction and e.creature.is_available_to_act() and not e in g.WORLD.has_battled]
+            faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.creature.faction]
 
-        faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.creature.faction]
+            ### Do battle with each potential enemy
+            for faction in enemy_factions_in_this_tile:
+                ## Enemy faction
+                faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature.faction == faction and e.creature.is_available_to_act() and not e in g.WORLD.has_battled]
+                faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
 
-        ### Do battle with each potential enemy
-        for faction in enemy_factions_in_this_tile:
-            ## Enemy faction
-            faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature and e.creature.is_available_to_act()
-                        and not e in g.WORLD.has_battled
-                        and e.creature.faction == faction]
+                if faction1_named and faction2_named:
+                    # May need to optomize this check with g.player
+                    if not g.player in faction1_named + faction2_named:
+                        # This will handle placing these people in the has_battled set, as well as resolving the battle
+                        battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
+                                                    faction1_named=faction1_named, faction1_populations=faction1_populations,
+                                                    faction2_named=faction2_named, faction2_populations=faction2_populations)
 
-            faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
-
-            if faction1_named and faction2_named:
-                if not g.player in faction1_named + faction2_named:
-                    # This will handle placing these people in the has_battled set, as well as resolving the battle
-                    battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
-                                                faction1_named=faction1_named, faction1_populations=faction1_populations,
-                                                faction2_named=faction2_named, faction2_populations=faction2_populations)
-
-                    g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, faction1_named[0].color, .3))
+                        g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, faction1_named[0].color, .3))
 
 
     '''
@@ -7129,8 +7131,13 @@ class TimeCycle(object):
             self.check_day()
             self.handle_events()
 
+            # Each day, random people in cities can encounter one another to spread knowledge
+            for city in g.WORLD.cities:
+                city.run_random_encounter()
+
+            # Then, all entities in the world can take their daily turn
             for figure in reversed(g.WORLD.all_figures):
-                if figure.world_brain and figure.creature.is_available_to_act(): #and figure .world_brain.next_tick == self.current_day:
+                if figure.world_brain: #and figure .world_brain.next_tick == self.current_day:
                     #figure.world_brain.next_tick = self.next_day()
                     figure.world_brain.take_turn()
 
@@ -9218,7 +9225,10 @@ if __name__ == '__main__':
     main_menu()
     #prof.run('main_menu()', 'itstats')
     #p = pstats.Stats('itstats')
-    #p.sort_stats('cumulative').print_stats(10)
-    #p.sort_stats('time').print_stats(10)
+    #p.sort_stats('cumulative').print_stats(20)
+    #print ''
+    #print ' ------ '
+    #print ''
+    #p.sort_stats('time').print_stats(20)
 
     libtcod.console_delete(None)
