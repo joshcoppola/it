@@ -198,12 +198,14 @@ class WorldBattle(HistoricalEvent):
             victor = max(self.faction1_remaining, self.faction2_remaining, key=len)
             victory_info = '{0} was victorious with {1} men remaining.'.format(victor[0].creature.faction.name, len(victor))
 
-            des = 'On {0}, {1} attacked {2} at {3}. {4}'.format(self.date, faction1_desc, faction2_desc, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), victory_info)
+            des = 'On {0}, {1} attacked {2} at {3}. {4}'.format(g.WORLD.time_cycle.date_to_text(self.date), faction1_desc, faction2_desc,
+                                                                g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), victory_info)
 
             return des
 
         else:
-            des = 'On {0}, {1} attacked {2} at {3}.'.format(self.date, faction1_desc, faction2_desc, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
+            des = 'On {0}, {1} attacked {2} at {3}.'.format(g.WORLD.time_cycle.date_to_text(self.date), faction1_desc, faction2_desc,
+                                                            g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
             return  des
 
 

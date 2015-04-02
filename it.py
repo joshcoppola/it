@@ -5217,7 +5217,11 @@ class Creature:
 
         # Relationships with others beyond trait clashes
         self.extra_relations = {}
-        self.knowledge = {}
+        self.knowledge = {  'entities': {},
+                            'objects': {},
+                            'events': {}
+                            }
+
         # People we've recently conversed with
         self.recent_interlocutors = []
         # Pending conversation responses
@@ -5813,19 +5817,19 @@ class Creature:
         if target not in self.recent_interlocutors:
             return ['greet']
 
-        if target not in self.knowledge.keys():
+        if target not in self.knowledge['entities'].keys():
             return ['name']
 
-        if self.knowledge[target]['city'] is None:
+        if self.knowledge['entities'][target]['city'] is None:
             valid_questions.append('city')
 
-        if self.knowledge[target]['age'] is None:
+        if self.knowledge['entities'][target]['age'] is None:
             valid_questions.append('age')
 
-        if self.knowledge[target]['profession'] is None:
+        if self.knowledge['entities'][target]['profession'] is None:
             valid_questions.append('profession')
 
-        if self.knowledge[target]['goals'] is None:
+        if self.knowledge['entities'][target]['goals'] is None:
             valid_questions.append('goals')
 
         ## TODO - allow NPCs to recruit, under certain circumstances
@@ -6147,6 +6151,9 @@ class Creature:
 
         child.creature.generation = self.spouse.creature.generation + 1
 
+        event = hist. Birth(date=g.WORLD.time_cycle.get_current_date(), location=(self.owner.wx, self.owner.wy), parents=[self.owner, self.spouse], child=child)
+        g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
+
         return child
 
     def set_initial_traits(self):
@@ -6196,10 +6203,10 @@ class Creature:
 
     def add_person_knowledge(self, other_person, info_type, info):
         ''' Checks whether we know of the person and then updates info '''
-        if not other_person in self.knowledge.keys():
+        if not other_person in self.knowledge['entities'].keys():
             self.add_awareness_of_person(other_person)
 
-        self.knowledge[other_person][info_type] = info
+        self.knowledge['entities'][other_person][info_type] = info
 
 
     def get_relations(self, other_person):
@@ -6218,8 +6225,8 @@ class Creature:
 
         # Things other than traits can modify this, must be stored in self.extra_relations
         # Basically merge this into the "reasons" dict
-        if other_person in self.knowledge.keys():
-            for reason, amount in self.knowledge[other_person]['relations'].iteritems():
+        if other_person in self.knowledge['entities'].keys():
+            for reason, amount in self.knowledge['entities'][other_person]['relations'].iteritems():
                 reasons[reason] = amount
 
         return reasons
@@ -6229,18 +6236,18 @@ class Creature:
         # Anything affecting relationship not covered by traits
 
         # Add them to relation list if not already there
-        if not other_person in self.knowledge.keys():
+        if not other_person in self.knowledge['entities'].keys():
             self.add_awareness_of_person(other_person)
 
         # Then add the reason
-        if not reason in self.knowledge[other_person]['relations'].keys():
-            self.knowledge[other_person]['relations'][reason] = amount
+        if not reason in self.knowledge['entities'][other_person]['relations'].keys():
+            self.knowledge['entities'][other_person]['relations'][reason] = amount
         else:
-            self.knowledge[other_person]['relations'][reason] += amount
+            self.knowledge['entities'][other_person]['relations'][reason] += amount
 
     def add_awareness_of_person(self, other_person):
         ''' To set up the knowledge dict '''
-        self.knowledge[other_person] = {'relations':{},
+        self.knowledge['entities'][other_person] = {'relations':{},
                                         'profession':None,
                                         'age':None,
                                         'city':None,
@@ -7009,7 +7016,14 @@ class TimeCycle(object):
         pass
 
     def get_current_date(self):
-        return '{0}, {1} {2}'.format(self.weekdays[self.current_weekday], self.months[self.current_month], self.current_day + 1)
+        return (self.current_year, self.current_month, self.current_day)
+
+    #def get_current_date_as_text(self):
+    #    return '{0}, {1} {2}'.format(self.weekdays[self.current_weekday], self.months[self.current_month], self.current_day + 1)
+
+    def date_to_text(self, date):
+        year, month, day = date
+        return '{0} {1}, {2}'.format(self.months[month], day + 1, year)
 
     def get_current_time(self):
         minutes = int(math.floor(self.current_tick / 10))
@@ -7656,7 +7670,7 @@ class RenderHandler:
 
         if g.game.state == 'playing':
             # Current date and time info
-            libtcod.console_print(panel2.con, 2, 2, g.WORLD.time_cycle.get_current_date())
+            libtcod.console_print(panel2.con, 2, 2, g.WORLD.time_cycle.date_to_text(g.WORLD.time_cycle.get_current_date()))
             if g.game.map_scale == 'world':
                 libtcod.console_print(panel2.con, 2, 3, '{0} year of {1}'.format(int2ord(1 + g.WORLD.time_cycle.current_year - g.player.creature.faction.leader_change_year), g.player.creature.faction.leader.fullname() ))
                 libtcod.console_print(panel2.con, 2, 4, '({0}); {1} pop, {2} imp'.format(g.WORLD.time_cycle.current_year, len(g.WORLD.all_figures), len(g.WORLD.important_figures)))
@@ -8494,7 +8508,7 @@ def show_people(world):
         libtcod.console_print(0, x_att_offset, 4, '<< ' + world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p].fullname() + ' >>')
         ##### Only show people who this person knows personally for now
         y = 0
-        for other_person in selected_person.creature.knowledge.keys():
+        for other_person in selected_person.creature.knowledge['entities'].keys():
             if y + 20 > SCREEN_HEIGHT: # Just make sure we don't write off the screen...
                 libtcod.console_print(0, x_list_offset, y + 9, '<<< more >>>')
                 break

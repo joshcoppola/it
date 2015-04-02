@@ -1,6 +1,6 @@
 from __future__ import division
 import config as g
-from helpers import determine_commander
+from helpers import determine_commander, join_list
 
 historical_events = []
 event_id = 0
@@ -29,9 +29,26 @@ class Marriage(HistoricalEvent):
         HistoricalEvent.__init__(self, date, location)
         self.figures = figures
 
+        for figure in self.figures:
+            figure.associated_events.add(self.id_)
+
     def describe(self):
-        des = 'On {0}, {1} married {2}'.format(self.date, self.figures[0].fulltitle(), self.figures[1].fulltitle())
+        des = 'On {0}, {1} married {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.figures[0].fulltitle(), self.figures[1].fulltitle())
         return des
+
+class Birth(HistoricalEvent):
+    def __init__(self, date, location, parents, child):
+        HistoricalEvent.__init__(self, date, location)
+        self.parents = parents
+        self.child = child
+
+        for figure in self.parents + [self.child]:
+            figure.associated_events.add(self.id_)
+
+    def describe(self):
+        des = 'On {0}, {1} was born to {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.child.fullname(), join_list([p.fullname() for p in self.parents]))
+        return des
+
 
 class TravelStart(HistoricalEvent):
     def __init__(self, date, location, to_location, figures, populations, reason=None):
@@ -47,7 +64,7 @@ class TravelStart(HistoricalEvent):
             figure.associated_events.add(self.id_)
 
     def describe(self):
-        des = 'On {0}, {1} set out for {2} from {3}'.format(self.date, self.commander.fullname(),
+        des = 'On {0}, {1} set out for {2} from {3}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(),
                                                             g.WORLD.tiles[self.to_location[0]][self.to_location[1]].get_location_description(),
                                                             g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description() )
         return des
@@ -65,5 +82,5 @@ class TravelEnd(HistoricalEvent):
             figure.associated_events.add(self.id_)
 
     def describe(self):
-        des = 'On {0}, {1} arrived at {2}'.format(self.date, self.commander.fullname(), self.describe_location())
+        des = 'On {0}, {1} arrived at {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(), self.describe_location())
         return des
