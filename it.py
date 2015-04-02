@@ -5820,16 +5820,16 @@ class Creature:
         if target not in self.knowledge['entities'].keys():
             return ['name']
 
-        if self.knowledge['entities'][target]['city'] is None:
+        if self.knowledge['entities'][target]['stats']['city'] is None:
             valid_questions.append('city')
 
-        if self.knowledge['entities'][target]['age'] is None:
+        if self.knowledge['entities'][target]['stats']['age'] is None:
             valid_questions.append('age')
 
-        if self.knowledge['entities'][target]['profession'] is None:
+        if self.knowledge['entities'][target]['stats']['profession'] is None:
             valid_questions.append('profession')
 
-        if self.knowledge['entities'][target]['goals'] is None:
+        if self.knowledge['entities'][target]['stats']['goals'] is None:
             valid_questions.append('goals')
 
         ## TODO - allow NPCs to recruit, under certain circumstances
@@ -5868,7 +5868,7 @@ class Creature:
             if profession is None:
                 profession = 'No profession'
 
-            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=profession)
+            asker.creature.add_person_fact_knowledge(other_person=self.owner, info_type=question_type, info=profession)
 
             return 'truth'
 
@@ -5876,7 +5876,7 @@ class Creature:
             ''' Ask about their profession '''
             age = self.get_age()
 
-            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=age)
+            asker.creature.add_person_fact_knowledge(other_person=self.owner, info_type=question_type, info=age)
             return 'truth'
 
         elif question_type == 'city':
@@ -5886,7 +5886,7 @@ class Creature:
             if current_citizen_of is None:
                 current_citizen_of = 'No citizenship'
 
-            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=current_citizen_of)
+            asker.creature.add_person_fact_knowledge(other_person=self.owner, info_type=question_type, info=current_citizen_of)
 
             return 'truth'
 
@@ -5898,7 +5898,7 @@ class Creature:
                 for goal in self.goals:
                     goals.append(goal)
 
-            asker.creature.add_person_knowledge(other_person=self.owner, info_type=question_type, info=goals)
+            asker.creature.add_person_fact_knowledge(other_person=self.owner, info_type=question_type, info=goals)
 
             return 'truth'
 
@@ -6149,6 +6149,9 @@ class Creature:
         child.creature.mother = self.owner
         child.creature.father = self.spouse
 
+        child.creature.mother.creature.meet(child)
+        child.creature.father.creature.meet(child)
+
         child.creature.generation = self.spouse.creature.generation + 1
 
         event = hist. Birth(date=g.WORLD.time_cycle.get_current_date(), location=(self.owner.wx, self.owner.wy), parents=[self.owner, self.spouse], child=child)
@@ -6201,13 +6204,27 @@ class Creature:
 
 
 
-    def add_person_knowledge(self, other_person, info_type, info):
+    def add_person_fact_knowledge(self, other_person, info_type, info):
         ''' Checks whether we know of the person and then updates info '''
         if not other_person in self.knowledge['entities'].keys():
             self.add_awareness_of_person(other_person)
 
-        self.knowledge['entities'][other_person][info_type] = info
+        self.knowledge['entities'][other_person]['stats'][info_type] = info
 
+    def add_person_location_knowledge(self, other_person, date, date_at_loc, location, heading, source):
+        self.knowledge['entities'][other_person]['location']['coords'] = location
+        self.knowledge['entities'][other_person]['location']['date'] = date
+        self.knowledge['entities'][other_person]['location']['date_at_loc'] = date_at_loc
+        self.knowledge['entities'][other_person]['location']['source'] = source
+        self.knowledge['entities'][other_person]['location']['heading'] = heading
+
+
+    def first_time_meeting(self, other):
+        self.knowledge['entities'][other]['meetings'] = {
+                                'date_met': g.WORLD.time_cycle.get_current_date(),
+                                'date_of_last_meeting': g.WORLD.time_cycle.get_current_date(),
+                                'number_of_meetings': 1
+                                }
 
     def get_relations(self, other_person):
         # set initial relationship with another person
@@ -6247,7 +6264,13 @@ class Creature:
 
     def add_awareness_of_person(self, other_person):
         ''' To set up the knowledge dict '''
-        self.knowledge['entities'][other_person] = {'relations':{},
+        # Meeting info will be updated if / when we meet the other
+        self.knowledge['entities'][other_person] = {}
+
+        self.knowledge['entities'][other_person]['meetings'] = {'date_met': None, 'date_of_last_meeting': None, 'number_of_meetings': 0}
+        self.knowledge['entities'][other_person]['relations'] = {}
+        self.knowledge['entities'][other_person]['location'] = {}
+        self.knowledge['entities'][other_person]['stats'] = {
                                         'profession':None,
                                         'age':None,
                                         'city':None,
@@ -6256,9 +6279,16 @@ class Creature:
 
     def meet(self, other):
         # Use to set recipricol relations with another person
+        date = g.WORLD.time_cycle.get_current_date()
         self.modify_relations(other, 'Knows personally', 2)
-        other.creature.modify_relations(self.owner, 'Knows personally', 2)
+        self.first_time_meeting(other)
+        self.add_person_location_knowledge(other_person=other, date=date, date_at_loc=date,
+                                           location=(other.wx, other.wy), source=self.owner, heading=other.world_last_dir)
 
+        other.creature.modify_relations(self.owner, 'Knows personally', 2)
+        other.creature.first_time_meeting(self.owner)
+        other.creature.add_person_location_knowledge(other_person=self.owner, date=date, date_at_loc=date,
+                                           location=(self.owner.wx, self.owner.wy), source=other, heading=self.owner.world_last_dir)
 
 
 
@@ -6737,6 +6767,9 @@ class BasicWorldBrain:
                 return
 
             spouse = random.choice(potential_spouses)
+
+            self.owner.creature.meet(spouse)
+
             self.owner.creature.take_spouse(spouse=spouse)
             ## Notify world
             # g.game.add_message(''.join([self.owner.fullname(), ' has married ', spouse.fullname(), ' in ', creature.current_citizenship.name]) )
