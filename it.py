@@ -3392,6 +3392,14 @@ class Object:
         self.death_color = libtcod.black
 
 
+    def add_associated_event(self, event_id):
+        self.associated_events.add(event_id)
+
+        # Update knowledge
+        if self.creature:
+            self.creature.add_knowledge_of_event(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self)
+            self.creature.add_knowledge_of_event_location(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self)
+
     def set_current_owner(self, figure):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
         ## Remove from current owner
@@ -6221,10 +6229,10 @@ class Creature:
 
         self.knowledge['entities'][other_person]['stats'][info_type] = info
 
-    def add_person_location_knowledge(self, other_person, date, date_at_loc, location, heading, source):
+    def add_person_location_knowledge(self, other_person, date_learned, date_at_loc, location, heading, source):
         ''' Updates knowledge of the last time we learned about the location of the other '''
         self.knowledge['entities'][other_person]['location']['coords'] = location
-        self.knowledge['entities'][other_person]['location']['date'] = date
+        self.knowledge['entities'][other_person]['location']['date_learned'] = date_learned
         self.knowledge['entities'][other_person]['location']['date_at_loc'] = date_at_loc
         self.knowledge['entities'][other_person]['location']['source'] = source
         self.knowledge['entities'][other_person]['location']['heading'] = heading
@@ -6245,9 +6253,25 @@ class Creature:
         if not other in self.knowledge['entities'].keys():
             self.add_awareness_of_person(other)
 
-        self.add_person_location_knowledge(other_person=other, date=date, date_at_loc=date, location=(self.owner.wx, self.owner.wy), heading=other.world_last_dir, source=self.owner)
+        self.add_person_location_knowledge(other_person=other, date_learned=date, date_at_loc=date, location=(self.owner.wx, self.owner.wy), heading=other.world_last_dir, source=self.owner)
         self.update_meeting_info(other, date)
 
+
+    def add_knowledge_of_event(self, event_id, date_learned, source):
+        self.knowledge['events'][event_id] = {'description': {}, 'location': {} }
+
+        self.knowledge['events'][event_id]['description']['date_learned'] = date_learned
+        self.knowledge['events'][event_id]['description']['source'] = source
+
+        self.knowledge['events'][event_id]['location']['date_learned'] = None
+        self.knowledge['events'][event_id]['location']['source'] = None
+
+
+    def add_knowledge_of_event_location(self, event_id, date_learned, source):
+        self.knowledge['events'][event_id]['location']['date_learned'] = date_learned
+        self.knowledge['events'][event_id]['location']['source'] = source
+
+        #g.game.add_message(' ~   ~~ {0} has learned that {1}'.format(self.owner.fullname(), hist.historical_events[event_id].describe()))
 
     def get_relations(self, other_person):
         # set initial relationship with another person

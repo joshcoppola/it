@@ -30,7 +30,7 @@ class Marriage(HistoricalEvent):
         self.figures = figures
 
         for figure in self.figures:
-            figure.associated_events.add(self.id_)
+            figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} married {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.figures[0].fulltitle(), self.figures[1].fulltitle())
@@ -43,7 +43,7 @@ class Birth(HistoricalEvent):
         self.child = child
 
         for figure in self.parents + [self.child]:
-            figure.associated_events.add(self.id_)
+            figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} was born to {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.child.fullname(), join_list([p.fullname() for p in self.parents]))
@@ -61,7 +61,7 @@ class TravelStart(HistoricalEvent):
         self.reason = reason
 
         for figure in self.figures:
-            figure.associated_events.add(self.id_)
+            figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} set out for {2} from {3}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(),
@@ -79,7 +79,7 @@ class TravelEnd(HistoricalEvent):
         self.populations = populations
 
         for figure in self.figures:
-            figure.associated_events.add(self.id_)
+            figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} arrived at {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(), self.describe_location())

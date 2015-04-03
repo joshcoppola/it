@@ -100,7 +100,7 @@ class WorldBattle(HistoricalEvent):
 
         # Add links between figures and this historical event
         for figure in faction1_named + faction2_named:
-            figure.associated_events.add(self.id_)
+            figure.add_associated_event(event_id=self.id_)
 
     def determine_battle_type_and_execute_battle(self):
 
