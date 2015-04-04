@@ -6236,6 +6236,7 @@ class Creature:
         self.knowledge['entities'][other_person]['location']['date_at_loc'] = date_at_loc
         self.knowledge['entities'][other_person]['location']['source'] = source
         self.knowledge['entities'][other_person]['location']['heading'] = heading
+        #self.knowledge['entities'][other_person]['location']['destination'] = destination
 
     def update_meeting_info(self, other, date):
         ''' Updates knowledge of the last time we met the other '''
@@ -6256,22 +6257,43 @@ class Creature:
         self.add_person_location_knowledge(other_person=other, date_learned=date, date_at_loc=date, location=(self.owner.wx, self.owner.wy), heading=other.world_last_dir, source=self.owner)
         self.update_meeting_info(other, date)
 
+        for event_id in self.knowledge['events']:
+            other.creature.add_knowledge_of_event(event_id=event_id, date_learned=date, source=self.owner)
+
 
     def add_knowledge_of_event(self, event_id, date_learned, source):
-        self.knowledge['events'][event_id] = {'description': {}, 'location': {} }
+        # Only trigger if we don't already know about the event
+        if event_id not in self.knowledge['events']:
+            self.knowledge['events'][event_id] = {'description': {}, 'location': {} }
 
-        self.knowledge['events'][event_id]['description']['date_learned'] = date_learned
-        self.knowledge['events'][event_id]['description']['source'] = source
+            self.knowledge['events'][event_id]['description']['date_learned'] = date_learned
+            self.knowledge['events'][event_id]['description']['source'] = source
 
-        self.knowledge['events'][event_id]['location']['date_learned'] = None
-        self.knowledge['events'][event_id]['location']['source'] = None
+            self.knowledge['events'][event_id]['location']['date_learned'] = None
+            self.knowledge['events'][event_id]['location']['source'] = None
 
+            #print 'On', date_learned, ', ', self.owner.fullname(), 'has learned', hist.historical_events[event_id].describe()
 
     def add_knowledge_of_event_location(self, event_id, date_learned, source):
-        self.knowledge['events'][event_id]['location']['date_learned'] = date_learned
-        self.knowledge['events'][event_id]['location']['source'] = source
+        # Only trigger if we don't already know the location of the event
+        if self.knowledge['events'][event_id]['location']['date_learned'] is not None:
+            self.knowledge['events'][event_id]['location']['date_learned'] = date_learned
+            self.knowledge['events'][event_id]['location']['source'] = source
 
-        #g.game.add_message(' ~   ~~ {0} has learned that {1}'.format(self.owner.fullname(), hist.historical_events[event_id].describe()))
+            # With the knowledge of the event location comes the knowledge that those who participated in the event must have been there at that time
+            for entity in hist.historical_events[event_id].get_entities():
+                # If we know about the person, and the date of the event is
+                if entity in self.knowledge['entities'] and self.knowledge['entities'][entity]['location']['date_at_loc'] < hist.historical_events[event_id].date:
+                    self.add_person_location_knowledge(other_person=entity, date_learned=date_learned, date_at_loc=historical_events[event_id].date,
+                                                       location=hist.historical_events[event_id].location, heading=-1, source=source)
+
+                ## If we haven't heard of the other person yet, we won't know much other than that they were there
+                elif entity not in self.knowledge['entities']:
+                    self.add_awareness_of_person(other_person=entity)
+                    self.add_person_location_knowledge(other_person=entity, date_learned=date_learned, date_at_loc=historical_events[event_id].date,
+                                                       location=hist.historical_events[event_id].location, heading=-1, source=source)
+
+            #g.game.add_message(' ~   ~~ {0} has learned that {1}    '.format(self.owner.fullname(), hist.historical_events[event_id].describe()))
 
     def get_relations(self, other_person):
         # set initial relationship with another person
@@ -6316,8 +6338,8 @@ class Creature:
 
         self.knowledge['entities'][other_person]['meetings'] = {'date_met': None, 'date_of_last_meeting': None, 'number_of_meetings': 0}
         self.knowledge['entities'][other_person]['relations'] = {}
-        self.knowledge['entities'][other_person]['location'] = {}
-        self.knowledge['entities'][other_person]['stats'] = {'profession':None, 'age':None, 'city':None, 'goals':None}
+        self.knowledge['entities'][other_person]['location'] = {'coords': None, 'date_learned': None, 'date_at_loc': None, 'source': None, 'heading': None}
+        self.knowledge['entities'][other_person]['stats'] = {'profession': None, 'age': None, 'city': None, 'goals': None}
 
     def meet(self, other):
         # Use to set recipricol relations with another person

@@ -99,7 +99,7 @@ class WorldBattle(HistoricalEvent):
         self.determine_battle_type_and_execute_battle()
 
         # Add links between figures and this historical event
-        for figure in faction1_named + faction2_named:
+        for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
 
     def determine_battle_type_and_execute_battle(self):
@@ -207,6 +207,9 @@ class WorldBattle(HistoricalEvent):
             des = 'On {0}, {1} attacked {2} at {3}.'.format(g.WORLD.time_cycle.date_to_text(self.date), faction1_desc, faction2_desc,
                                                             g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
             return  des
+
+    def get_entities(self):
+        return self.faction1_named + self.faction2_named
 
 
 def handle_combat_round(actors):

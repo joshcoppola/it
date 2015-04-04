@@ -29,12 +29,15 @@ class Marriage(HistoricalEvent):
         HistoricalEvent.__init__(self, date, location)
         self.figures = figures
 
-        for figure in self.figures:
+        for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} married {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.figures[0].fulltitle(), self.figures[1].fulltitle())
         return des
+
+    def get_entities(self):
+        return self.figures
 
 class Birth(HistoricalEvent):
     def __init__(self, date, location, parents, child):
@@ -42,12 +45,15 @@ class Birth(HistoricalEvent):
         self.parents = parents
         self.child = child
 
-        for figure in self.parents + [self.child]:
+        for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} was born to {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.child.fullname(), join_list([p.fullname() for p in self.parents]))
         return des
+
+    def get_entities(self):
+        return self.parents + [self.child]
 
 
 class TravelStart(HistoricalEvent):
@@ -60,7 +66,7 @@ class TravelStart(HistoricalEvent):
         self.populations = populations
         self.reason = reason
 
-        for figure in self.figures:
+        for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
@@ -69,6 +75,8 @@ class TravelStart(HistoricalEvent):
                                                             g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description() )
         return des
 
+    def get_entities(self):
+        return self.figures
 
 class TravelEnd(HistoricalEvent):
     def __init__(self, date, location, figures, populations):
@@ -78,9 +86,12 @@ class TravelEnd(HistoricalEvent):
         self.commander = determine_commander(self.figures)
         self.populations = populations
 
-        for figure in self.figures:
+        for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
         des = 'On {0}, {1} arrived at {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(), self.describe_location())
         return des
+
+    def get_entities(self):
+        return self.figures
