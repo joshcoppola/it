@@ -69,13 +69,13 @@ def setup_resources():
         AGENT_INFO = yaml.load(a)
 
     # Loop through all resources in the yaml, creating resources and their associated reactions as we go
-    for rname in resource_info.keys():
+    for rname in resource_info:
         resource= Resource(name=rname, category=resource_info[rname]['category'], resource_class=resource_info[rname]['resource_class'],
                            gather_amount=resource_info[rname]['gather_amount'], break_chance=resource_info[rname]['break_chance'],
                            app_chances=resource_info[rname]['app_chances'], app_amt=resource_info[rname]['app_amount'])
         RESOURCES.append(resource)
         # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
-        for reaction_type in resource_info[rname]['reactions'].keys():
+        for reaction_type in resource_info[rname]['reactions']:
             finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['input_units'], out_amt=resource_info[rname]['reactions'][reaction_type]['output_units'])
             GOODS.append(finished_good)
 
@@ -87,11 +87,11 @@ def setup_resources():
         if not resource.category in RESOURCE_TYPES: RESOURCE_TYPES[resource.category] = [resource]
         else:                                  		RESOURCE_TYPES[resource.category].append(resource)
 
-        if not resource.category in COMMODITY_TYPES.keys(): COMMODITY_TYPES[resource.category] = [resource]
+        if not resource.category in COMMODITY_TYPES: COMMODITY_TYPES[resource.category] = [resource]
         else:												COMMODITY_TYPES[resource.category].append(resource)
 
         if resource.resource_class == 'strategic':
-            if not resource.resource_class in STRATEGIC_TYPES.keys(): STRATEGIC_TYPES[resource.category] = [resource]
+            if not resource.resource_class in STRATEGIC_TYPES: STRATEGIC_TYPES[resource.category] = [resource]
             else:													  STRATEGIC_TYPES[resource.category].append(resource)
 
 
@@ -102,10 +102,10 @@ def setup_resources():
         if not good.category in GOOD_TYPES: GOOD_TYPES[good.category] = [good]
         else:                          		GOOD_TYPES[good.category].append(good)
 
-        if not good.category in COMMODITY_TYPES.keys(): COMMODITY_TYPES[good.category] = [good]
+        if not good.category in COMMODITY_TYPES: COMMODITY_TYPES[good.category] = [good]
         else:											COMMODITY_TYPES[good.category].append(good)
 
-        if not good.category in GOODS_BY_RESOURCE_TOKEN.keys(): GOODS_BY_RESOURCE_TOKEN[good.material.name] = [good]
+        if not good.category in GOODS_BY_RESOURCE_TOKEN: GOODS_BY_RESOURCE_TOKEN[good.material.name] = [good]
         else:													GOODS_BY_RESOURCE_TOKEN[good.material.name].append(good)
 
 
@@ -167,7 +167,7 @@ def check_strategic_resources(nearby_resources):
 def list_goods_from_strategic(strategic_resources):
     goods_we_can_make = []
     for resource in strategic_resources:
-        if resource in GOODS_BY_RESOURCE_TOKEN.keys():
+        if resource in GOODS_BY_RESOURCE_TOKEN:
             for good_class in GOODS_BY_RESOURCE_TOKEN[resource]:
                 goods_we_can_make.append(good_class.name)
     return goods_we_can_make
@@ -1233,7 +1233,7 @@ class Economy:
     def add_commodity_to_economy(self, commodity):
         ''' Each commodity has an associated auction house, containing some price / bidding history '''
         category = COMMODITY_TOKENS[commodity].category
-        if category in self.available_types.keys():
+        if category in self.available_types:
             if commodity not in self.available_types[category]:
                 self.available_types[category].append(commodity)
                 self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
@@ -1301,13 +1301,13 @@ class Economy:
         # key = commodity, value = [gold, #_of_agents]
         tokens_of_commodity = {}
         for agent in self.resource_gatherers:
-            if agent.resource in tokens_of_commodity.keys():
+            if agent.resource in tokens_of_commodity:
                 tokens_of_commodity[agent.resource][0] += agent.gold
                 tokens_of_commodity[agent.resource][1] += 1
             else:
                 tokens_of_commodity[agent.resource] = [agent.gold, 1]
         for agent in self.good_producers:
-            if agent.output in tokens_of_commodity.keys():
+            if agent.output in tokens_of_commodity:
                 tokens_of_commodity[agent.output][0] += agent.gold
                 tokens_of_commodity[agent.output][1] += 1
             else:

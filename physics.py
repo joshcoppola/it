@@ -117,7 +117,7 @@ class WeaponGenerator:
         properties = WEAPON_PROPERTIES[wtype].copy()
         # Add any other special properties
         for wproperty, value in special_properties.iteritems():
-            if wproperty in properties.keys():
+            if wproperty in properties:
                 properties[wproperty] += value + random.choice((-10, -5, 0, 0, 10, 20))
             else:
                 properties[wproperty] = value + random.choice((-10, -5, 0, 0, 10, 20))
@@ -530,7 +530,7 @@ def import_object_yml(file_path):
         with open(os.path.join(file_path, ofile)) as yaml_file:
             objects = yaml.load(yaml_file)
 
-        for obj in objects.keys():
+        for obj in objects:
 
             object_dict[obj] = objects[obj]
             object_dict[obj]['name'] = obj
@@ -616,7 +616,7 @@ def cache_basic_weapon_types():
     basic_weapon_types = []
     ''' To save a bit of time, this will check all weapon types to see what can be made entirely out of wood '''
     # Loop through all weapons which were imported into the blueprint dict
-    for weapon_name in blueprint_dict.keys():
+    for weapon_name in blueprint_dict:
         # Flag, which will be set to 0 if the weapon has a component that can't be made out of wood
         weapon_is_basic = 1
         # This returns a dict, formatted {component:['valid', 'component', 'materials']}
@@ -640,7 +640,7 @@ def main():
         loaded_materials = yaml.load(m)
 
     materials = {}
-    for material_name in loaded_materials.keys():
+    for material_name in loaded_materials:
         materials[material_name] = Material(name=material_name, rgb_color=loaded_materials[material_name]['rgb_color'],
                                        density=loaded_materials[material_name]['density'], rigid=loaded_materials[material_name]['rigid'],
                                        force_diffusion=loaded_materials[material_name]['force_diffusion'],

@@ -164,7 +164,7 @@ class Wmap(Map):
         ''' Run when map is created, so it understands the various factions present '''
         self.factions_on_map = {}
         for obj in self.creatures:
-            if obj.creature.faction in self.factions_on_map.keys():
+            if obj.creature.faction in self.factions_on_map:
                 self.factions_on_map[obj.creature.faction].add(obj)
             else:
                 self.factions_on_map[obj.creature.faction] = set([obj])
@@ -182,7 +182,7 @@ class Wmap(Map):
             #            obj.sapient.add_enemy_faction(other_faction)
 
             #for enemy_faction in faction.enemy_factions:
-            #    if enemy_faction in self.factions_on_map.keys():
+            #    if enemy_faction in self.factions_on_map:
             #        g.game.add_message('%s: setting enemy - %s'%(faction.faction_name, enemy_faction.faction_name), libtcod.color_lerp(faction.color, PANEL_FRONT, .5) )
             #        for obj in member_set:
             #            obj.sapient.add_enemy_faction(enemy_faction)

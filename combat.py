@@ -43,13 +43,13 @@ def load_combat_data():
                         other_move = columns[column_index]
 
                         # Create dict of dicts, so that moves can later be looked up as combat_matrix[move_1][move_2]
-                        if current_move not in combat_matrix.keys():
+                        if current_move not in combat_matrix:
                             combat_matrix[current_move] = {other_move: probs}
                         else:
                             combat_matrix[current_move][other_move] = probs
 
                         # Need to make sure matrix knows what to do when in opposite order
-                        if other_move not in combat_matrix.keys():
+                        if other_move not in combat_matrix:
                             combat_matrix[other_move] = {current_move: (probs[1], probs[0])}
                         else:
                             combat_matrix[other_move][current_move] = (probs[1], probs[0])
@@ -263,11 +263,11 @@ def get_combat_odds(combatant_1, combatant_1_move, combatant_2, combatant_2_move
 
         # Get weapon properties and add any bonus
         c1_weapon_properties = combatant_1.creature.get_current_weapon().get_weapon_properties()
-        if combatant_1_move in c1_weapon_properties.keys():
+        if combatant_1_move in c1_weapon_properties:
             c1_dict['{0} bonus to {1}'.format(combatant_1.creature.get_current_weapon().name, combatant_1_move)] = c1_weapon_properties[combatant_1_move]
 
         c2_weapon_properties = combatant_2.creature.get_current_weapon().get_weapon_properties()
-        if combatant_2_move in c2_weapon_properties.keys():
+        if combatant_2_move in c2_weapon_properties:
             c2_dict['{0} bonus to {1}'.format(combatant_2.creature.get_current_weapon().name, combatant_2_move)] = c2_weapon_properties[combatant_2_move]
 
         # Add participant fighting skills

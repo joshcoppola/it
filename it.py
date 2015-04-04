@@ -436,7 +436,7 @@ class World(Map):
         self.famous_objects.remove(obj)
 
     def add_to_site_index(self, site):
-        if site.type_ not in self.site_index.keys():
+        if site.type_ not in self.site_index:
             self.site_index[site.type_] = [site]
         else:
             self.site_index[site.type_].append(site)
@@ -613,7 +613,7 @@ class World(Map):
         nearby_resource_locations = []
         for wx in xrange(x - distance, x + distance + 1):
             for wy in xrange(y - distance, y + distance + 1):
-                if self.is_val_xy( (wx, wy) ) and len(self.tiles[wx][wy].res.keys()):
+                if self.is_val_xy( (wx, wy) ) and self.tiles[wx][wy].res:
                     # Make sure there's a path to get the resource from (not blocked by ocean or whatever)
                     path = libtcod.path_compute(self.rook_path_map, x, y, wx, wy)
                     new_path_len = libtcod.path_size(self.rook_path_map)
@@ -1403,7 +1403,7 @@ class World(Map):
             nx, ny = random.choice(city_sites)
             city_sites.remove((nx, ny))
 
-            for resource in g.WORLD.tiles[nx][ny].res.keys():
+            for resource in g.WORLD.tiles[nx][ny].res:
                 if resource in city_blocker_resources:
                     (nx, ny) = random.choice([t for t in get_border_tiles(nx, ny) if self.is_valid_site(t[0], t[1]) ])
                     break
@@ -1442,16 +1442,16 @@ class World(Map):
 
         ## We assume the domestication of food has spread to all nearby cities
         for city in created_cities:
-            if not 'food' in city.native_res.keys():
+            if not 'food' in city.native_res:
                 city.native_res['food'] = 2000
-            if not 'flax' in city.native_res.keys():
+            if not 'flax' in city.native_res:
                 city.native_res['flax'] = 2000
 
             if city.culture.subsistence != 'agricultural':
                 city.culture.set_subsistence('agricultural')
 
             # Make sure the cultures the cities are a part of gain access to the resource
-            for resource in self.tiles[city.x][city.y].res.keys():
+            for resource in self.tiles[city.x][city.y].res:
                 if resource not in self.tiles[city.x][city.y].culture.access_res:
                     self.tiles[city.x][city.y].culture.access_res.append(resource)
 
@@ -1496,9 +1496,9 @@ class World(Map):
             cities_and_distances.sort()
 
             for distance, other_city in cities_and_distances:
-                for resource in other_city.native_res.keys():
+                for resource in other_city.native_res:
                     # If they have stuff we don't have access to and are not currently importing...
-                    if resource not in city.native_res.keys() and resource not in flattened_import_list:
+                    if resource not in city.native_res and resource not in flattened_import_list:
                         # Import it!
                         city.add_import(other_city, resource)
                         other_city.add_export(city, resource)
@@ -1779,7 +1779,7 @@ class World(Map):
             self.time_cycle.day_tick(1)
         #g.game.add_message('History run in %.2f seconds' %(time.time() - begin))
         # List the count of site types
-        g.game.add_message(join_list(['{0} {1}s'.format(len(self.site_index[type_]), type_) for type_ in self.site_index.keys()]))
+        g.game.add_message(join_list(['{0} {1}s'.format(len(self.site_index[type_]), type_) for type_ in self.site_index]))
 
 
     def initialize_fov(self):
@@ -1852,7 +1852,7 @@ class World(Map):
                     (wmap_x, wmap_y) = g.game.camera.cam2map(x, y)
                     libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
 
-                    if len(self.tiles[wmap_x][wmap_y].res.keys()) and not 'wood' in self.tiles[wmap_x][wmap_y].res.keys():
+                    if self.tiles[wmap_x][wmap_y].res and not 'wood' in self.tiles[wmap_x][wmap_y].res:
                         char = self.tiles[wmap_x][wmap_y].res.keys()[0][0].capitalize()
                         libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, char, libtcod.green, libtcod.black)
         ###########################################################################
@@ -2418,14 +2418,14 @@ class City(Site):
 
     def add_import(self, city, good):
         # Add other city as an importer if it's not already
-        if not city in self.imports.keys():
+        if not city in self.imports:
             self.imports[city] = []
             # Add the good that is being imported
         self.imports[city].append(good)
 
     def add_export(self, city, good):
         # Add other city as an exporter if it's not already
-        if not city in self.exports.keys():
+        if not city in self.exports:
             self.exports[city] = []
             # Add the good that is being exported
         self.exports[city].append(good)
@@ -2451,7 +2451,7 @@ class City(Site):
 
         for resource_type, amount in economy.CITY_RESOURCE_SLOTS.iteritems():
             for resource_class in economy.RESOURCE_TYPES[resource_type]:
-                if resource_class.name in self.native_res.keys():
+                if resource_class.name in self.native_res:
                     self.resource_slots[resource_class.name] = amount
 
         good_tokens_we_can_produce = economy.list_goods_from_strategic(self.native_res.keys())
@@ -2476,7 +2476,7 @@ class City(Site):
 
             for item in import_list:
                 ## It's coming up with good in the import list...
-                if item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
+                if item in economy.GOODS_BY_RESOURCE_TOKEN:
                     ## Add merchants to the other city, who sell stuff in this city
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
@@ -2499,7 +2499,7 @@ class City(Site):
                         city.econ.add_good_producer(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
-                    if item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
+                    if item in economy.GOODS_BY_RESOURCE_TOKEN:
                         for good_class in economy.GOODS_BY_RESOURCE_TOKEN[item]:
                             city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                             city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
@@ -2597,7 +2597,7 @@ class City(Site):
                 market.add_worker(figure)
 
                 ## cheap trick for now - add a little of the resource to the city stockpile
-                if figure.creature.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN.keys():
+                if figure.creature.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN:
                     self.warehouses[figure.creature.economy_agent.traded_item].add(figure.creature.economy_agent.traded_item, 2)
         #g.WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
         #g.WORLD.travelers.remove(caravan_leader)
@@ -2616,7 +2616,7 @@ class City(Site):
                     self.acquire_tile(x, y)
 
     def obtain_resource(self, resource, amount):
-        if resource not in self.native_res.keys():
+        if resource not in self.native_res:
             self.native_res[resource] = amount
 
     def acquire_tile(self, x, y):
@@ -2776,7 +2776,7 @@ class City(Site):
 
     def get_available_materials(self):
         available_materials = []
-        for material in self.native_res.keys():
+        for material in self.native_res:
             available_materials.append(material)
 
         for import_list in self.imports.values():
@@ -2985,7 +2985,7 @@ class Building:
     def add_building_from_rect_lot(self, rect, building_color, floor, door_dir):
 
         w, h = rect.x2-rect.x1, rect.y2-rect.y1
-        if (w, h) in building_templates.buildings['houses'].keys():
+        if (w, h) in building_templates.buildings['houses']:
 
             bx, by = rect.x1, rect.y1
             template = random.choice(building_templates.buildings['houses'][(w, h)])
@@ -3166,21 +3166,21 @@ class Faction:
 
 
     def modify_faction_relations(self, faction, reason, amount):
-        if faction in self.faction_relations.keys():
-            if reason in self.faction_relations[faction].keys():
+        if faction in self.faction_relations:
+            if reason in self.faction_relations[faction]:
                 self.faction_relations[faction][reason] += amount
 
-            elif reason not in self.faction_relations[faction].keys():
+            elif reason not in self.faction_relations[faction]:
                 self.faction_relations[faction][reason] = amount
 
-        elif faction not in self.faction_relations.keys():
+        elif faction not in self.faction_relations:
             self.faction_relations[faction] = {reason:amount}
 
     def get_faction_relations(self, other_faction):
 
         reasons = {}
 
-        if other_faction in self.faction_relations.keys():
+        if other_faction in self.faction_relations:
             for reason, amount in self.faction_relations[other_faction]:
                 reasons[reason] = amount
 
@@ -3223,7 +3223,7 @@ class Faction:
         heir.creature.inheritance[self] = number_in_line
 
     def unset_heir(self, heir):
-        assert self in heir.creature.inheritance.keys(), '%s not in %s\'s inheritance' %(self.name, heir.fulltitle())
+        assert self in heir.creature.inheritance, '%s not in %s\'s inheritance' %(self.name, heir.fulltitle())
         del heir.creature.inheritance[self]
 
     def get_heirs(self, number):
@@ -4755,9 +4755,9 @@ class Population:
     def get_number_of_beings(self):
         total_number = 0
 
-        for culture in self.sentients.keys():
-            for race in self.sentients[culture].keys():
-                for profession_name in self.sentients[culture][race].keys():
+        for culture in self.sentients:
+            for race in self.sentients[culture]:
+                for profession_name in self.sentients[culture][race]:
                     total_number += self.sentients[culture][race][profession_name]
 
         return total_number
@@ -4799,9 +4799,9 @@ class Population:
         ''' Add this population to the map '''
         allmembers = []
 
-        for culture in self.sentients.keys():
-            for race in self.sentients[culture].keys():
-                for profession_name in self.sentients[culture][race].keys():
+        for culture in self.sentients:
+            for race in self.sentients[culture]:
+                for profession_name in self.sentients[culture][race]:
                     for i in xrange(self.sentients[culture][race][profession_name]):
                         human = culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1, race=race)
                         # TODO - this should be improved
@@ -5336,7 +5336,7 @@ class Creature:
                                   }
 
 
-        for faction in factions_on_map.keys():
+        for faction in factions_on_map:
             self.dijmap_desires[faction.name] = 0
 
 
@@ -5835,7 +5835,7 @@ class Creature:
         if target not in self.recent_interlocutors:
             return ['greet']
 
-        if target not in self.knowledge['entities'].keys():
+        if target not in self.knowledge['entities']:
             return ['name']
 
         if self.knowledge['entities'][target]['stats']['city'] is None:
@@ -6051,7 +6051,7 @@ class Creature:
     def add_event(self, date, event):
         ''' Should add an event to our memory'''
         (year, month, day) = date
-        if (year, month, day) in self.events.keys():
+        if (year, month, day) in self.events:
             self.events[(year, month, day)].append(event)
         else:
             self.events[(year, month, day)] = [event]
@@ -6198,19 +6198,19 @@ class Creature:
         # Set opinions on various things according to our profession and personality
         self.opinions = {}
 
-        for issue in PROF_OPINIONS.keys():
+        for issue in PROF_OPINIONS:
             prof_opinion = 0
             personal_opinion = 0
             reasons = {}
 
             ## Based on profession ##
-            if self.profession is not None and self.profession.category in PROF_OPINIONS[issue].keys():
+            if self.profession is not None and self.profession.category in PROF_OPINIONS[issue]:
                 prof_opinion = PROF_OPINIONS[issue][self.profession.category]
                 reasons['profession'] = prof_opinion
 
             ## Based on personal traits ##
             for trait, multiplier in self.traits.iteritems():
-                if trait in PERSONAL_OPINIONS[issue].keys():
+                if trait in PERSONAL_OPINIONS[issue]:
                     amount = PERSONAL_OPINIONS[issue][trait] * multiplier
                     reasons[trait] = amount
                     personal_opinion += amount
@@ -6224,7 +6224,7 @@ class Creature:
 
     def add_person_fact_knowledge(self, other_person, info_type, info):
         ''' Checks whether we know of the person and then updates info '''
-        if not other_person in self.knowledge['entities'].keys():
+        if not other_person in self.knowledge['entities']:
             self.add_awareness_of_person(other_person)
 
         self.knowledge['entities'][other_person]['stats'][info_type] = info
@@ -6251,7 +6251,7 @@ class Creature:
         ''' Encounter another entity, updating knowledge as necessary '''
         date = g.WORLD.time_cycle.get_current_date()
 
-        if not other in self.knowledge['entities'].keys():
+        if not other in self.knowledge['entities']:
             self.add_awareness_of_person(other)
 
         self.add_person_location_knowledge(other_person=other, date_learned=date, date_at_loc=date, location=(self.owner.wx, self.owner.wy), heading=other.world_last_dir, source=self.owner)
@@ -6301,7 +6301,7 @@ class Creature:
         reasons = {}
 
         for trait, multiplier in self.traits.iteritems():
-            for otrait in other_person.creature.traits.keys():
+            for otrait in other_person.creature.traits:
                 if trait == otrait:
                     reasons['Both ' + trait] = 4 * multiplier
                     break
@@ -6311,7 +6311,7 @@ class Creature:
 
         # Things other than traits can modify this, must be stored in self.extra_relations
         # Basically merge this into the "reasons" dict
-        if other_person in self.knowledge['entities'].keys():
+        if other_person in self.knowledge['entities']:
             for reason, amount in self.knowledge['entities'][other_person]['relations'].iteritems():
                 reasons[reason] = amount
 
@@ -6322,11 +6322,11 @@ class Creature:
         # Anything affecting relationship not covered by traits
 
         # Add them to relation list if not already there
-        if not other_person in self.knowledge['entities'].keys():
+        if not other_person in self.knowledge['entities']:
             self.add_awareness_of_person(other_person)
 
         # Then add the reason
-        if not reason in self.knowledge['entities'][other_person]['relations'].keys():
+        if not reason in self.knowledge['entities'][other_person]['relations']:
             self.knowledge['entities'][other_person]['relations'][reason] = amount
         else:
             self.knowledge['entities'][other_person]['relations'][reason] += amount
@@ -6389,7 +6389,7 @@ class DijmapSapient:
                     #g.game.add_message('{0} hostile to {1}'.format(self.owner.creature.faction.name, faction), self.owner.creature.faction.color)
 
                     for member in members:
-                        if member not in self.perceived_enemies.keys() and member not in self.unperceived_enemies and not member.creature.is_captive():
+                        if member not in self.perceived_enemies and member not in self.unperceived_enemies and not member.creature.is_captive():
                             self.unperceived_enemies.append(member)
                             #g.game.add_message(new_msg="{0} adding {1} to enemies".format(self.owner.fullname(), member.fullname()), color=self.owner.color)
 
@@ -6555,14 +6555,14 @@ class DijmapSapient:
             # This will clear the target, in case they happen to be following someone or whatever
             self.unset_target()
 
-            for faction in g.M.factions_on_map.keys():
+            for faction in g.M.factions_on_map:
             #for faction in actor.creature.dijmap_desires.keys():
                 if actor.creature.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.name] = 2
 
         elif self.ai_state  == 'fleeing':
 
-            for faction in g.M.factions_on_map.keys():
+            for faction in g.M.factions_on_map:
             #for faction in actor.creature.dijmap_desires.keys():
                 if actor.creature.faction.is_hostile_to(faction):
                     actor.creature.dijmap_desires[faction.name] = -4
@@ -7041,13 +7041,13 @@ class TimeCycle(object):
     def add_event(self, date, event):
         ''' Should add an event to the scheduler'''
         (year, month, day) = date
-        if (year, month, day) in self.events.keys():
+        if (year, month, day) in self.events:
             self.events[(year, month, day)].append(event)
         else:
             self.events[(year, month, day)] = [event]
 
     def handle_events(self):
-        if (self.current_year, self.current_month, self.current_day) in self.events.keys():
+        if (self.current_year, self.current_month, self.current_day) in self.events:
             for event in self.events[(self.current_year, self.current_month, self.current_day)]:
                 event()
 
@@ -7467,7 +7467,7 @@ class Culture:
 
     def add_villages(self):
         for x, y in self.territory:
-            for resource in g.WORLD.tiles[x][y].res.keys():
+            for resource in g.WORLD.tiles[x][y].res:
                 if resource not in self.access_res and g.WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(g.WORLD.tiles[x][y].minor_sites):
                     self.access_res.append(resource)
                     self.add_village(x, y)
@@ -8607,7 +8607,7 @@ def show_people(world):
         libtcod.console_print(0, x_att_offset, 4, '<< ' + world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p].fullname() + ' >>')
         ##### Only show people who this person knows personally for now
         y = 0
-        for other_person in selected_person.creature.knowledge['entities'].keys():
+        for other_person in selected_person.creature.knowledge['entities']:
             if y + 20 > SCREEN_HEIGHT: # Just make sure we don't write off the screen...
                 libtcod.console_print(0, x_list_offset, y + 9, '<<< more >>>')
                 break
@@ -8708,7 +8708,7 @@ def show_cultures(world, spec_culture=None):
 
         ###### VOCABULARY ########
         y = language_box_y + 1
-        root_con.draw_box(x=41, x2=68, y=y-1, y2=y-1 + 2 + len(language.vocabulary.keys()), color=PANEL_FRONT)
+        root_con.draw_box(x=41, x2=68, y=y-1, y2=y-1 + 2 + len(language.vocabulary), color=PANEL_FRONT)
         libtcod.console_print(0, 43, y, 'Basic {0} vocabulary'.format(language.name))
         sorted_vocab = [(k, v) for k, v in language.vocabulary.iteritems()]
         sorted_vocab.sort()

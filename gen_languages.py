@@ -382,9 +382,9 @@ class Orthography:
         ## Sort of silly, but it we allow "y" to be used in place of "i", we need
         ## to make sure that "y" cannot also be a consonant (we'll replace with J for now)
         if nordic_i:
-            if 101 in potential_v_rep.keys():
+            if 101 in potential_v_rep:
                 potential_v_rep[101] = ['y', chr(152)]
-            if 108 in potential_v_rep.keys():
+            if 108 in potential_v_rep:
                 potential_v_rep[101] = ['y', chr(152)]
 
             potential_c_rep = self.replace_grapheme(mapping=potential_c_rep, phoneme=222, old='y', new='j')
@@ -412,18 +412,18 @@ class Orthography:
 
         # Here's where consonants get mapped
         for consonant, grapheme_list in potential_c_rep.iteritems():
-            if not consonant in self.mapping.keys():
+            if not consonant in self.mapping:
                 grapheme = choice(grapheme_list)
                 self.mapping[consonant] = grapheme
         # Here's where vowels get mapped
         for vowel, grapheme_list in potential_v_rep.iteritems():
-            if not vowel in self.mapping.keys():
+            if not vowel in self.mapping:
                 grapheme = choice(grapheme_list)
                 self.mapping[vowel] = grapheme
 
     def replace_grapheme(self, mapping, phoneme, old, new):
         ''' Replace an instance of a possible grapheme with a new possible grapheme '''
-        if phoneme in mapping.keys():
+        if phoneme in mapping:
             num_graphemes = mapping[phoneme].count(old)
             for g in xrange(num_graphemes):
                 mapping[phoneme].remove(old)
