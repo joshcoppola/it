@@ -5777,7 +5777,7 @@ class Creature:
                 if self.knowledge['events']:
                     for event_id in self.knowledge['events']:
                         self.say(hist.historical_events[event_id].describe())
-                        self.say('I heard this from {0} on {1}'.format(self.knowledge['events'][event_id]['description']['source'].fullname(),
+                        self.say('I heard this from {0} on {1}'.format(self.knowledge['events'][event_id]['description']['source'].fulltitle(),
                                                                         g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
                 else:
                     self.say('I haven\'t heard of anything going on recently')
@@ -6154,7 +6154,7 @@ class Creature:
                 g.game.add_message(figure.fulltitle(), 'was not in his house!')
 
     def get_age(self):
-        return g.WORLD.time_cycle.current_year - self.born
+        return g.WORLD.time_cycle.date_dif(earlier_date=self.born, later_date=g.WORLD.time_cycle.get_current_date())
 
     def get_profession(self):
         if self.profession:
@@ -7028,10 +7028,8 @@ class TimeCycle(object):
         ## Dict of events, with keys being the future Y, M, and D, and values being a list of events
         self.events = {}
 
-    def days_to_date(self, days_in_advance):
-        # Return a tuple containing year, month, day, hour info
-        (years, remainder) = divmod(days_in_advance, (self.months_per_year * self.days_per_month))
-        (months, days_left) = divmod(remainder, self.days_per_month)
+    def get_future_date(self, days_in_advance):
+        (years, months, days_left) = self.days_to_date(days_in_advance)
 
         total_days = self.current_day + days_left
         if total_days <= self.days_per_month:
@@ -7051,6 +7049,12 @@ class TimeCycle(object):
 
         return (future_year, future_month, future_day)
 
+    def days_to_date(self, number_of_days):
+        ''' Convert # of days to a (years, months, days) tuple '''
+        (years, remainder) = divmod(number_of_days, (self.months_per_year * self.days_per_month))
+        (months, days_left) = divmod(remainder, self.days_per_month)
+
+        return (years, months, days_left)
 
     def add_event(self, date, event):
         ''' Should add an event to the scheduler'''
@@ -7126,6 +7130,22 @@ class TimeCycle(object):
     def get_current_date(self):
         return (self.current_year, self.current_month, self.current_day)
 
+    def date_dif(self, earlier_date, later_date, mode='years'):
+        years1, months1, days1 = earlier_date
+        years2, months2, days2 = later_date
+
+        days_dif = ((years2 * self.days_per_month * self.months_per_year) + (months2 * self.days_per_month) + days2 ) - \
+                   ((years1 * self.days_per_month * self.months_per_year) + (months1 * self.days_per_month) + days1 )
+
+        if mode == 'years':
+            return int(days_dif / (self.days_per_month * self.months_per_year) )
+        elif mode == 'months':
+            return int(days_dif / self.days_per_month)
+        elif mode == 'days':
+            return days_dif
+        elif mode == 'date_format':
+            return self.days_to_date(days_dif)
+
     #def get_current_date_as_text(self):
     #    return '{0}, {1} {2}'.format(self.weekdays[self.current_weekday], self.months[self.current_month], self.current_day + 1)
 
@@ -7142,12 +7162,13 @@ class TimeCycle(object):
 
         return '{0}:{1}'.format(self.current_hour, minutes)
 
-    def years_ago(self, *args):
-        ''' Calculates X years again if 1 arg, randint between X and Y years ago if 2 args '''
-        if len(args) == 1:
-            return self.current_year - args[0]
-        elif len(args) == 2:
-            return self.current_year - (roll(args[0], args[1]))
+    def years_ago(self, years, randomize=1):
+        year = self.current_year - years
+
+        if randomize:
+            return (year, roll(0, self.months_per_year), roll(0, self.days_per_month))
+        else:
+            return (year, self.current_month, self.current_day)
 
     #a tick method, which was implemented before libtcod. it now keeps track of how many turns have passed.
     def tick(self):
@@ -7213,7 +7234,7 @@ class TimeCycle(object):
 
         # Player econ preview - to show items we're gonna bid on
         if g.game.state == 'playing' and g.player.creature.economy_agent:
-            g.player.creature.economy_agent.g.player_auto_manage()
+            g.player.creature.economy_agent.player_auto_manage()
             panel4.tiles_dynamic_buttons = []
             panel4.recalculate_wmap_dyn_buttons = True
 
