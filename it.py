@@ -102,6 +102,28 @@ PERSONAL_OPINIONS = {
                      'Unbeliever': 4}
                 }
 
+PROFESSION_INFAMY = {
+    'King': 100,
+    'Noble': 75,
+    'General': 75,
+    'High Priest': 75,
+    'Tax Collector': 50,
+    'Spymaster': 50,
+    'Vizier': 75,
+    'Militia Captain': 50,
+    'Scribe': 20,
+
+    'Adventurer': 5,
+    'Tavern Keeper': 10,
+    'Assassin': 0,
+    'Bandit': 0,
+
+    'Swordsman': 0,
+    'Caravan Guard': 0,
+
+    'merchant': 0
+}
+
 MIN_MARRIAGE_AGE = 16
 MAX_MARRIAGE_AGE = 50
 MIN_CHILDBEARING_AGE = 16
@@ -1288,7 +1310,8 @@ class World(Map):
             race = random.choice(self.brutish_races)
             name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
             faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
-            myth_creature = self.default_mythic_culture.create_being(sex=1, age=50, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race=race, save_being=1, intelligence_level=2)
+            born = g.WORLD.time_cycle.years_ago(50)
+            myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race=race, save_being=1, intelligence_level=2)
 
             num_creatures = roll(5, 25)
             sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
@@ -2104,10 +2127,11 @@ class World(Map):
             faction = Faction(leader_prefix='Chief', name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
-            leader = culture.create_being(sex=1, age=roll(20, 45), char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
+            born = g.WORLD.time_cycle.years_ago(roll(20, 45))
+            leader = culture.create_being(sex=1, born=born, char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
-            sentients = {leader.creature.culture:{leader.creature.type_:{'Swordsmen':10}}}
+            sentients = {leader.creature.culture:{leader.creature.type_:{'Swordsman':10}}}
             self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
             if roll(1, 10) >= 9:
@@ -2145,7 +2169,8 @@ class World(Map):
         bandit_faction.set_headquarters(hideout_building)
 
         # Create a bandit leader from nearby city
-        leader = closest_city.create_inhabitant(sex=1, age=roll(18, 35), char='o', dynasty=None, important=1, house=None)
+        born = g.WORLD.time_cycle.years_ago(roll(18, 35))
+        leader = closest_city.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=1, house=None)
         bandit_faction.set_leader(leader)
         # Set profession, weirdly enough
         profession = Profession(name='Bandit', category='bandit')
@@ -2292,7 +2317,7 @@ class Site:
         else:
             return self.type_
 
-    def create_inhabitant(self, sex, age, char, dynasty, important, race=None, armed=0, house=None):
+    def create_inhabitant(self, sex, born, char, dynasty, important, race=None, armed=0, house=None):
         ''' Add an inhabitant to the site '''
 
         # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our hometown)
@@ -2304,7 +2329,7 @@ class Site:
             culture = self.culture
             hometown = self
 
-        human = culture.create_being(sex=sex, age=age, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=armed, race=race, save_being=1)
+        human = culture.create_being(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=armed, race=race, save_being=1)
 
         # Make sure our new inhabitant has a house
         if house is None:
@@ -2532,7 +2557,8 @@ class City(Site):
 
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
-        human = self.create_inhabitant(sex=1, age=roll(20, 60), char='o', dynasty=None, important=0, house=None)
+        born = g.WORLD.time_cycle.years_ago(roll(20, 60))
+        human = self.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
         human.set_world_brain(BasicWorldBrain())
 
         ## Actually give profession to the person ##
@@ -2703,13 +2729,16 @@ class City(Site):
         else:
             wife_dynasty = None
 
-        leader = self.create_inhabitant(sex=1, age=roll(28, 40), char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
-        wife = self.create_inhabitant(sex=0, age=roll(28, 35), char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.creature.house)
+        born = g.WORLD.time_cycle.years_ago(roll(28, 40))
+        leader = self.create_inhabitant(sex=1, born=born, char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
+
+        born = g.WORLD.time_cycle.years_ago(roll(28, 35))
+        wife = self.create_inhabitant(sex=0, born=born, char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.creature.house)
         # Make sure wife takes husband's name
         wife.creature.lastname = new_dynasty.lastname
 
-        leader.creature.spouse = wife
-        wife.creature.spouse = leader
+        marriage_date = g.WORLD.time_cycle.years_ago(roll(6, 10))
+        leader.creature.take_spouse(spouse=wife, date=marriage_date)
 
         all_new_figures = [leader, wife]
 
@@ -2718,7 +2747,8 @@ class City(Site):
         leader_siblings = []
         for i in xrange(roll(2, 5)):
             sex = roll(0, 1)
-            sibling = self.create_inhabitant(sex=sex, age=roll(28, 40), char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=None)
+            born = g.WORLD.time_cycle.years_ago(roll(28, 40))
+            sibling = self.create_inhabitant(sex=sex, born=born, char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=None)
             leader_siblings.append(sibling)
             all_new_figures.append(sibling)
 
@@ -2727,7 +2757,8 @@ class City(Site):
             wife_siblings = []
             for i in xrange(roll(2, 5)):
                 sex = roll(0, 1)
-                sibling = self.create_inhabitant(sex=sex, age=roll(28, 40), char='o', dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
+                born = g.WORLD.time_cycle.years_ago(roll(20, 45))
+                sibling = self.create_inhabitant(sex=sex, born=born, char='o', dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
                 wife_siblings.append(sibling)
                 all_new_figures.append(sibling)
 
@@ -2735,27 +2766,17 @@ class City(Site):
             for sibling in wife_siblings:
                 sibling.creature.siblings.append(wife)
 
-        # children
-        children = []
+        # have children
         for i in xrange(roll(1, 3)):
-            sex = roll(0, 1)
-            child = self.create_inhabitant(sex=sex, age=roll(1, 10), char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=leader.creature.house)
-            children.append(child)
+            born = g.WORLD.time_cycle.years_ago(roll(1, 10))
+            child = wife.creature.have_child(date_born=born)
+
             all_new_figures.append(child)
 
         leader.creature.siblings = leader_siblings
         for sibling in leader_siblings:
             sibling.creature.siblings.append(leader)
 
-        leader.creature.children = children
-        wife.creature.children = children
-
-        for child in children:
-            child.creature.mother = wife
-            child.creature.father = leader
-            for other_child in children:
-                if other_child != child and other_child not in child.creature.siblings:
-                    child.creature.siblings.append(other_child)
 
         # Give a "Noble" profession to any new male members
         for figure in filter(lambda f: f.creature.get_age() >= MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
@@ -2931,12 +2952,13 @@ class Building:
 
         else:
             # Mostly try to use existing folks to fill the position
-            if not profession.name in ('Assassin') and len(potential_employees) > 0:
+            if not profession.name in ('Assassin', ) and len(potential_employees) > 0:
                 human = random.choice(potential_employees)
                 all_new_figures = [human]
             # Otherwise, create a new person
             else:
-                human = self.site.create_inhabitant(sex=1, age=roll(18, 40), char='o', dynasty=None, important=0, house=None)
+                born = g.WORLD.time_cycle.years_ago(roll(18, 40))
+                human = self.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
                 all_new_figures = [human]
 
         ## Actually give profession to the person ##
@@ -3048,6 +3070,16 @@ class Profession:
             self.holder.creature.profession.remove_profession_from(self.holder)
 
         figure.creature.profession = self
+        # Update infamy, if necessary
+        if self.name in PROFESSION_INFAMY:
+            figure.add_infamy(amount=PROFESSION_INFAMY[self.name])
+        ## Quick fix for merchants all having unique names
+        elif self.category in PROFESSION_INFAMY:
+            figure.add_infamy(amount=PROFESSION_INFAMY[self.category])
+        #else:
+        #    print '{0} not part of PROFESSION_INFAMY'.format(self.name)
+
+
         self.holder = figure
         # Has to be done afterward, so the profession's current building can be set
         if self.current_work_building:
@@ -3259,7 +3291,8 @@ class Faction:
 
                 heir = random.choice(self.members)
                 if heir is None:
-                    heir = self.headquarters.site.culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
+                    born = g.WORLD.time_cycle.years_ago(roll(20, 45))
+                    heir = self.headquarters.site.culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
                     self.set_heir(heir=heir, number_in_line=1)
 
                 return [heir]
@@ -3336,6 +3369,8 @@ class Object:
 
         # If this thing was designed as a weapon, this flag keeps track of it
         self.weapon = weapon
+        # How important / well-known this object is - also tracks entities' importance level
+        self.infamy = 0
 
         self.wearing = []
         self.wearable = wearable
@@ -3399,6 +3434,9 @@ class Object:
         if self.creature:
             self.creature.add_knowledge_of_event(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self)
             self.creature.add_knowledge_of_event_location(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self)
+
+    def add_infamy(self, amount):
+        self.infamy += amount
 
     def set_current_owner(self, figure):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
@@ -4803,7 +4841,8 @@ class Population:
             for race in self.sentients[culture]:
                 for profession_name in self.sentients[culture][race]:
                     for i in xrange(self.sentients[culture][race][profession_name]):
-                        human = culture.create_being(sex=1, age=roll(20, 45), char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1, race=race)
+                        born = g.WORLD.time_cycle.years_ago(roll(20, 45))
+                        human = culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1, race=race)
                         # TODO - this should be improved
                         human.creature.commander = self.commander
 
@@ -6060,7 +6099,8 @@ class Creature:
         if possible_successors != []:
             return possible_successors[0]
         else:
-            return self.current_citizenship.create_inhabitant(sex=1, age=roll(18, 35), char='o', dynasty=None, important=self.important)
+            born = g.WORLD.time_cycle.years_ago(roll(18, 35))
+            return self.current_citizenship.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=self.important)
 
     def add_event(self, date, event):
         ''' Should add an event to our memory'''
@@ -6167,26 +6207,47 @@ class Creature:
             return 'Maiden'
         return 'No profession'
 
-    def take_spouse(self, spouse):
+    def take_spouse(self, spouse, date='today'):
         self.spouse = spouse
         spouse.creature.spouse = self.owner
 
-    def have_child(self):
+        # Update infamy
+        self.owner.infamy += int(spouse.infamy/2)
+        spouse.infamy += int(self.owner.infamy/2)
 
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), age=0, char='o', dynasty=self.spouse.creature.dynasty, race=self.type_, important=self.important)
+        if date == 'today':
+            date = g.WORLD.time_cycle.get_current_date()
 
-        self.children.append(child)
-        self.spouse.creature.children.append(child)
+        event = hist.Marriage(date=date, location=(self.owner.wy, self.owner.wy), figures=[self.owner, spouse])
+        g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
+
+    def have_child(self, date_born='today'):
+
+        if date_born == 'today':
+            date_born = g.WORLD.time_cycle.get_current_date()
+
+        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=date_born, char='o', dynasty=self.spouse.creature.dynasty, race=self.type_, important=self.important, house=self.house)
+
+        # Let the child know who its siblings are
+        for other_child in self.children:
+            child.creature.siblings.append(other_child)
+            # Update knowledge of child
+            other_child.creature.meet(child)
 
         child.creature.mother = self.owner
         child.creature.father = self.spouse
 
-        child.creature.mother.creature.meet(child)
-        child.creature.father.creature.meet(child)
+        infamy_amount = int(child.creature.mother.infamy/2) + int(child.creature.father.infamy/2)
+        child.add_infamy(amount=infamy_amount)
+
+        # Add to children and update mother/father
+        for parent in [self.owner, self.spouse]:
+            parent.creature.children.append(child)
+            parent.creature.meet(child)
 
         child.creature.generation = self.spouse.creature.generation + 1
 
-        event = hist. Birth(date=g.WORLD.time_cycle.get_current_date(), location=(self.owner.wx, self.owner.wy), parents=[self.owner, self.spouse], child=child)
+        event = hist. Birth(date=date_born, location=(self.owner.wx, self.owner.wy), parents=[self.owner, self.spouse], child=child)
         g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
 
         return child
@@ -6830,7 +6891,8 @@ class BasicWorldBrain:
             if len(potential_spouses) == 0 and self.owner.creature.current_citizenship:
                 # Make a person out of thin air to marry
                 sex = abs(self.owner.creature.sex-1)
-                potential_spouses = [self.owner.creature.current_citizenship.create_inhabitant(sex=sex, age=self.owner.creature.get_age()+roll(-5, 5),
+                born = g.WORLD.time_cycle.years_ago(roll(18, 30))
+                potential_spouses = [self.owner.creature.current_citizenship.create_inhabitant(sex=sex, born=born,
                                                                                 char='o', dynasty=None, race=self.owner.creature.type_,
                                                                                 important=self.owner.creature.important,
                                                                                 house=self.owner.creature.house)]
@@ -6856,9 +6918,6 @@ class BasicWorldBrain:
             # Make sure the spouse meets them
             if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
                 spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
-
-            event = hist.Marriage(date=g.WORLD.time_cycle.get_current_date(), location=(self.owner.wy, self.owner.wy), figures=[self.owner, spouse])
-            g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
 
             return spouse
 
@@ -7166,7 +7225,7 @@ class TimeCycle(object):
         year = self.current_year - years
 
         if randomize:
-            return (year, roll(0, self.months_per_year), roll(0, self.days_per_month))
+            return (year, roll(0, self.months_per_year - 1), roll(0, self.days_per_month - 1))
         else:
             return (year, self.current_month, self.current_day)
 
@@ -7517,7 +7576,7 @@ class Culture:
 
 
 
-    def create_being(self, sex, age, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3):
+    def create_being(self, sex, born, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3):
         ''' Create a human, using info loaded from xml in the physics module '''
         # If race=None then we'll need to pick a random race from this culture
         if not race:
@@ -7534,7 +7593,7 @@ class Culture:
         else:                     lastname = lang.spec_cap(random.choice(self.language.vocab_n.values()))
 
 
-        born = g.WORLD.time_cycle.years_ago(age)
+        #born = g.WORLD.time_cycle.years_ago(age)
 
         # The creature component
         creature_component = Creature(type_=race, sex=sex, intelligence_level=intelligence_level, firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
@@ -8276,7 +8335,8 @@ class Game:
         self.switch_map_scale(map_scale='world')
 
         g.playerciv = g.WORLD.cities[0]
-        g.player = g.playerciv.culture.create_being(sex=1, age=roll(30, 40), char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        born = g.WORLD.time_cycle.years_ago(roll(20, 45))
+        g.player = g.playerciv.culture.create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
         g.WORLD.tiles[g.player.wx][g.player.wy].entities.append(g.player)
         g.WORLD.tiles[g.player.wx][g.player.wy].chunk.entities.append(g.player)
 
@@ -8326,8 +8386,9 @@ class Game:
         # Set them as enemies (function will do so reciprocally)
         #faction1.set_enemy_faction(faction=faction2)
 
-        ### Make the g.player ###
-        g.player = cult.create_being(sex=1, age=roll(20, 40), char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
+        ### Make the player ###
+        born = g.WORLD.time_cycle.years_ago(roll(20, 40))
+        g.player = cult.create_being(sex=1, born=born, char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
         #g.player.creature.skills['fighting'] += 100
         g.player.char = '@'
         g.player.local_brain = None
@@ -8336,7 +8397,8 @@ class Game:
         g.player_party = g.WORLD.create_population(char='@', name="g.player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=g.player)
 
 
-        leader = cult.create_being(sex=1, age=roll(20, 40), char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
+        born = g.WORLD.time_cycle.years_ago(roll(20, 40))
+        leader = cult.create_being(sex=1, born=born, char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
         enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
