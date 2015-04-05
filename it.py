@@ -5813,12 +5813,14 @@ class Creature:
                     self.say('I do not have any profession.')
 
             elif question_type == 'events':
-                if self.knowledge['events']:
-                    for event_id in self.knowledge['events']:
+                found_event = 0
+                for event_id in self.knowledge['events']:
+                    if g.WORLD.time_cycle.date_dif(earlier_date=hist.historical_events[event_id].date, later_date=g.WORLD.time_cycle.get_current_date()) <= 1:
+                        found_event = 1
                         self.say(hist.historical_events[event_id].describe())
                         self.say('I heard this from {0} on {1}'.format(self.knowledge['events'][event_id]['description']['source'].fulltitle(),
-                                                                        g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
-                else:
+                                                                    g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
+                if not found_event:
                     self.say('I haven\'t heard of anything going on recently')
 
             elif question_type == 'age':
@@ -6333,7 +6335,9 @@ class Creature:
         self.update_meeting_info(other, date)
 
         for event_id in self.knowledge['events']:
-            other.creature.add_knowledge_of_event(event_id=event_id, date_learned=date, source=self.owner)
+            # Only share events that are important. TODO - also share events pertaining to loved ones, even if they're not important
+            if hist.historical_events[event_id].get_importance() >= 50:
+                other.creature.add_knowledge_of_event(event_id=event_id, date_learned=date, source=self.owner)
 
 
     def add_knowledge_of_event(self, event_id, date_learned, source):

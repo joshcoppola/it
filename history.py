@@ -7,10 +7,13 @@ event_id = 0
 
 class HistoricalEvent:
     def __init__(self, date, location):
+        ''' The base HistoricalEvent class that all others inherit from '''
         global event_id
         self.date = date
         self.location = location
 
+        # Most events (marriages, births, traveling) have low base importance - but the event may be considered important if the people in it are famous
+        self.base_importance = 0
         self.id_ = event_id
         event_id += 1
 
@@ -23,6 +26,13 @@ class HistoricalEvent:
     def describe_location(self):
         return g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description()
 
+    def get_importance(self):
+        ''' Get importance of the event. Uses get_entities() which returns all associated entities, defined in each individual event '''
+        importance = self.base_importance
+        for entity in self.get_entities():
+            importance += entity.infamy
+
+        return importance
 
 class Marriage(HistoricalEvent):
     def __init__(self, date, location, figures):
@@ -49,7 +59,7 @@ class Birth(HistoricalEvent):
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
-        des = 'On {0}, {1} was born to {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.child.fullname(), join_list([p.fullname() for p in self.parents]))
+        des = 'On {0}, {1} was born to {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.child.fullname(), join_list([p.fulltitle() for p in self.parents]))
         return des
 
     def get_entities(self):
@@ -70,7 +80,7 @@ class TravelStart(HistoricalEvent):
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
-        des = 'On {0}, {1} set out for {2} from {3}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(),
+        des = 'On {0}, {1} set out for {2} from {3}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fulltitle(),
                                                             g.WORLD.tiles[self.to_location[0]][self.to_location[1]].get_location_description(),
                                                             g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description() )
         return des
@@ -90,7 +100,7 @@ class TravelEnd(HistoricalEvent):
             figure.add_associated_event(event_id=self.id_)
 
     def describe(self):
-        des = 'On {0}, {1} arrived at {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fullname(), self.describe_location())
+        des = 'On {0}, {1} arrived at {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.commander.fulltitle(), self.describe_location())
         return des
 
     def get_entities(self):

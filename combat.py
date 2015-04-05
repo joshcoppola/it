@@ -84,6 +84,8 @@ class WorldBattle(HistoricalEvent):
     def __init__(self, date, location, faction1_named, faction1_populations, faction2_named, faction2_populations):
         HistoricalEvent.__init__(self, date, location)
 
+        self.base_importance = 50
+
         self.faction1_named = faction1_named
         self.faction1_commander = determine_commander(faction1_named)
         self.faction1_populations = faction1_populations
@@ -189,10 +191,10 @@ class WorldBattle(HistoricalEvent):
 
         # Generate message for the game to display!
         if f1_total_number + len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
-        else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.name, self.faction1_commander.fullname())
+        else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.name, self.faction1_commander.fulltitle())
 
         if f2_total_number + len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
-        else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.name, self.faction2_commander.fullname())
+        else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.name, self.faction2_commander.fulltitle())
 
         if self.battle_type == 'small-scale':
             victor = max(self.faction1_remaining, self.faction2_remaining, key=len)
