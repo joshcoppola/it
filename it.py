@@ -8252,18 +8252,7 @@ class Game:
 
 
     def new_game(self):
-        #global g.player
-
         self.switch_map_scale(map_scale='world')
-
-        #print g.WORLD.chunk_width, g.WORLD.chunk_height
-        #for x in xrange(g.WORLD.chunk_width):
-        #    for y in xrange(g.WORLD.chunk_height):
-        #        chunk = g.WORLD.chunk_tiles[x][y]
-        #        for entity in chunk.entities:
-        #            if g.WORLD.tiles[entity.wx][entity.wy].chunk != chunk:
-        #                print entity.fulltitle()
-
 
         g.playerciv = g.WORLD.cities[0]
         g.player = g.playerciv.culture.create_being(sex=1, age=roll(30, 40), char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
@@ -8536,7 +8525,7 @@ class Game:
 
 
 def main_menu():
-    global game, mouse, key
+    global mouse, key
 
     b_width = 20
     # Set button origin points
