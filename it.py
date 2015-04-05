@@ -231,6 +231,7 @@ CONVERSATION_QUESTIONS= {
                             'greet':'Hello.',
                             'name':'What is your name?',
                             'profession':'What do you do?',
+                            'events':'What\'s been going on?',
                             'age':'How old are you?,',
                             'city':'From where do you hail?',
                             'goals':'What are your current goals?',
@@ -5773,6 +5774,15 @@ class Creature:
                 else:
                     self.say('I do not have any profession.')
 
+            elif question_type == 'events':
+                if self.knowledge['events']:
+                    for event_id in self.knowledge['events']:
+                        self.say(hist.historical_events[event_id].describe())
+                        self.say('I heard this from {0} on {1}'.format(self.knowledge['events'][event_id]['description']['source'].fullname(),
+                                                                        g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
+                else:
+                    self.say('I haven\'t heard of anything going on recently')
+
             elif question_type == 'age':
                 age = self.get_age()
                 self.say('I am %i.' % age)
@@ -5790,14 +5800,14 @@ class Creature:
                     if len(self.owner.world_brain.goals) == 1:
                         self.say('My current goal is to {0}.'.format(self.owner.world_brain.goals[0].get_name()) )
                     elif len(self.owner.world_brain.goals) > 1:
-                        goal_names = join_list([g.get_name() for g in self.owner.world_brain.goals[1:]])
+                        goal_names = join_list([goal.get_name() for goal in self.owner.world_brain.goals[1:]])
                         self.say('My current plan is to {0}. Later, I\'m going to {1}'.format(self.owner.world_brain.goals[0].get_name(), goal_names))
                 # IF we're travelling under someone's command
                 elif self.commander and len(self.commander.world_brain.goals):
                     if len(self.commander.world_brain.goals) == 1:
                         self.say('I\'m with {0}. Our current plan is to {1}.'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name()) )
                     elif len(self.commander.world_brain.goals) > 1:
-                        goal_names = join_list([g.get_name() for g in self.commander.world_brain.goals[1:]])
+                        goal_names = join_list([goal.get_name() for goal in self.commander.world_brain.goals[1:]])
                         self.say('I\'m with {0}. Our current plan is to {1}. Later, we\'ll {2}'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name(), goal_names))
                 else:
                     self.say('I don\'t really have any goals at the moment.')
@@ -5850,6 +5860,8 @@ class Creature:
         if self.knowledge['entities'][target]['stats']['goals'] is None:
             valid_questions.append('goals')
 
+        valid_questions.append('events')
+
         ## TODO - allow NPCs to recruit, under certain circumstances
         if self.is_commander() and target.creature.commander != self.owner and self.owner == g.player:
             valid_questions.append('recruit')
@@ -5888,6 +5900,9 @@ class Creature:
 
             asker.creature.add_person_fact_knowledge(other_person=self.owner, info_type=question_type, info=profession)
 
+            return 'truth'
+
+        elif question_type == 'events':
             return 'truth'
 
         elif question_type == 'age':
