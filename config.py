@@ -2,6 +2,9 @@ from __future__ import division
 import libtcodpy as libtcod
 
 
+SCREEN_HEIGHT = None
+SCREEN_WIDTH = None
+
 DIJMAP_CREATURE_DISTANCE = 10
 
 WATER_HEIGHT = 100

@@ -1,12 +1,19 @@
 
 from __future__ import division
+from collections import Counter
+
 import libtcodpy as libtcod
-#from it import PANEL_BACK, PANEL_FRONT
 import config as g
+import gen_languages as lang
+from helpers import join_list, looped_increment
+from traits import *
 
 PANEL_BACK = libtcod.Color(18, 15, 15)
 #PANEL_FRONT = libtcod.Color(88, 80, 64)
 PANEL_FRONT = libtcod.Color(138, 115, 95)
+
+mouse = libtcod.Mouse()
+key = libtcod.Key()
 
 
 class GuiPanel:
@@ -394,4 +401,661 @@ class HoverInfo:
 
         if not self.do_hover:
             self.interface.clear_hover_info()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def show_people(world):
+    # Show people within realms
+    curr_p = 0 # current person
+    city_number = 0 # City #
+
+    x_att_offset = 10 #  where to offset attribute offsets from
+    x_list_offset = 35 #where to offset list of people from
+
+    key_pressed = None
+    while key_pressed != libtcod.KEY_ESCAPE:
+        if key_pressed == libtcod.KEY_DOWN:
+            curr_p -= 1
+        elif key_pressed == libtcod.KEY_UP:
+            curr_p += 1
+        if key_pressed == libtcod.KEY_LEFT:
+            city_number -= 1
+        elif key_pressed == libtcod.KEY_RIGHT:
+            city_number += 1
+
+        libtcod.console_clear(0) ## 0 should be variable "con"?
+        libtcod.console_set_default_foreground(0, libtcod.white)
+        libtcod.console_print(0, 2, 2, 'Civ people (ESC to exit, LEFT and RIGHT arrows to scroll)')
+
+        selected_person = world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p]
+        s_att = selected_person.creature
+        ## Traits ##
+        y = 7
+        ## Skills ##
+        y += 2
+        libtcod.console_print(0, x_att_offset, y, 'Traits')
+        y += 1
+        for trait, m in selected_person.creature.traits.iteritems():
+            y += 1
+            libtcod.console_print(0, x_att_offset, y, tdesc(trait, m))
+
+        ###
+        color = libtcod.white
+        libtcod.console_set_default_foreground(0, color)
+
+        libtcod.console_print(0, x_att_offset, 4, '<< ' + world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p].fullname() + ' >>')
+        ##### Only show people who this person knows personally for now
+        y = 0
+        for other_person in selected_person.creature.knowledge['entities']:
+            if y + 20 > g.SCREEN_HEIGHT: # Just make sure we don't write off the screen...
+                libtcod.console_print(0, x_list_offset, y + 9, '<<< more >>>')
+                break
+
+            # Use total opinions (includes trait info)
+            total_opinion = selected_person.creature.get_relations(other_person)
+            opinion = sum(total_opinion.values())
+
+            y += 1
+            if opinion < -3:
+                color = libtcod.red
+            elif opinion > 3:
+                color = libtcod.green
+            else:
+                color = libtcod.cyan
+
+            libtcod.console_set_default_foreground(0, color)
+            libtcod.console_print(0, x_list_offset, y + 8,
+                                  other_person.creature.owner.fullname() + ' (' + str(opinion) + ')')
+            y += 1
+            for reason, amount in total_opinion.iteritems():
+                libtcod.console_print(0, x_list_offset, y + 8, reason + ': ' + str(amount))
+                y += 1
+
+
+            ### Flush, and check keys ###
+        libtcod.console_flush()
+
+        key = libtcod.console_wait_for_keypress(False)
+        key_pressed = g.game.get_key(key)
+
+
+def show_cultures(world, spec_culture=None):
+    index = 0
+
+    key_pressed = None
+    event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
+
+    while key_pressed != libtcod.KEY_ESCAPE:
+        #### If there's been a specific culture specified
+        if spec_culture:
+            culture = spec_culture
+            language = culture.language
+
+        #### Handle flipping through the world's cultures with the arrow keys
+        else:
+            if key_pressed == libtcod.KEY_LEFT:
+                index = looped_increment(initial_num=index, max_num=len(g.WORLD.cultures)-1, increment_amt=-1)
+            elif key_pressed == libtcod.KEY_RIGHT:
+                index = looped_increment(initial_num=index, max_num=len(g.WORLD.cultures)-1, increment_amt=-1)
+
+            culture = world.cultures[index]
+            language = culture.language
+
+        # Clear console
+        libtcod.console_clear(0) ## 0 should be variable "con"?
+
+        culture_box_y = 13
+        language_box_y = culture_box_y + 1
+
+        #### General ######
+        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
+        ## Box around cultural descriptions
+        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, culture_box_y, PANEL_FRONT)
+        ## Header
+        libtcod.console_print(0, 2, 2, 'Cultures and Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
+
+        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        libtcod.console_print(0, 4, 4, '-* The {0} culture *-'.format(culture.name))
+
+        ## Background info, including subsitence and races
+        libtcod.console_print(0, 4, 6, 'The {0} are a {1}-speaking {2} culture of {3}.'.format(culture.name, language.name.capitalize(), culture.subsistence, join_list([c.capitalize() for c in culture.races])))
+        traits = [tdesc(trait, m) for (trait, m) in culture.culture_traits.iteritems()]
+        libtcod.console_print(0, 4, 7, 'They are considered {0}'.format(join_list(traits)))
+        ## Religion
+        libtcod.console_print(0, 4, 9, 'They worship {0} gods in the Pantheon of {1}'.format(len(culture.pantheon.gods), culture.pantheon.gods[0].fulltitle()))
+        ## Cultural weapons
+        libtcod.console_print(0, 4, 11, 'Their arsenal includes {0}'.format(join_list(culture.weapons)))
+
+        ###### PHONOLOGY ########
+        g.game.interface.root_console.draw_box(x=1, x2=40, y=language_box_y, y2=language_box_y + 2 + len(language.consonants), color=PANEL_FRONT)
+        y = language_box_y + 1
+        libtcod.console_print(0, 4, y, 'Consonants in {0}'.format(language.name))
+        for consonant in language.consonants:
+            y += 1
+            cnum = consonant.num
+            libtcod.console_print(0, 4, y, language.orthography.mapping[cnum])
+            libtcod.console_print(0, 7, y, lang.PHON_TO_ENG_EXAMPLES[cnum])
+
+        y += 4
+        g.game.interface.root_console.draw_box(x=1, x2=40, y=y-1, y2=y-1 + 2 + len(language.vowel_freqs), color=PANEL_FRONT)
+        libtcod.console_print(0, 4, y, 'Vowels in {0}'.format(language.name))
+        for (vnum, vfreq) in language.vowel_freqs:
+            y += 1
+            libtcod.console_print(0, 4, y, language.orthography.mapping[vnum])
+            libtcod.console_print(0, 7, y, lang.PHON_TO_ENG_EXAMPLES[vnum])
+        ###### / PHONOLOGY #######
+
+        ###### VOCABULARY ########
+        y = language_box_y + 1
+        g.game.interface.root_console.draw_box(x=41, x2=68, y=y-1, y2=y-1 + 2 + len(language.vocabulary), color=PANEL_FRONT)
+        libtcod.console_print(0, 43, y, 'Basic {0} vocabulary'.format(language.name))
+        sorted_vocab = [(k, v) for k, v in language.vocabulary.iteritems()]
+        sorted_vocab.sort()
+        for (eng_word, word) in sorted_vocab:
+            y += 1
+            if y > g.SCREEN_HEIGHT - 2:
+                break
+            libtcod.console_print(0, 43, y, eng_word)
+            libtcod.console_print(0, 55, y, word)
+
+        libtcod.console_flush()
+
+        event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
+        key_pressed = g.game.get_key(key)
+
+
+def show_civs(world):
+    city_number = 0
+    minr, maxr = 0, g.SCREEN_HEIGHT - 6
+
+    view = 'economy'
+
+    key_pressed = None
+    event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
+
+    while key_pressed != libtcod.KEY_ESCAPE:
+        if key_pressed == libtcod.KEY_PAGEUP or mouse.wheel_up:
+            if not minr - 1 < 0:
+                minr -= 1
+                maxr -= 1
+        if key_pressed == libtcod.KEY_PAGEDOWN or mouse.wheel_down:
+            if not maxr + 1 > len(all_agents):
+                maxr += 1
+                minr += 1
+
+        if key_pressed == libtcod.KEY_LEFT:
+            city_number -= 1
+            minr, maxr = 0, g.SCREEN_HEIGHT - 6
+        if key_pressed == libtcod.KEY_RIGHT:
+            city_number += 1
+            minr, maxr = 0, g.SCREEN_HEIGHT - 6
+
+        if city_number < 0:
+            city_number = len(world.cities) - 1
+        elif city_number > len(world.cities) - 1:
+            city_number = 0
+
+        libtcod.console_clear(0) ## 0 should be variable "con"?
+
+        #### Set current variables ####
+        city = world.cities[city_number]
+        ################################
+
+        if key_pressed == 'p':
+            show_people(world=world)
+        elif key_pressed == 'e':
+            view = 'economy'
+        elif key_pressed == 'd':
+            economy_tab(world=world, city=city)
+        elif key_pressed == 'b':
+            view = 'building'
+        elif key_pressed == 'f':
+            view = 'figures'
+        elif key_pressed == 'c':
+            show_cultures(world=world, spec_culture=city.culture)
+        elif key_pressed == 'r':
+            world.cities[city_number].econ.run_simulation()
+        elif key_pressed == 'a':
+            city.econ.graph_results(solid=city.econ.get_all_available_commodity_tokens(), dot=[])
+
+
+        #### General ######
+        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
+        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, 7, PANEL_FRONT)
+        libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to change city, PGUP PGDOWN to scroll vertically)')
+        libtcod.console_print(0, 2, 4, '<p> Show people   <b> Show buildings   <f> Show figures   <e> Show economy   <d> Detailed economy   <c> Culture')
+
+        ## Show government type - left panel
+        g.game.interface.root_console.draw_box(1, 28, 8, g.SCREEN_HEIGHT - 2, PANEL_FRONT) # Around relations
+        # Check for title holder
+        if city.faction.leader:
+            title_info = '{0} {1}, age {2}'.format(city.faction.leader_prefix, city.faction.get_leader().fullname(), city.faction.get_leader().creature.get_age())
+        else:
+            title_info = 'No holder'
+        libtcod.console_print(0, 2, 11, title_info)
+        libtcod.console_print(0, 2, 12, 'Dynastic heirs:')
+
+        y = 13
+        for heir in city.faction.heirs:
+            libtcod.console_print(0, 2, y, '{0}, age {1}'.format(heir.fullname(), heir.creature.get_age()))
+            y += 1
+
+        ######### Cities and governers #############
+        g.game.interface.root_console.draw_box(29, g.SCREEN_WIDTH - 2, 8, g.SCREEN_HEIGHT - 2, PANEL_FRONT) # Around cities + govs
+
+        y = 14
+        libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
+        libtcod.console_print(0, 32, y - 4, 'City of {0} (Population: {1}, {2} gold)'.format(city.name, city.get_population(), city.treasury))
+        libtcod.console_print(0, 32, y - 3, 'Access to: {0}'.format(join_list(city.native_res.keys())))
+        if city.faction.parent is None:
+            liege = ' * Independent *  '
+        else:
+            liege = 'Vassal to ' + city.faction.parent.site.name + '. '
+        libtcod.console_print(0, 32, y - 2, liege + 'Vassals: ' + ', '.join([vassal.site.name for vassal in city.faction.subfactions]))
+        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+
+        if view == 'building':
+            ####### Positions of interest in the city ###########
+            libtcod.console_print(0, 32, y, '-* Important structures *-')
+
+            y += 1
+            for building in city.buildings:
+                y += 1
+                if y > g.SCREEN_HEIGHT - 12:
+                    libtcod.console_print(0, 32, y, '<< More >> ')
+                    break
+
+                libtcod.console_print(0, 32, y, '-* ' + building.name + ' *- ')
+                for worker in building.current_workers:
+                    y += 1
+                    libtcod.console_print(0, 32, y, worker.fulltitle())
+                y += 1
+
+
+        elif view == 'economy':
+
+            ####### AGENTS ############
+            libtcod.console_set_default_foreground(0, PANEL_FRONT * .7)
+            libtcod.console_print(0, 32, y, 'Agent name')
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, PANEL_FRONT, .7))
+            libtcod.console_print(0, 60, y, 'Gold')
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, PANEL_FRONT, .7))
+            libtcod.console_print_ex(0, 70, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Buys')
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, PANEL_FRONT, .7))
+            libtcod.console_print(0, 72, y, 'Sells')
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, PANEL_FRONT, .7))
+            libtcod.console_print(0, 78, y, 'Alive')
+
+            libtcod.console_set_default_foreground(0, PANEL_FRONT)
+
+
+            all_agents = (city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants)
+            merchants = city.econ.buy_merchants + city.econ.sell_merchants
+
+            for agent in all_agents[minr:maxr]:
+                y += 1
+                if y > g.SCREEN_HEIGHT - 5:
+                    break
+
+
+                if agent in merchants and agent.current_location == city:
+                    agent_name = agent.name + ' (here)'
+                elif agent in merchants and agent.current_location is not None:
+                    agent_name = agent.name + ' (' + agent.current_location.owner.name + ')'
+                elif agent in merchants and agent.current_location is None:
+                    agent_name = agent.name + ' (traveling)'
+                else:
+                    agent_name = agent.name
+
+                if agent.attached_to == g.player:
+                    agent_name += ' (you)'
+
+                ### (debug) Player can take on role of economy agent at a whim
+                if mouse.cy == y and 32 <= mouse.cx <= 85:
+                    acolor = libtcod.dark_yellow
+
+                    # Set the g.player to "become" one of these agents
+                    if mouse.lbutton_pressed:
+                        agent.update_holder(figure=g.player)
+                        panel4.render = True
+                        pcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.light_green, .5)
+                        hcolor = pcolor * 2
+                        panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=g.WORLD.time_cycle.goto_next_week, args=[],
+                                                              text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, hcolor=hcolor, do_draw_box=True) )
+
+                else:
+                    acolor = PANEL_FRONT
+
+                libtcod.console_set_default_foreground(0, acolor)
+                libtcod.console_print(0, 32, y, agent_name[:26])
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, PANEL_FRONT, .7))
+                libtcod.console_print(0, 60, y, str(agent.gold))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, PANEL_FRONT, .7))
+                libtcod.console_print(0, 68, y, str(agent.buys))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, PANEL_FRONT, .7))
+                libtcod.console_print(0, 73, y, str(agent.sells))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, PANEL_FRONT, .7))
+                libtcod.console_print(0, 78, y, str(agent.turns_alive))
+
+            # Set color back
+            libtcod.console_set_default_foreground(0, PANEL_FRONT)
+            ###### End print individual agents ######
+
+            ## Print good info ##
+            y = 12
+            libtcod.console_print(0, 85, y - 2, 'Most demanded last turn: ' + city.econ.find_most_demanded_commodity())
+
+            libtcod.console_print(0, 85, y, 'Commodity')
+            libtcod.console_print_ex(0, 101, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Avg$')
+            libtcod.console_print(0, 103, y, 'Last$')
+            libtcod.console_print_ex(0, 112, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Sply')
+            libtcod.console_print_ex(0, 117, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Dmnd')
+            libtcod.console_print_ex(0, 121, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'D:S')
+            libtcod.console_print(0, 124, y, '#')
+
+            y += 2
+
+            for commodity, auction in city.econ.auctions.iteritems():
+                if auction.supply is not None and auction.demand is not None:
+                    libtcod.console_print(0, 85, y, commodity)
+                    libtcod.console_print(0, 100, y, str(auction.mean_price))
+
+                    # Color trades - green means price last round was > than avg, red means < than avg
+                    if auction.mean_price <= auction.get_last_valid_price():
+                        color = libtcod.color_lerp(libtcod.green, PANEL_FRONT, auction.mean_price / auction.get_last_valid_price())
+                    else:
+                        color = libtcod.color_lerp(libtcod.red, PANEL_FRONT, auction.get_last_valid_price() / auction.mean_price)
+                    libtcod.console_set_default_foreground(0, color)
+                    libtcod.console_print(0, 105, y, str(auction.get_last_valid_price()))
+                    ## /color trades
+                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+                    libtcod.console_print(0, 110, y, str(auction.supply))
+                    libtcod.console_print(0, 114, y, str(auction.demand))
+                    # Ratio
+                    d_s_ratio = auction.demand / max(auction.supply, 1)
+
+                    if auction.supply == 0:
+                        color_mod = .5
+                        color = libtcod.red
+                    elif auction.demand == 0:
+                        color_mod = .5
+                        color = libtcod.magenta
+                    else:
+                        color_mod = min(abs(1 - d_s_ratio), .75)
+                        color = libtcod.green
+
+                    libtcod.console_set_default_foreground(0, libtcod.color_lerp(color, PANEL_FRONT, color_mod))
+                    libtcod.console_print(0, 118, y, "{0:.2f}".format(round(d_s_ratio, 2)))
+                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+
+                    # Iteration in economy
+                    libtcod.console_print(0, 124, y, str(auction.iterations))
+                    y += 1
+
+            ### Good info ###
+            y += 3
+            libtcod.console_print(0, 85, y - 1, '-* Imports *-')
+            for other_city, commodities in city.imports.iteritems():
+                for commodity in commodities:
+                    y += 1
+                    if y < g.SCREEN_HEIGHT - 5:
+                        libtcod.console_print(0, 85, y, commodity + ' from ' + other_city.name)
+
+            y += 3
+            libtcod.console_print(0, 85, y - 1, '-* Exports *-')
+            for other_city, commodities in city.exports.iteritems():
+                for commodity in commodities:
+                    y += 1
+                    if y < g.SCREEN_HEIGHT - 5:
+                        libtcod.console_print(0, 85, y, commodity + ' to ' + other_city.name)
+                        ## End print good info ##
+
+
+        elif view == 'figures':
+            selected = False
+            ## Figures currently residing here
+            y = 16
+            ny = y # for opinions
+
+            libtcod.console_print(0, 34, y - 2, '{0} notable characters'.format(len(world.tiles[city.x][city.y].entities)))
+            for figure in world.tiles[city.x][city.y].entities:
+                if y > g.SCREEN_HEIGHT - 5:
+                    break
+
+                ##
+                #if 34 <= mouse.cx <= 34+len(figure.fullname()) and mouse.cy == y:
+                if 34 <= mouse.cx <= 60 + len(figure.creature.get_profession()) and mouse.cy == y:
+                    selected = True
+
+                    if figure.creature.sex:
+                        symb = chr(11)
+                        color = libtcod.light_blue
+                    else:
+                        color = libtcod.light_red
+                        symb = chr(12)
+
+                    libtcod.console_set_default_foreground(0, color)
+                    libtcod.console_print(0, 85, ny, symb)
+                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+
+                    libtcod.console_print(0, 87, ny, figure.fullname())
+                    libtcod.console_print(0, 85, ny + 1,
+                                          figure.creature.get_profession() + ', age ' + str(figure.creature.get_age()))
+
+                    spouseinfo = 'No spouse'
+                    if figure.creature.spouse:
+                        end = ''
+                        if figure.creature.spouse.creature.status == 'dead':
+                            end = ' (dead)'
+                        spouseinfo = 'Married to ' + figure.creature.spouse.fulltitle() + end
+
+                    libtcod.console_print(0, 85, ny + 2, spouseinfo)
+
+                    if figure.creature.current_citizenship == city:
+                        info = 'Currently lives here'
+                    else:
+                    #    info = 'Staying at ' + random.choice(city.get_building_type('Tavern')).get_name()
+                        info = 'Currently visiting'
+
+                    libtcod.console_print(0, 85, ny + 3, info)
+
+                    ny += 4
+                    for trait, m in figure.creature.traits.iteritems():
+                        libtcod.console_print(0, 85, ny + 1, tdesc(trait, m))
+                        ny += 1
+
+                    ny += 1
+                    for issue, (opinion, reasons) in figure.creature.opinions.iteritems():
+                        ny += 1
+                        ##
+                        s = issue + ': ' + str(opinion)
+                        libtcod.console_print(0, 85, ny, s)
+                        for reason, amount in reasons.iteritems():
+                            ny += 1
+                            libtcod.console_print(0, 86, ny, reason + ': ' + str(amount))
+
+                if selected:
+                    libtcod.console_set_default_foreground(0, libtcod.color_lerp(PANEL_FRONT, libtcod.yellow, .5))
+                    selected = False
+
+                elif libtcod.console_get_default_foreground != PANEL_FRONT:
+                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+
+                libtcod.console_print(0, 34, y, figure.fullname())
+
+                libtcod.console_print(0, 57, y, str(figure.creature.get_age()))
+
+                libtcod.console_print(0, 60, y, figure.creature.get_profession())
+
+                if figure.creature.dynasty:
+                    libtcod.console_put_char_ex(0, 32, y, figure.creature.dynasty.symbol,
+                                                figure.creature.dynasty.symbol_color,
+                                                figure.creature.dynasty.background_color)
+
+                if figure.creature.sex:
+                    symb = chr(11)
+                    color = libtcod.light_blue
+                else:
+                    color = libtcod.light_red
+                    symb = chr(12)
+
+                libtcod.console_set_default_foreground(0, color)
+                libtcod.console_print(0, 55, y, symb)
+                libtcod.console_set_default_foreground(0, PANEL_FRONT)
+
+
+                # Increase so next figure goes onto next line
+                y += 1
+
+        libtcod.console_flush()
+
+        event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
+        key_pressed = g.game.get_key(key)
+
+def economy_tab(world, city):
+    agent_index = 0
+
+    key_pressed = None
+    event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
+
+    while key_pressed != libtcod.KEY_ESCAPE:
+        if key_pressed == libtcod.KEY_PAGEUP:
+            if agent_index - 1 < 0:
+                pass
+            else:
+                agent_index -= 1
+        if key_pressed == libtcod.KEY_PAGEDOWN:
+            agent_index += 1
+
+        if key_pressed == libtcod.KEY_UP:
+            agent_index = 0
+        if key_pressed == libtcod.KEY_DOWN:
+            agent_index = 0
+
+        elif key_pressed == 'p':
+            show_people(world=world)
+        elif key_pressed == 'e':
+            view = 'economy'
+        elif key_pressed == 'b':
+            view = 'building'
+        elif key_pressed == 'r':
+            city.econ.run_simulation()
+
+        libtcod.console_clear(0) ## 0 should be variable "con"?
+
+        #### General ######
+        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
+        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, 7, PANEL_FRONT)
+        libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to scroll)')
+        libtcod.console_print(0, 2, 4, '<p> - Show people    <b> - Show buildings    <f> - Show figures    <e> Show economy')
+
+        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        libtcod.console_print(0, 2, 5, '{0} square km. Access to: {1}'.format(len(city.territory), join_list(city.native_res.keys())))
+
+        ####### AGENTS ############
+        y = 10
+
+        libtcod.console_set_default_foreground(0, PANEL_FRONT * .7)
+        libtcod.console_print(0, 5, y, 'Agent name')
+        libtcod.console_print(0, 25, y, 'Inventory')
+        libtcod.console_print(0, 45, y, 'Beliefs')
+
+        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        #for agent in city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants:
+        iy, cy, ly = y, y, y
+        agent_list = city.econ.resource_gatherers + city.econ.good_producers #+ city.econ.buy_merchants + city.econ.sell_merchants
+        if agent_index > len(agent_list) - 6:
+            agent_index = len(agent_list) - 6
+        for agent in agent_list[agent_index:agent_index + 6]:
+            y = max(iy, cy, ly, y + 6) + 1
+            if y > 70:
+                break
+            libtcod.console_print(0, 5, y, agent.name)
+            libtcod.console_print(0, 5, y + 1, '{0} gold'.format(agent.gold))
+            libtcod.console_print(0, 5, y + 2, '{0} buys'.format(agent.buys))
+            libtcod.console_print(0, 5, y + 3, '{0} sells'.format(agent.sells))
+            libtcod.console_print(0, 5, y + 4, 'Alive: {0}'.format(agent.turns_alive))
+            libtcod.console_print(0, 5, y + 5, '{0} since food'.format(agent.turns_since_food))
+
+            inventory = Counter(agent.inventory)
+            iy = y
+            for item, amount in inventory.iteritems():
+                libtcod.console_print(0, 25, iy, '{0} ({1})'.format(item, amount))
+                iy += 1
+                if iy > 70: break
+
+            cy, ly = y, y
+            if agent in city.econ.resource_gatherers + city.econ.good_producers:
+                for commodity, value in agent.perceived_values.iteritems():
+                    libtcod.console_print(0, 45, cy, '{0}: {1} ({2})'.format(commodity, value.center, value.uncertainty))
+                    cy += 1
+                    if cy > 70: break
+
+                for j in xrange(len(agent.last_turn)):
+                    libtcod.console_print(0, 70, ly, agent.last_turn[j])
+                    ly += 1
+                    if ly > 70: break
+
+            elif agent in city.econ.buy_merchants + city.econ.sell_merchants and agent.current_location == city.econ:
+                for commodity, value in agent.buy_perceived_values.iteritems():
+                    libtcod.console_print(0, 45, cy, '{0} - {1}: {2} ({3})'.format(agent.buy_economy.owner.name, commodity, value.center, value.uncertainty))
+                    cy += 1
+                    if cy > 70: break
+                for commodity, value in agent.sell_perceived_values.iteritems():
+                    libtcod.console_print(0, 45, cy, '{0} - {1}: {2} ({3})'.format(agent.sell_economy.owner.name, commodity, value.center, value.uncertainty))
+                    cy += 1
+                    if cy > 70: break
+
+                for j in xrange(len(agent.last_turn)):
+                    libtcod.console_print(0, 70, ly, agent.last_turn[j])
+                    ly += 1
+                    if ly > 70: break
+
+                    ###### End print individual agents ######
+        '''
+        ## Print good info ##
+        y = 12
+        libtcod.console_print_left(0, 80, y, libtcod.BKGND_NONE, 'Commodity')
+        libtcod.console_print_left(0, 95, y, libtcod.BKGND_NONE, 'Avg/LR/Sply/Dmnd/iterations')
+
+        y += 2
+
+        for commodity, auction in city.econ.auctions.iteritems():
+            if auction.supply != None and auction.demand != None:
+                libtcod.console_print_left(0, 80, y, libtcod.BKGND_NONE, commodity)
+                libtcod.console_print_left(0, 95, y, libtcod.BKGND_NONE, str(auction.mean_price))
+                libtcod.console_print_left(0, 100, y, libtcod.BKGND_NONE, str(auction.price_history[-1]))
+                libtcod.console_print_left(0, 104, y, libtcod.BKGND_NONE, str(auction.supply))
+                libtcod.console_print_left(0, 108, y, libtcod.BKGND_NONE, str(auction.demand))
+                libtcod.console_print_left(0, 112, y, libtcod.BKGND_NONE, str(auction.iterations))
+                y += 1
+        '''
+        ## End print good info ##
+        libtcod.console_flush()
+
+        event = libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
+        key_pressed = g.game.get_key(key)
+
+
+
+
+
+
+
 
