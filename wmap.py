@@ -14,7 +14,7 @@ import it
 
 
 ##### City map generating stuff
-MAX_BUILDING_SIZE = 15
+MAX_BUILDING_SIZE = 18
 INITIAL_BLDG_CHK = 3 # for initial check around building radius
 INTIAL_BLDG_SIZE = 5
 DEVELOPED_SURFACES = set(['road', 'wall', 'floor', 'water'])
@@ -1163,7 +1163,7 @@ class CityMap:
                 if self.usemap.tiles[i][j].zone not in border_zones:
                     recently_filled = floodfill(fmap=self.usemap, x=i, y=j, do_fill=do_fill, do_fill_args=[], is_border=lambda tile: tile.zone in border_zones)
 
-                    if recently_filled != set([]):
+                    if recently_filled:
                         ## TODO - converting to a list is inefficient, but we later need a way to grab an arbitrary element without removing it
                         development_options.append(list(recently_filled))
 
@@ -1202,8 +1202,9 @@ class CityMap:
         # Special case - make a market
         lot = list(empty_lot)
         self.markets.append(lot)
+
         for x, y in lot:
-            if self.usemap.tiles[x][y].surface not in ('wall', 'floor', 'road'):
+            if self.usemap.tiles[x][y].surface not in DEVELOPED_SURFACES:
                 self.usemap.tiles[x][y].surface = 'floor' # Quick hack - for some reason the land will develop if we don't turn it into floor
                 self.usemap.tiles[x][y].colorize(libtcod.dark_sepia)
 
@@ -1220,7 +1221,6 @@ class CityMap:
             floor = 'stone'
 
         # Check each tile in undeveloped_spaces to see if it can support a building of size INITIAL_BLDG_CHK * 2
-
         while undeveloped_spaces != []:
             x, y = random.choice(undeveloped_spaces)
             self.usemap.tiles[x][y].zone = zone
@@ -1228,7 +1228,7 @@ class CityMap:
             usable = True
             for i in xrange(x - INITIAL_BLDG_CHK, x + INITIAL_BLDG_CHK + 1):
                 for j in xrange(y - INITIAL_BLDG_CHK, y + INITIAL_BLDG_CHK + 1):
-                    if self.usemap.tiles[i][j].surface in ('wall', 'floor', 'road') or not self.usemap.is_val_xy((i, j)):
+                    if self.usemap.tiles[i][j].surface in DEVELOPED_SURFACES or not self.usemap.is_val_xy((i, j)):
                         usable = False
                         undeveloped_spaces.remove((x, y))
                         break
@@ -1237,7 +1237,7 @@ class CityMap:
                     break
                     #### Create a rect and expand it in different directions
             if usable:
-                newrect = Rect(x - 1, y - 1, INTIAL_BLDG_SIZE, INTIAL_BLDG_SIZE)
+                newrect = Rect(x - 1, y - 1, INTIAL_BLDG_SIZE -1, INTIAL_BLDG_SIZE - 1)
 
                 expansion_dirs = ['n', 's', 'e', 'w']
                 while expansion_dirs != []:
@@ -1356,7 +1356,6 @@ class CityMap:
                             break
 
 
-
                 if has_door:
                     if zone == 'residential' and newrect.get_size() < 80:
                         self.houses.append(newrect)
@@ -1368,9 +1367,8 @@ class CityMap:
                         # Color starting node black
                         #self.usemap.tiles[x][y].color = libtcod.black
 
-        surfaces = set(['wall', 'floor', 'road', 'water'])
         for x, y in empty_lot:
-            if self.usemap.tiles[x][y].surface not in surfaces:
+            if self.usemap.tiles[x][y].surface not in DEVELOPED_SURFACES:
                 self.usemap.tiles[x][y].colorize(libtcod.darker_sepia)
                 ## Only place these items near a wall
                 near_wall = 0

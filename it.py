@@ -44,8 +44,8 @@ except:
 MAP_WIDTH = 250
 MAP_HEIGHT = 250
 # Size for cities
-CITY_MAP_WIDTH = 300
-CITY_MAP_HEIGHT = 300
+CITY_MAP_WIDTH = 350
+CITY_MAP_HEIGHT = 350
 
 #size of the WORLD
 WORLD_WIDTH = 240
@@ -1935,7 +1935,7 @@ class World(Map):
             base_color = self.tiles[x][y].get_base_color()
             g.M.create_map_tiles(hm, base_color, explored=1)
 
-            g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=30, disorg=6)
+            g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=35, disorg=5)
 
         else:
             hm = g.M.create_heightmap_from_surrounding_tiles()
