@@ -23,7 +23,6 @@ import gen_creatures
 import religion
 import gui
 import building_templates
-import map_generation as mgen
 import combat
 from helpers import *
 import config as g
@@ -6902,7 +6901,7 @@ class BasicWorldBrain:
             #
             #         # TODO - need to update house with a building in the site
 
-            if roll(1, 100) < 10:
+            if roll(1, 100) < 5:
 
                 #self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
 
