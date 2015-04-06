@@ -424,6 +424,8 @@ class World(Map):
 
         self.cultures = []
         self.languages = []
+        self.lingua_franca = None
+
         self.cities = []
         self.hideouts = []
         self.factions = []
@@ -1420,6 +1422,9 @@ class World(Map):
         # Running list of cultures who have created cities
         civilized_cultures = []
 
+        # Set world lingua franca
+        self.lingua_franca = self.tiles[x][y].culture.language
+
         city_blocker_resources = ('copper', 'bronze', 'iron')
 
         while city_sites != []:
@@ -1461,7 +1466,6 @@ class World(Map):
                 ## Add to cities if it's not too close
                 else:
                     city_sites.append((wx, wy))
-
 
         ## We assume the domestication of food has spread to all nearby cities
         for city in created_cities:
@@ -2315,7 +2319,7 @@ class Site:
         if self.name:
             return self.name
         else:
-            return self.type_
+            return 'a {0}'.format(self.type_)
 
     def create_inhabitant(self, sex, born, char, dynasty, important, race=None, armed=0, house=None):
         ''' Add an inhabitant to the site '''
@@ -4284,18 +4288,18 @@ def attack_menu(actor, target):
 
 
 def talk_screen(actor, target):
-    width = 35
+    width = 40
 
     xb, yb = 0, 0
     transp = .8
     # gui.Button 1 and 2 x vals
-    b1x, b2x = 3, 15
+    b1x, b2x = 2, 15
     # gui.Button row 1 and 2 y vals
     row1y, row2y = 10, 14
     # Menu iten x and y vals
     atx, aty = 4, 15
 
-    height = 40
+    height = 50
 
     # Make the console window
     wpanel = gui.GuiPanel(width=width, height=height, xoff=xb, yoff=yb, interface=g.game.interface, name='talk_screen')
@@ -4332,8 +4336,8 @@ def talk_screen(actor, target):
     def render_panel_text():
 
         # Character name + title
-        libtcod.console_print(wpanel.con, b1x, 2, target.fullname())
-        libtcod.console_print(wpanel.con, b1x, 3, target.creature.get_profession())
+        libtcod.console_print(wpanel.con, b1x, 2, target.fulltitle())
+        libtcod.console_print(wpanel.con, b1x, 3, 'Age ' + str(target.creature.get_age()))
 
         # Dynasty
         if target.creature.dynasty:
@@ -4345,8 +4349,14 @@ def talk_screen(actor, target):
 
         libtcod.console_print(wpanel.con, b1x + 2, 4, dynasty_info)
 
-        # Age
-        libtcod.console_print(wpanel.con, b1x, 6, 'Age ' + str(target.creature.get_age()))
+        # Calculate some info about languages
+        lang_info = 'Speaks {0}'.format(join_list([l.name for l in target.creature.languages]))
+        written_langs = [l.name for l in target.creature.languages if target.creature.languages[l]['written'] > 0]
+        written_lang_info = 'Can write {0}'.format(join_list(written_langs)) if written_langs else 'Illiterate'
+        # Show the language information
+        libtcod.console_print(wpanel.con, b1x, 5, lang_info)
+        libtcod.console_print(wpanel.con, b1x, 6, written_lang_info)
+
         libtcod.console_print(wpanel.con, b1x, 7, str(len(target.creature.children)) + ' children')
 
     # Ugly ugly...
@@ -5227,6 +5237,10 @@ class Creature:
                              }
 
 
+        # Any languages we speak will go here.
+        # Will be structured as self.languages[language][mode] = skill_level, where mode is 'verbal' or 'written'
+        self.languages = {}
+
         self.skills = {}
         for skill, value in phys.creature_dict[self.type_]['creature']['skills'].iteritems():
             self.skills[skill] = value
@@ -5334,6 +5348,14 @@ class Creature:
         self.set_opinions()
 
 
+    def update_language_knowledge(self, language, verbal=0, written=0):
+        if language in self.languages:
+            self.languages[language]['verbal'] += verbal
+            self.languages[language]['written'] += written
+        else:
+            self.languages[language] = {}
+            self.languages[language]['verbal'] = verbal
+            self.languages[language]['written'] = written
 
     def modify_experience(self, skill, amount):
         self.experience[skill] += amount
@@ -7596,15 +7618,19 @@ class Culture:
         if dynasty is not None:   lastname = dynasty.lastname
         else:                     lastname = lang.spec_cap(random.choice(self.language.vocab_n.values()))
 
-
-        #born = g.WORLD.time_cycle.years_ago(age)
-
         # The creature component
         creature_component = Creature(type_=race, sex=sex, intelligence_level=intelligence_level, firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
 
         human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
+        # Give it language
+        human.creature.update_language_knowledge(language=self.language, verbal=10, written=0)
+        # Placeholder for now, but adding the lingua franca to all those who are part of agricultural socieities
+        if self.subsistence == 'agricultural' and g.WORLD.lingua_franca not in human.creature.languages:
+            human.creature.update_language_knowledge(language=g.WORLD.lingua_franca, verbal=10, written=0)
+
         faction.add_member(human)
+
 
         if dynasty is not None:
             dynasty.members.append(human)
