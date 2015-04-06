@@ -124,6 +124,8 @@ PROFESSION_INFAMY = {
     'merchant': 0
 }
 
+LITERATE_PROFESSIONS = set(['Noble', 'noble', 'merchant', 'King', 'High Priest', 'Scribe', 'Tax Collector', 'Vizier', 'Tavern Keeper'])
+
 MIN_MARRIAGE_AGE = 16
 MAX_MARRIAGE_AGE = 50
 MIN_CHILDBEARING_AGE = 16
@@ -3083,6 +3085,10 @@ class Profession:
         #else:
         #    print '{0} not part of PROFESSION_INFAMY'.format(self.name)
 
+        # Put as a placeholder until we track satasfying the requirements beforehand
+        if self.name in LITERATE_PROFESSIONS  or self.category in LITERATE_PROFESSIONS:
+            figure.creature.update_language_knowledge(language=g.WORLD.lingua_franca, written=10)
+
 
         self.holder = figure
         # Has to be done afterward, so the profession's current building can be set
@@ -3221,7 +3227,7 @@ class Faction:
                 reasons[reason] = amount
 
         # Culture
-        if other_faction.get_leader().creature.culture != self.get_leader().creature.culture:
+        if other_faction.get_leader() and self.get_leader() and other_faction.get_leader().creature.culture != self.get_leader().creature.culture:
             reasons['Different culture'] = -10
 
         if other_faction in self.subfactions or self in other_faction.subfactions:
@@ -3437,7 +3443,7 @@ class Object:
         # Update knowledge
         if self.creature:
             self.creature.add_knowledge_of_event(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self)
-            self.creature.add_knowledge_of_event_location(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self)
+            self.creature.add_knowledge_of_event_location(event_id=event_id, date_learned=g.WORLD.time_cycle.get_current_date(), source=self, location_accuracy=5)
 
     def add_infamy(self, amount):
         self.infamy += amount
@@ -4305,7 +4311,7 @@ def talk_screen(actor, target):
     wpanel = gui.GuiPanel(width=width, height=height, xoff=xb, yoff=yb, interface=g.game.interface, name='talk_screen')
 
     def refresh_buttons():
-        aty = 15
+        aty = 10
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
@@ -4337,11 +4343,11 @@ def talk_screen(actor, target):
 
         # Character name + title
         libtcod.console_print(wpanel.con, b1x, 2, target.fulltitle())
-        libtcod.console_print(wpanel.con, b1x, 3, 'Age ' + str(target.creature.get_age()))
+        libtcod.console_print(wpanel.con, b1x, 3, 'Age {0}'.format(target.creature.get_age()))
 
         # Dynasty
         if target.creature.dynasty:
-            dynasty_info = ''.join([target.creature.dynasty.lastname, ' dynasty'])
+            dynasty_info = '{0} dynasty'.format(target.creature.dynasty.lastname)
             libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.creature.dynasty.symbol, target.creature.dynasty.symbol_color, target.creature.dynasty.background_color)
         else:
             dynasty_info = 'No major dynasty'
@@ -5290,7 +5296,8 @@ class Creature:
         self.extra_relations = {}
         self.knowledge = {  'entities': {},
                             'objects': {},
-                            'events': {}
+                            'events': {},
+                            'sites': {}
                             }
 
         # People we've recently conversed with
@@ -6362,7 +6369,7 @@ class Creature:
                 other.creature.add_knowledge_of_event(event_id=event_id, date_learned=date, source=self.owner)
 
 
-    def add_knowledge_of_event(self, event_id, date_learned, source):
+    def add_knowledge_of_event(self, event_id, date_learned, source, location_accuracy=1):
         # Only trigger if we don't already know about the event
         if event_id not in self.knowledge['events']:
             self.knowledge['events'][event_id] = {'description': {}, 'location': {} }
@@ -6370,31 +6377,48 @@ class Creature:
             self.knowledge['events'][event_id]['description']['date_learned'] = date_learned
             self.knowledge['events'][event_id]['description']['source'] = source
 
-            self.knowledge['events'][event_id]['location']['date_learned'] = None
-            self.knowledge['events'][event_id]['location']['source'] = None
-
-            #print 'On', date_learned, ', ', self.owner.fullname(), 'has learned', hist.historical_events[event_id].describe()
-
-    def add_knowledge_of_event_location(self, event_id, date_learned, source):
-        # Only trigger if we don't already know the location of the event
-        if self.knowledge['events'][event_id]['location']['date_learned'] is not None:
+            self.knowledge['events'][event_id]['location']['accuracy'] = location_accuracy
             self.knowledge['events'][event_id]['location']['date_learned'] = date_learned
             self.knowledge['events'][event_id]['location']['source'] = source
 
+            #print 'On', date_learned, ', ', self.owner.fullname(), 'has learned', hist.historical_events[event_id].describe()
+
+    def add_knowledge_of_event_location(self, event_id, date_learned, source, location_accuracy):
+        '''location_accuracy: Scale of 1 to 5, where 5 is knowledge of the exact location '''
+        # Only trigger if we don't already know the location of the event
+        if self.knowledge['events'][event_id]['location']['accuracy'] < location_accuracy:
+            self.knowledge['events'][event_id]['location']['accuracy'] = location_accuracy
+            self.knowledge['events'][event_id]['location']['date_learned'] = date_learned
+            self.knowledge['events'][event_id]['location']['source'] = source
+
+        # 5 means we know exact location
+        if location_accuracy == 5:
             # With the knowledge of the event location comes the knowledge that those who participated in the event must have been there at that time
             for entity in hist.historical_events[event_id].get_entities():
                 # If we know about the person, and the date of the event is
                 if entity in self.knowledge['entities'] and self.knowledge['entities'][entity]['location']['date_at_loc'] < hist.historical_events[event_id].date:
-                    self.add_person_location_knowledge(other_person=entity, date_learned=date_learned, date_at_loc=historical_events[event_id].date,
+                    self.add_person_location_knowledge(other_person=entity, date_learned=date_learned, date_at_loc=hist.historical_events[event_id].date,
                                                        location=hist.historical_events[event_id].location, heading=-1, source=source)
 
                 ## If we haven't heard of the other person yet, we won't know much other than that they were there
                 elif entity not in self.knowledge['entities']:
                     self.add_awareness_of_person(other_person=entity)
-                    self.add_person_location_knowledge(other_person=entity, date_learned=date_learned, date_at_loc=historical_events[event_id].date,
+                    self.add_person_location_knowledge(other_person=entity, date_learned=date_learned, date_at_loc=hist.historical_events[event_id].date,
                                                        location=hist.historical_events[event_id].location, heading=-1, source=source)
 
             #g.game.add_message(' ~   ~~ {0} has learned that {1}    '.format(self.owner.fullname(), hist.historical_events[event_id].describe()))
+
+    def add_knowledge_of_site(self, site, date_learned, source, location_accuracy=1):
+        if site not in self.knowledge['sites']:
+            self.knowledge['sites'][site] = {'description': {}, 'location': {} }
+
+            self.knowledge['sites'][site]['description']['date_learned'] = date_learned
+            self.knowledge['sites'][site]['description']['source'] = source
+
+            self.knowledge['sites'][site]['location']['accuracy'] = location_accuracy
+            self.knowledge['sites'][site]['location']['date_learned'] = date_learned
+            self.knowledge['sites'][site]['location']['source'] = source
+
 
     def get_relations(self, other_person):
         # set initial relationship with another person
@@ -7628,6 +7652,8 @@ class Culture:
         # Placeholder for now, but adding the lingua franca to all those who are part of agricultural socieities
         if self.subsistence == 'agricultural' and g.WORLD.lingua_franca not in human.creature.languages:
             human.creature.update_language_knowledge(language=g.WORLD.lingua_franca, verbal=10, written=0)
+            for city in g.WORLD.cities:
+                human.creature.add_knowledge_of_site(site=city, date_learned=g.WORLD.time_cycle.get_current_date(), source=human, location_accuracy=5)
 
         faction.add_member(human)
 
