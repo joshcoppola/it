@@ -3012,7 +3012,7 @@ class Building:
     def add_building_from_rect_lot(self, rect, building_color, floor, door_dir):
 
         w, h = rect.x2-rect.x1, rect.y2-rect.y1
-        if (w, h) in building_templates.buildings['houses']:
+        if (w, h) in building_templates.buildings[self.type_]:
 
             bx, by = rect.x1, rect.y1
             template = random.choice(building_templates.buildings['houses'][(w, h)])
@@ -3038,6 +3038,12 @@ class Building:
                         self.usemap.tiles[x][y].make_wall(building_color)
                     else:
                         self.usemap.tiles[x][y].make_floor(floor_type=floor)
+
+    def add_physical_property_rect(self, physical_property_rect):
+        for x in xrange(physical_property_rect.x1, physical_property_rect.x2 + 1):
+            for y in xrange(physical_property_rect.y1, physical_property_rect.y2 + 1):
+                self.physical_property.append((x, y))
+                g.M.tiles[x][y].building = self
 
 
     def create_door_and_outside_road(self, rect, door_dir):

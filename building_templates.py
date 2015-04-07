@@ -13,7 +13,7 @@ p - pantry
 r = recreation
 '''
 
-buildings = {'houses':{}, 'shops':{}}
+buildings = {'house':{}, 'shop':{}}
 
 buildings['TEST'] = [
 '###############',
@@ -107,7 +107,7 @@ buildings['temple1'] = [
 
 
 
-buildings['houses'][(6, 6)] = [
+buildings['house'][(6, 6)] = [
 [
 '#####.',
 '#   ##',
@@ -140,7 +140,7 @@ buildings['houses'][(6, 6)] = [
 ]
 
 
-buildings['houses'][(7, 7)] = [
+buildings['house'][(7, 7)] = [
 [
 '#######',
 '#  #  #',
@@ -176,7 +176,7 @@ buildings['houses'][(7, 7)] = [
 ]
 
 
-buildings['houses'][(8, 8)] = [
+buildings['house'][(8, 8)] = [
 [
 '########',
 '#   #  #',
@@ -215,7 +215,7 @@ buildings['houses'][(8, 8)] = [
 ]
 
 
-buildings['houses'][(12, 12)] = [
+buildings['house'][(12, 12)] = [
 [
 '############',
 '#     #    #',

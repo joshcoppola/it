@@ -459,23 +459,127 @@ class Wmap(Map):
                             (-1, 1):Rect(x=1, y=self.height-(rs+2), w=rs, h=rs), (0, 1):Rect(x=hwd, y=self.height-(rs+2), w=rs, h=rs), (1, 1):Rect(x=self.width-(rs+2), y=self.height-(rs+2), w=rs, h=rs)
                             }
 
+        site = self.world.tiles[self.wx][self.wy].site
 
-        for entity in entities:
-            figure_start = world_last_dir_to_rect[entity.world_last_dir]
-            # Find a non-blocked tile
-            while 1:
-                x = roll(figure_start.x1, figure_start.x2)
-                y = roll(figure_start.y1, figure_start.y2)
-                # place_anywhere is set to true when battle takes place in the world scale, so that entire large maps do not need to be generated
-                # This means in tiny-sized maps, many creatures may be "on top" of each other.
-                if (g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y)) or place_anywhere:
-                    break
-            # Add the entity to the map
-            g.M.add_object_to_map(x=x, y=y, obj=entity)
+        ###### Standard placement - in the wilderness somewhere ######
+        if site is None:
+            for entity in entities:
+                figure_start = world_last_dir_to_rect[entity.world_last_dir]
+                # Find a non-blocked tile
+                while 1:
+                    x = roll(figure_start.x1, figure_start.x2)
+                    y = roll(figure_start.y1, figure_start.y2)
+                    # place_anywhere is set to true when battle takes place in the world scale, so that entire large maps do not need to be generated
+                    # This means in tiny-sized maps, many creatures may be "on top" of each other.
+                    if (g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y)) or place_anywhere:
+                        break
+                # Add the entity to the map
+                g.M.add_object_to_map(x=x, y=y, obj=entity)
 
-        for population in populations:
-            population_start = world_last_dir_to_rect[population.world_last_dir]
-            population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[], place_anywhere=place_anywhere)
+            for population in populations:
+                population_start = world_last_dir_to_rect[population.world_last_dir]
+                population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[], place_anywhere=place_anywhere)
+
+        ###### Site placement - try to place people inside buildings ######
+        elif site:
+            for entity in entities:
+
+                if entity.creature.profession and entity.creature.profession.current_work_building and entity.creature.profession.current_work_building.site == site:
+                    entity.creature.profession.current_work_building.place_within(entity)
+
+                elif entity.creature.current_citizenship == site and entity.creature.house:
+                    # Give it physical property if it doesn't have it
+                    #if not entity.creature.house.physical_property:
+                    #    entity.creature.house.add_physical_property_rect(physical_property_rect=home_tiles)
+                    entity.creature.house.place_within(entity)
+
+                elif entity.creature.current_citizenship == site and site.houses:
+                    print '{0} has no house but lives in {1}'.format(entity.fulltitle(), site.name )
+
+                else:
+                    taverns = site.get_building_type('Tavern')
+                    tavern = random.choice(taverns)
+                    tavern.place_within(entity)
+                    g.game.add_message('placing {0} in tavern at {1}, {2}'.format(entity.fulltitle(), entity.x, entity.y))
+
+        # placed_figures = []
+        #
+        # for building in self.city_class.buildings:
+        #     for employee in building.current_workers:
+        #         building.place_within(obj=employee)
+        #         placed_figures.append(employee)
+        #
+        #     ''' Why doesn't this always work?
+        #     if building.b_type == 'Tavern':
+        #         for i in xrange(roll(1, 3)):
+        #             human = self.city_class.create_inhabitant(sex=1, born=time_cycle.current_year-roll(16, 35), char='o', dynasty=None, important=0, house=None)
+        #             building.place_within(obj=human)
+        #     '''
+        #
+        #     for member in building.inhabitants:
+        #         if member not in placed_figures:
+        #             building.place_within(obj=member)
+        #             placed_figures.append(member)
+        #
+        #     # Ug
+        #     building.add_housed_objects_to_map()
+        #
+        # ### Adding agents from the economy to the city
+        # profession_to_business = {'Blacksmith':'Foundry', 'Potter':'Kiln', 'Carpenter':'Carpenter Workshop', 'Clothier':'Clothier Workshop'}
+        #
+        # unplaced_homeseekers = 0
+        # for good_producer in self.city_class.econ.good_producers:
+        #     if len(self.industries) and len(self.houses):
+        #         work_tiles = random.choice(self.industries)
+        #         home_tiles = random.choice(self.houses)
+        #
+        #         self.industries.remove(work_tiles)
+        #         self.houses.remove(home_tiles)
+        #
+        #         ## Choose a title for the business
+        #         professions = [it.Profession(name=good_producer.name, category='commoner')]
+        #         ptype = good_producer.name.split(' ')[1]
+        #         new_building = self.city_class.create_building(zone='commercial', type_=profession_to_business[ptype],
+        #                                 template='TEST', professions=professions, inhabitants=[], tax_status='commoner')
+        #
+        #
+        #         ## Fill positions
+        #         new_building.fill_initial_positions()
+        #         # The first employee listed is the actual economy agent
+        #         new_building.current_workers[0].creature.economy_agent = good_producer
+        #
+        #
+        #         for x in xrange(work_tiles.x1, work_tiles.x2 + 1):
+        #             for y in xrange(work_tiles.y1, work_tiles.y2 + 1):
+        #                 new_building.physical_property.append((x, y))
+        #                 self.usemap.tiles[x][y].building = new_building
+        #
+        #         for employee in new_building.current_workers:
+        #             new_building.place_within(obj=employee)
+        #             placed_figures.append(employee)
+        #
+        #         #### WILL ONLY CREATE HOUSE FOR FIRST EMPLOYEE
+        #         # And will not place employee in house
+        #         household = self.city_class.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
+        #
+        #         for x in xrange(home_tiles.x1, home_tiles.x2 + 1):
+        #             for y in xrange(home_tiles.y1, home_tiles.y2 + 1):
+        #                 household.physical_property.append((x, y))
+        #                 self.usemap.tiles[x][y].building = household
+        #
+        #     # TODO - find out why there aren't enough houses in the city
+        #     else:
+        #         unplaced_homeseekers += 1
+        #
+        # print '{0} unplaced figures looking for either home or work'.format(unplaced_homeseekers)
+        #
+        # taverns = [building for building in self.city_class.buildings if building.type_ == 'Tavern']
+        # #for figure in self.city_class.figures:
+        # for entity in self.figures:
+        #     if entity not in placed_figures:
+        #         tavern = random.choice(taverns)
+        #         tavern.place_within(obj=entity)
+
 
         ## DIJMAPS
         factions_on_map = self.cache_factions_for_dmap()
@@ -1195,7 +1299,7 @@ class CityMap:
         g.game.render_handler.progressbar_screen(pbarname, 'historizing buildings', 8, steps)
         self.historize_buildings()
         g.game.render_handler.progressbar_screen(pbarname, 'placing figures', 9, steps)
-        self.place_figures()
+        # self.place_figures()
 
 
     def make_market(self, empty_lot, zone):
@@ -1388,87 +1492,80 @@ class CityMap:
 
 
 
-    def place_figures(self):
-        ## Place historical figures on the map
-
-        # A list of figures who have been placed so far
-        placed_figures = []
-
-        for building in self.city_class.buildings:
-            for employee in building.current_workers:
-                building.place_within(obj=employee)
-                placed_figures.append(employee)
-
-            ''' Why doesn't this always work?
-            if building.b_type == 'Tavern':
-                for i in xrange(roll(1, 3)):
-                    human = self.city_class.create_inhabitant(sex=1, born=time_cycle.current_year-roll(16, 35), char='o', dynasty=None, important=0, house=None)
-                    building.place_within(obj=human)
-            '''
-
-            for member in building.inhabitants:
-                if member not in placed_figures:
-                    building.place_within(obj=member)
-                    placed_figures.append(member)
-
-            # Ug
-            building.add_housed_objects_to_map()
-
-        ### Adding agents from the economy to the city
-        profession_to_business = {'Blacksmith':'Foundry', 'Potter':'Kiln', 'Carpenter':'Carpenter Workshop', 'Clothier':'Clothier Workshop'}
-
-        unplaced_homeseekers = 0
-        for good_producer in self.city_class.econ.good_producers:
-            if len(self.industries) and len(self.houses):
-                work_tiles = random.choice(self.industries)
-                home_tiles = random.choice(self.houses)
-
-                self.industries.remove(work_tiles)
-                self.houses.remove(home_tiles)
-
-                ## Choose a title for the business
-                professions = [it.Profession(name=good_producer.name, category='commoner')]
-                ptype = good_producer.name.split(' ')[1]
-                new_building = self.city_class.create_building(zone='commercial', type_=profession_to_business[ptype],
-                                        template='TEST', professions=professions, inhabitants=[], tax_status='commoner')
-
-
-                ## Fill positions
-                new_building.fill_initial_positions()
-                # The first employee listed is the actual economy agent
-                new_building.current_workers[0].creature.economy_agent = good_producer
-
-
-                for x in xrange(work_tiles.x1, work_tiles.x2 + 1):
-                    for y in xrange(work_tiles.y1, work_tiles.y2 + 1):
-                        new_building.physical_property.append((x, y))
-                        self.usemap.tiles[x][y].building = new_building
-
-                for employee in new_building.current_workers:
-                    new_building.place_within(obj=employee)
-                    placed_figures.append(employee)
-
-                #### WILL ONLY CREATE HOUSE FOR FIRST EMPLOYEE
-                # And will not place employee in house
-                household = self.city_class.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
-
-                for x in xrange(home_tiles.x1, home_tiles.x2 + 1):
-                    for y in xrange(home_tiles.y1, home_tiles.y2 + 1):
-                        household.physical_property.append((x, y))
-                        self.usemap.tiles[x][y].building = household
-
-            # TODO - find out why there aren't enough houses in the city
-            else:
-                unplaced_homeseekers += 1
-
-        print '{0} unplaced figures looking for either home or work'.format(unplaced_homeseekers)
-
-        taverns = [building for building in self.city_class.buildings if building.type_ == 'Tavern']
-        #for figure in self.city_class.figures:
-        for entity in self.figures:
-            if entity not in placed_figures:
-                tavern = random.choice(taverns)
-                tavern.place_within(obj=entity)
+    # def place_figures(self):
+    #     ## Place historical figures on the map
+    #
+    #     # A list of figures who have been placed so far
+    #     placed_figures = []
+    #
+    #     for building in self.city_class.buildings:
+    #         for employee in building.current_workers:
+    #             building.place_within(obj=employee)
+    #             placed_figures.append(employee)
+    #
+    #         ''' Why doesn't this always work?
+    #         if building.b_type == 'Tavern':
+    #             for i in xrange(roll(1, 3)):
+    #                 human = self.city_class.create_inhabitant(sex=1, born=time_cycle.current_year-roll(16, 35), char='o', dynasty=None, important=0, house=None)
+    #                 building.place_within(obj=human)
+    #         '''
+    #
+    #         for member in building.inhabitants:
+    #             if member not in placed_figures:
+    #                 building.place_within(obj=member)
+    #                 placed_figures.append(member)
+    #
+    #         # Ug
+    #         building.add_housed_objects_to_map()
+    #
+    #     ### Adding agents from the economy to the city
+    #     profession_to_business = {'Blacksmith':'Foundry', 'Potter':'Kiln', 'Carpenter':'Carpenter Workshop', 'Clothier':'Clothier Workshop'}
+    #
+    #     unplaced_homeseekers = 0
+    #     for good_producer in self.city_class.econ.good_producers:
+    #         if len(self.industries) and len(self.houses):
+    #             work_tiles = random.choice(self.industries)
+    #             home_tiles = random.choice(self.houses)
+    #
+    #             self.industries.remove(work_tiles)
+    #             self.houses.remove(home_tiles)
+    #
+    #             ## Choose a title for the business
+    #             professions = [it.Profession(name=good_producer.name, category='commoner')]
+    #             ptype = good_producer.name.split(' ')[1]
+    #             new_building = self.city_class.create_building(zone='commercial', type_=profession_to_business[ptype],
+    #                                     template='TEST', professions=professions, inhabitants=[], tax_status='commoner')
+    # 
+    #
+    #             ## Fill positions
+    #             new_building.fill_initial_positions()
+    #             # The first employee listed is the actual economy agent
+    #             new_building.current_workers[0].creature.economy_agent = good_producer
+    #
+    #             new_building.add_physical_property_rect(physical_property_rect=work_tiles)
+    #
+    #             for employee in new_building.current_workers:
+    #                 new_building.place_within(obj=employee)
+    #                 placed_figures.append(employee)
+    #
+    #             #### WILL ONLY CREATE HOUSE FOR FIRST EMPLOYEE
+    #             # And will not place employee in house
+    #             household = self.city_class.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[new_building.current_workers[0]], tax_status='commoner')
+    #
+    #             household.add_physical_property_rect(physical_property_rect=home_tiles)
+    #
+    #         # TODO - find out why there aren't enough houses in the city
+    #         else:
+    #             unplaced_homeseekers += 1
+    #
+    #     print '{0} unplaced figures looking for either home or work'.format(unplaced_homeseekers)
+    #
+    #     taverns = [building for building in self.city_class.buildings if building.type_ == 'Tavern']
+    #     #for figure in self.city_class.figures:
+    #     for entity in self.figures:
+    #         if entity not in placed_figures:
+    #             tavern = random.choice(taverns)
+    #             tavern.place_within(obj=entity)
 
         ## Add some schmoes to recruit
         #for tavern in taverns:
@@ -1483,23 +1580,21 @@ class CityMap:
         big_house_categories = ('noble', 'religion', 'merchant')
         ## Loop through the list of historical houses
         for i, building in enumerate(self.city_class.buildings):
-            big_house = False
-            for figure in building.inhabitants:
-                if figure.creature.profession and figure.creature.profession.category in big_house_categories:
-                    big_house = True
-                    break
+            if building.type_ == 'house':
+                big_house = False
+                for figure in building.inhabitants:
+                    if figure.creature.profession and figure.creature.profession.category in big_house_categories:
+                        big_house = True
+                        break
 
-            if big_house and len(self.noble_houses):
-                b_rect = random.choice(self.noble_houses)
-                self.noble_houses.remove(b_rect)
-            else:
-                b_rect = random.choice(self.houses)
-                self.houses.remove(b_rect)
+                if big_house and len(self.noble_houses):
+                    b_rect = random.choice(self.noble_houses)
+                    self.noble_houses.remove(b_rect)
+                else:
+                    b_rect = random.choice(self.houses)
+                    self.houses.remove(b_rect)
 
-            for x in xrange(b_rect.x1, b_rect.x2 + 1):
-                for y in xrange(b_rect.y1, b_rect.y2 + 1):
-                    self.usemap.tiles[x][y].building = building
-                    building.physical_property.append((x, y))
+                building.add_physical_property_rect(physical_property_rect=b_rect)
 
 
     def historize_buildings(self):
@@ -1509,18 +1604,15 @@ class CityMap:
             self.usemap.tiles[x][y].building = market
         market.physical_property = self.markets[0]
 
+        min_industry_size = 8
         ## Loop through the list of historical buildings
         for i, building in enumerate(self.city_class.buildings):
-
-            if not building.physical_property:
-                phys_building = random.choice(self.industries)
-                self.industries.remove(phys_building)
-
-                for x in xrange(phys_building.x1, phys_building.x2 + 1):
-                    for y in xrange(phys_building.y1, phys_building.y2 + 1):
-                        self.usemap.tiles[x][y].building = building
-                        self.city_class.buildings[i].physical_property.append((x, y))
-
+            if building.type_ != 'house':
+                if not building.physical_property:
+                    # Adding a quick hack to make sure buildings, especially taverns, get a reasonable minimum size
+                    phys_building = random.choice([plot for plot in self.industries if plot.get_dimensions()[0] > min_industry_size and plot.get_dimensions()[1] > min_industry_size])
+                    self.industries.remove(phys_building)
+                    building.add_physical_property_rect(physical_property_rect=phys_building)
 
     def make_municipal_bldg(self, x, y, w, h, road_thickness, building_info):
         ''' Municipal buildings are government-owned '''
