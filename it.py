@@ -253,6 +253,7 @@ CONVERSATION_QUESTIONS= {
                             'greet':'Hello.',
                             'name':'What is your name?',
                             'profession':'What do you do?',
+                            'battles':'Have there been any battles lately?',
                             'events':'What\'s been going on?',
                             'age':'How old are you?,',
                             'city':'From where do you hail?',
@@ -5846,14 +5847,26 @@ class Creature:
                 else:
                     self.say('I do not have any profession.')
 
-            elif question_type == 'events':
+            elif question_type == 'battles':
                 found_event = 0
-                for event_id in self.knowledge['events']:
-                    if g.WORLD.time_cycle.date_dif(earlier_date=hist.historical_events[event_id].date, later_date=g.WORLD.time_cycle.get_current_date()) <= 1:
+                for event_id in self.get_knowledge_of_events(days_ago=360):
+                    if hist.historical_events[event_id].type_ == 'battle':
                         found_event = 1
                         self.say(hist.historical_events[event_id].describe())
                         self.say('I heard this from {0} on {1}'.format(self.knowledge['events'][event_id]['description']['source'].fulltitle(),
-                                                                    g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
+                                                                        g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
+                if not found_event:
+                    self.say('I don\'t know of any recent battles.')
+
+            elif question_type == 'events':
+                found_event = 0
+                other_event_types = ('marriage', 'birth', 'travel_start', 'travel_end')
+                for event_id in self.get_knowledge_of_events(days_ago=360):
+                    if hist.historical_events[event_id].type_ in other_event_types:
+                        found_event = 1
+                        self.say(hist.historical_events[event_id].describe())
+                        self.say('I heard this from {0} on {1}'.format(self.knowledge['events'][event_id]['description']['source'].fulltitle(),
+                                                                        g.WORLD.time_cycle.date_to_text(self.knowledge['events'][event_id]['description']['date_learned'])))
                 if not found_event:
                     self.say('I haven\'t heard of anything going on recently')
 
@@ -5935,6 +5948,7 @@ class Creature:
             valid_questions.append('goals')
 
         valid_questions.append('events')
+        valid_questions.append('battles')
 
         ## TODO - allow NPCs to recruit, under certain circumstances
         if self.is_commander() and target.creature.commander != self.owner and self.owner == g.player:
@@ -5977,6 +5991,9 @@ class Creature:
             return 'truth'
 
         elif question_type == 'events':
+            return 'truth'
+
+        elif question_type == 'battles':
             return 'truth'
 
         elif question_type == 'age':
@@ -6412,6 +6429,10 @@ class Creature:
                                                        location=hist.historical_events[event_id].location, heading=-1, source=source)
 
             #g.game.add_message(' ~   ~~ {0} has learned that {1}    '.format(self.owner.fullname(), hist.historical_events[event_id].describe()))
+
+    def get_knowledge_of_events(self, days_ago):
+        today = g.WORLD.time_cycle.get_current_date()
+        return [e_id for e_id in self.knowledge['events'] if g.WORLD.time_cycle.date_dif(earlier_date=hist.historical_events[e_id].date, later_date=today, mode='days') <= days_ago]
 
     def add_knowledge_of_site(self, site, date_learned, source, location_accuracy=1):
         if site not in self.knowledge['sites']:
@@ -8339,22 +8360,22 @@ class Game:
         if self.map_scale == 'human':
 
             panel2.bmap_buttons = [
-                                   gui.Button(gui_panel=panel2, func=player_order_move, args=[], text='Move!', topleft=(4, PANEL2_HEIGHT-26), width=10, height=5),
-                                   gui.Button(gui_panel=panel2, func=player_order_follow, args=[], text='Follow Me!', topleft=(14, PANEL2_HEIGHT-26), width=10, height=5),
+                                   gui.Button(gui_panel=panel2, func=player_order_move, args=[], text='Move!', topleft=(4, PANEL2_HEIGHT-22), width=10, height=4),
+                                   gui.Button(gui_panel=panel2, func=player_order_follow, args=[], text='Follow Me!', topleft=(14, PANEL2_HEIGHT-22), width=10, height=4),
 
-                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=self.return_to_worldmap, args=[], text='Return to World view', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5),
-                                   gui.Button(gui_panel=panel2, func=pick_up_menu, args=[], text='Pick up item', topleft=(4, PANEL2_HEIGHT-11), width=20, height=5),
-                                   gui.Button(gui_panel=panel2, func=manage_inventory, args=[], text='Inventory', topleft=(4, PANEL2_HEIGHT-6), width=20, height=5)
+                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-18), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=self.return_to_worldmap, args=[], text='Return to World view', topleft=(4, PANEL2_HEIGHT-14), width=20, height=4),
+                                   gui.Button(gui_panel=panel2, func=pick_up_menu, args=[], text='Pick up item', topleft=(4, PANEL2_HEIGHT-10), width=20, height=4),
+                                   gui.Button(gui_panel=panel2, func=manage_inventory, args=[], text='Inventory', topleft=(4, PANEL2_HEIGHT-6), width=20, height=4)
                                    ]
 
         elif self.map_scale == 'world':
 
             panel2.wmap_buttons = [
-                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-21), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=g.WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, PANEL2_HEIGHT-16), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=gui.show_civs, args=[g.WORLD], text='Civ info', topleft=(4, PANEL2_HEIGHT-11), width=bwidth, height=5),
-                                   gui.Button(gui_panel=panel2, func=gui.show_cultures, args=[g.WORLD, None], text='Cultures', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=5)
+                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-18), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=g.WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, PANEL2_HEIGHT-14), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=gui.show_civs, args=[g.WORLD], text='Civ info', topleft=(4, PANEL2_HEIGHT-10), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=gui.show_cultures, args=[g.WORLD, None], text='Cultures', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=4)
                                    ]
 
     def handle_fov_recompute(self):
@@ -8718,7 +8739,7 @@ if __name__ == '__main__':
 
     g.init()
 
-    TILE_SIZE = 12
+    TILE_SIZE = 16
     #actual size of the window
     g.SCREEN_WIDTH = int(SCREEN_RES[0]/TILE_SIZE)
     g.SCREEN_HEIGHT = int(SCREEN_RES[1]/TILE_SIZE)
@@ -8754,8 +8775,8 @@ if __name__ == '__main__':
     MSG_WIDTH = PANEL1_WIDTH - 5
     MSG_HEIGHT = PANEL1_HEIGHT - 2
 
-    font_path = os.path.join(os.getcwd(), 'fonts', 't12_test.png')
-    #font_path = os.path.join(os.getcwd(), 'fonts', 't16_test.png')
+    #font_path = os.path.join(os.getcwd(), 'fonts', 't12_test.png')
+    font_path = os.path.join(os.getcwd(), 'fonts', 't16_test.png')
     libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
     libtcod.console_init_root(g.SCREEN_WIDTH, g.SCREEN_HEIGHT, 'Iron Testament v0.5', True, renderer=libtcod.RENDERER_GLSL)
     libtcod.mouse_show_cursor(visible=1)

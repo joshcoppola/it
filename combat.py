@@ -94,6 +94,8 @@ class WorldBattle(HistoricalEvent):
         self.faction2_commander = determine_commander(faction2_named)
         self.faction2_populations = faction2_populations
 
+        self.type_ = 'battle'
+
         self.faction1_remaining = None
         self.faction2_remaining = None
 

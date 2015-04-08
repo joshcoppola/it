@@ -38,6 +38,7 @@ class Marriage(HistoricalEvent):
     def __init__(self, date, location, figures):
         HistoricalEvent.__init__(self, date, location)
         self.figures = figures
+        self.type_ = 'marriage'
 
         for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
@@ -54,6 +55,7 @@ class Birth(HistoricalEvent):
         HistoricalEvent.__init__(self, date, location)
         self.parents = parents
         self.child = child
+        self.type_ = 'birth'
 
         for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
@@ -75,6 +77,7 @@ class TravelStart(HistoricalEvent):
         self.commander = determine_commander(self.figures)
         self.populations = populations
         self.reason = reason
+        self.type_ = 'travel_start'
 
         for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
@@ -95,6 +98,7 @@ class TravelEnd(HistoricalEvent):
         self.figures = figures
         self.commander = determine_commander(self.figures)
         self.populations = populations
+        self.type_ = 'travel_end'
 
         for figure in self.get_entities():
             figure.add_associated_event(event_id=self.id_)
