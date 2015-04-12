@@ -254,6 +254,7 @@ CONVERSATION_QUESTIONS= {
                             'greet':'Hello.',
                             'name':'What is your name?',
                             'profession':'What do you do?',
+                            'sites':'What sites do you know about?',
                             'battles':'Have there been any battles lately?',
                             'events':'What\'s been going on?',
                             'age':'How old are you?,',
@@ -1483,8 +1484,8 @@ class World(Map):
             if not 'flax' in city.native_res:
                 city.native_res['flax'] = 2000
 
-            if city.culture.subsistence != 'agricultural':
-                city.culture.set_subsistence('agricultural')
+            if g.WORLD.tiles[city.x][city.y].culture.subsistence != 'agricultural':
+                g.WORLD.tiles[city.x][city.y].culture.set_subsistence('agricultural')
 
             # Make sure the cultures the cities are a part of gain access to the resource
             for resource in self.tiles[city.x][city.y].res:
@@ -1685,6 +1686,24 @@ class World(Map):
         self.add_bandits(city_list=networked_cities, lnum=0, hnum=2, radius=10)
 
 
+        # Prepare a list of all nearby chunks, which will be used to fuel cultural knowledgte of nearby sites
+        all_nearby_chunks = []
+        for city in created_cities:
+            nearby_chunks = self.get_nearby_chunks(chunk=self.tiles[city.x][city.y].chunk, distance=1)
+            for chunk in nearby_chunks:
+                if chunk not in all_nearby_chunks:
+                    all_nearby_chunks.append(chunk)
+
+        # On this step, explicitly add knowledge of all the sites nearby to this chunk
+        for city in created_cities:
+            for chunk in all_nearby_chunks:
+                for site in chunk.get_all_sites():
+                    #print 'adding knowledge of {0}'.format(site.name)
+                    g.WORLD.tiles[city.x][city.y].culture.add_c_knowledge_of_site(site=site, location_accuracy=5)
+
+        # Until this point, a bunch of creature have been created, but their knowledge base needs to be updated with the new sites
+        for entity in g.WORLD.all_figures:
+            entity.creature.culture.transfer_c_knowledge_to_entity(entity=entity, date=entity.creature.born)
 
         # Some timing and debug info
         #g.game.add_message('Civs created in %.2f seconds' %(time.time() - begin))
@@ -4413,8 +4432,8 @@ def order_menu(player, target):
     wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
 
-    wpanel.add_button(func=g.player_give_order, args=[target, 'move_to'], text='Move to...', topleft=(atx, aty), width=bwidth, height=3, closes_menu=1)
-    wpanel.add_button(func=g.player_give_order, args=[target, 'follow'], text='Follow me', topleft=(atx, aty+3), width=bwidth, height=3 , closes_menu=1)
+    wpanel.add_button(func=player_give_order, args=[target, 'move_to'], text='Move to...', topleft=(atx, aty), width=bwidth, height=3, closes_menu=1)
+    wpanel.add_button(func=player_give_order, args=[target, 'follow'], text='Follow me', topleft=(atx, aty+3), width=bwidth, height=3 , closes_menu=1)
 
 
 def player_give_order(target, order):
@@ -5895,6 +5914,15 @@ class Creature:
                 if not found_event:
                     self.say('I haven\'t heard of anything going on recently')
 
+            elif question_type == 'sites':
+                found_site = 0
+                for site in self.knowledge['sites']:
+                    found_site = 1
+                    self.say('I know of {0}, a {1} located at {2}'.format(site.name, site.type_, g.WORLD.tiles[site.x][site.y].get_location_description() ))
+
+                if not found_site:
+                    self.say('I actually don\'t know about any sites at all')
+
             elif question_type == 'age':
                 age = self.get_age()
                 self.say('I am %i.' % age)
@@ -5974,6 +6002,7 @@ class Creature:
 
         valid_questions.append('events')
         valid_questions.append('battles')
+        valid_questions.append('sites')
 
         ## TODO - allow NPCs to recruit, under certain circumstances
         if self.is_commander() and target.creature.commander != self.owner and self.owner == g.player:
@@ -6019,6 +6048,9 @@ class Creature:
             return 'truth'
 
         elif question_type == 'battles':
+            return 'truth'
+
+        elif question_type == 'sites':
             return 'truth'
 
         elif question_type == 'age':
@@ -7563,6 +7595,10 @@ class Culture:
         self.pantheon = religion.Pantheon(astrology=self.astrology, num_nature_gods=roll(1, 2))
 
         self.subsistence = 'hunter-gatherer'
+        self.c_knowledge = {
+                            'sites': {},
+                            'events': {},
+                        }
 
         self.neighbor_cultures = []
 
@@ -7626,6 +7662,19 @@ class Culture:
 
     def set_subsistence(self, subsistence):
         self.subsistence = subsistence
+
+
+    def add_c_knowledge_of_site(self, site, location_accuracy=1):
+        self.c_knowledge['sites'][site] = {'description': {}, 'location': {} }
+        self.c_knowledge['sites'][site]['location']['accuracy'] = location_accuracy
+
+
+    def transfer_c_knowledge_to_entity(self, entity, date):
+        # print self.name, self.subsistence, self.c_knowledge['sites']
+        for site in self.c_knowledge['sites']:
+            accuracy = self.c_knowledge['sites'][site]['location']['accuracy']
+            entity.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=accuracy)
+
 
     def gen_word(self, syllables, num_phonemes=(3, 20), cap=0):
         word = self.language.gen_word(syllables=syllables, num_phonemes=num_phonemes)
@@ -7709,13 +7758,13 @@ class Culture:
         # Give it language
         human.creature.update_language_knowledge(language=self.language, verbal=10, written=0)
 
+        # Transfer the sum of all cultural knowledge to our new creature
+        self.transfer_c_knowledge_to_entity(entity=human, date=born)
+
         # Placeholder for now, but adding the lingua franca to all those who are part of agricultural socieities
-        if self.subsistence == 'agricultural':
-            for city in g.WORLD.cities:
-                human.creature.add_knowledge_of_site(site=city, date_learned=g.WORLD.time_cycle.get_current_date(), source=human, location_accuracy=5)
+        if self.subsistence == 'agricultural' and g.WORLD.lingua_franca not in human.creature.languages:
             # Update languages to match the lingua franca if necessary
-            if g.WORLD.lingua_franca not in human.creature.languages:
-                human.creature.update_language_knowledge(language=g.WORLD.lingua_franca, verbal=10, written=0)
+            human.creature.update_language_knowledge(language=g.WORLD.lingua_franca, verbal=10, written=0)
 
         faction.add_member(human)
 
