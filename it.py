@@ -1686,6 +1686,10 @@ class World(Map):
         self.add_bandits(city_list=networked_cities, lnum=0, hnum=2, radius=10)
 
 
+        ############################################################################################
+        # As a final cleanup step, add knowledge to characters who were created earlier in history #
+        ############################################################################################
+
         # Prepare a list of all nearby chunks, which will be used to fuel cultural knowledgte of nearby sites
         all_nearby_chunks = []
         for city in created_cities:
@@ -1698,12 +1702,18 @@ class World(Map):
         for city in created_cities:
             for chunk in all_nearby_chunks:
                 for site in chunk.get_all_sites():
-                    #print 'adding knowledge of {0}'.format(site.name)
-                    g.WORLD.tiles[city.x][city.y].culture.add_c_knowledge_of_site(site=site, location_accuracy=5)
+                    city.culture.add_c_knowledge_of_site(site=site, location_accuracy=5)
 
         # Until this point, a bunch of creature have been created, but their knowledge base needs to be updated with the new sites
         for entity in g.WORLD.all_figures:
             entity.creature.culture.transfer_c_knowledge_to_entity(entity=entity, date=entity.creature.born)
+
+            # It may not be cultural, but still give other entities knowledge of nearby sites
+            if entity.creature.culture not in civilized_cultures:
+                nearby_chunks = self.get_nearby_chunks(chunk=self.tiles[entity.wx][entity.wy].chunk, distance=1)
+                for chunk in nearby_chunks:
+                    for site in chunk.get_all_sites():
+                        entity.creature.add_knowledge_of_site(site=site, date_learned=entity.creature.born, source=entity, location_accuracy=5)
 
         # Some timing and debug info
         #g.game.add_message('Civs created in %.2f seconds' %(time.time() - begin))
