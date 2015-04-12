@@ -114,6 +114,7 @@ PROFESSION_INFAMY = {
 
     'Adventurer': 5,
     'Tavern Keeper': 10,
+    'Bard': 10,
     'Assassin': 0,
     'Bandit': 0,
 
@@ -314,6 +315,8 @@ class Region:
         self.minor_sites = []
         self.caves = []
 
+        self.all_sites = []
+
         self.associated_events = set([])
 
         self.height = 0
@@ -348,6 +351,9 @@ class Region:
                 feature_list.append(feature)
 
         return feature_list
+
+    def get_all_sites(self):
+        return self.minor_sites + self.caves
 
     def get_base_color(self):
         # Give the map a base color
@@ -2712,11 +2718,10 @@ class City(Site):
         #    self.create_building(name='Estate', professions=estate_professions, tax_status='noble')
 
         for i in xrange(roll(4, 6)):
-            if roll(0, 1):
-                tavern_professions = [Profession(name='Tavern Keeper', category='commoner'),
-                                      Profession(name='Assassin', category='commoner')]
-            else:
-                tavern_professions = [Profession(name='Tavern Keeper', category='commoner')]
+            tavern_professions = [Profession(name='Tavern Keeper', category='commoner'),
+                                  Profession(name='Bard', category='commoner')]
+            #if roll(0, 1):
+            #    tavern_professions.append(Profession(name='Assassin', category='commoner'))
 
             self.create_building(zone='commercial', type_='Tavern', template='TEST', professions=tavern_professions, inhabitants=[], tax_status='commoner')
 
@@ -2960,12 +2965,12 @@ class Building:
             # Mostly try to use existing folks to fill the position
             if not profession.name in ('Assassin', ) and len(potential_employees) > 0:
                 human = random.choice(potential_employees)
-                all_new_figures = [human]
+                # all_new_figures = [human]
             # Otherwise, create a new person
             else:
                 born = g.WORLD.time_cycle.years_ago(roll(18, 40))
                 human = self.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
-                all_new_figures = [human]
+                # all_new_figures = [human]
 
         ## Actually give profession to the person ##
         profession.give_profession_to(human)
@@ -4070,6 +4075,15 @@ class Object:
             if self.creature:
                 for commanded_figure_or_population in self.creature.commanded_figures + self.creature.commanded_populations:
                     commanded_figure_or_population.w_move(dx=dx, dy=dy)
+
+                # Update knowledge of sites
+                sites = g.WORLD.tiles[self.wx][self.wy].get_all_sites()
+                if sites:
+                    date = g.WORLD.time_cycle.get_current_date()
+                    for site in sites:
+                        if site not in self.creature.knowledge['sites']:
+                            self.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=1)
+                            # g.game.add_message('{0} has learned that {1} is located at {2}'.format(self.fullname(), site.get_name(), (site.x, site.y)))
 
         #self.update_figures_and_check_for_city()
 
@@ -6892,9 +6906,16 @@ class BasicWorldBrain:
                 if roll(1, 20) == 20:
                     creature.have_child()
 
-            ####### GOALS #######
+            ####### Specal case - bards #######
+            if self.owner.creature.profession and self.owner.creature.profession.name == 'Bard':
+                target_city = random.choice([city for city in g.WORLD.cities if (city.x, city.y) != (self.owner.wx, self.owner.wy)])
+                reason = 'travel from city to city to make my living!'
+                # print '{0} is moving to {1}'.format(self.owner.fullname(), target_city.name)
+                # creature.change_citizenship(new_city=target_city, new_house=None)
+                self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
 
-            if not creature.economy_agent \
+            ####### GOALS #######
+            elif not creature.economy_agent \
                     and self.owner.creature.sex == 1 \
                     and age >= 18 \
                     and not creature.is_commander() \
@@ -7673,13 +7694,17 @@ class Culture:
 
 
         human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
+
         # Give it language
         human.creature.update_language_knowledge(language=self.language, verbal=10, written=0)
+
         # Placeholder for now, but adding the lingua franca to all those who are part of agricultural socieities
-        if self.subsistence == 'agricultural' and g.WORLD.lingua_franca not in human.creature.languages:
-            human.creature.update_language_knowledge(language=g.WORLD.lingua_franca, verbal=10, written=0)
+        if self.subsistence == 'agricultural':
             for city in g.WORLD.cities:
                 human.creature.add_knowledge_of_site(site=city, date_learned=g.WORLD.time_cycle.get_current_date(), source=human, location_accuracy=5)
+            # Update languages to match the lingua franca if necessary
+            if g.WORLD.lingua_franca not in human.creature.languages:
+                human.creature.update_language_knowledge(language=g.WORLD.lingua_franca, verbal=10, written=0)
 
         faction.add_member(human)
 
