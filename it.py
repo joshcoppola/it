@@ -1433,16 +1433,17 @@ class World(Map):
         # Set world lingua franca
         self.lingua_franca = self.tiles[x][y].culture.language
 
-        city_blocker_resources = ('copper', 'bronze', 'iron')
+        #city_blocker_resources = ('copper', 'bronze', 'iron')
 
         while city_sites != []:
             nx, ny = random.choice(city_sites)
             city_sites.remove((nx, ny))
 
-            for resource in g.WORLD.tiles[nx][ny].res:
-                if resource in city_blocker_resources:
-                    (nx, ny) = random.choice([t for t in get_border_tiles(nx, ny) if self.is_valid_site(t[0], t[1]) ])
-                    break
+            # Can't add this jitter yet, since changing the placement of the city can cause it to miss out on other resources
+            #for resource in g.WORLD.tiles[nx][ny].res:
+            #    if resource in city_blocker_resources:
+            #        (nx, ny) = random.choice([t for t in get_border_tiles(nx, ny) if self.is_valid_site(t[0], t[1]) ])
+            #        break
 
             if self.tiles[nx][ny].site:
                 continue
@@ -1508,7 +1509,7 @@ class World(Map):
             self.add_famous_object(obj=obj)
 
             # Object will be put inside a temple
-            housed_city = random.choice(filter(lambda city: city.culture == culture, created_cities))
+            housed_city = random.choice(filter(lambda city_: city_.culture == culture, created_cities))
             temple = housed_city.get_building('Temple')
             obj.set_current_building(building=temple)
 
@@ -1527,7 +1528,9 @@ class World(Map):
             # At this point, we should have no imports, but just in case... flatten the list
             flattened_import_list = [item for sublist in city.imports.values() for item in sublist]
             ## Make a list of other cities by distance, so you can import from the closer cities first
-            cities_and_distances = [(city.distance_to(c), c) for c in created_cities if c != city]
+            # cities_and_distances = [(city.distance_to(c), c) for c in created_cities if c != city]
+            cities_and_distances = [(self.get_astar_distance_to(city.x, city.y, c.x, c.y), c) for c in created_cities if c != city]
+
             cities_and_distances.sort()
 
             for distance, other_city in cities_and_distances:
