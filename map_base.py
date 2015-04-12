@@ -29,6 +29,9 @@ class RegionChunk(Chunk):
         self.minor_sites = []
         self.caves = []
 
+    def get_all_sites(self):
+        return self.sites + self.minor_sites + self.caves
+
     def add_site(self, site):
         self.sites.append(site)
 
