@@ -5139,6 +5139,10 @@ class UnloadGoodsBehavior:
     def initialize_behavior(self):
         self.is_active= 1
 
+    def get_name(self):
+        goal_name = 'Unload good in {0}'.format(self.target_city.name)
+        return goal_name
+
     def is_completed(self):
         return self.figure in self.target_city.caravans
 
@@ -5160,6 +5164,10 @@ class KillTargBehavior:
 
     def initialize_behavior(self):
         self.is_active= 1
+
+    def get_name(self):
+        goal_name = 'Kill {0}'.format(self.target.fulltitle())
+        return goal_name
 
     def is_completed(self):
         # return self.target.creature.status == 'dead'
