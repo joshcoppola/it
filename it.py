@@ -376,6 +376,7 @@ class Region:
     def get_location_description(self):
         if self.site:
             return self.site.name
+        # Say the name of the site, unless it is being described relative to other cities
         elif len(self.minor_sites) or len(self.caves):
             site_names = [site.get_name() for site in self.minor_sites + self.caves]
             return join_list(site_names)
@@ -395,6 +396,22 @@ class Region:
                 return 'the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
             else:
                 return 'the unknown {0}s'.format(self.region)
+
+    def get_location_description_relative_to(self, relative_location):
+
+        wx, wy = relative_location
+        dist = g.WORLD.get_astar_distance_to(self.x, self.y, wx, wy)
+
+        if self.x == wx and self.y == wy:
+            return 'this very place'
+        elif dist is None:
+            return 'the unreachable {0}s'.format(self.region)
+        elif dist < 30:
+            return 'the {0}s about {1} days\' journey to the {2}'.format(self.region, dist, cart2card(wx, wy, self.x, self.y))
+        else:
+            return 'the {0}s far to the {1}'.format(self.region, cart2card(wx, wy, self.x, self.y))
+
+
 
 
 class World(Map):
@@ -5927,8 +5944,15 @@ class Creature:
             elif question_type == 'sites':
                 found_site = 0
                 for site in self.knowledge['sites']:
-                    found_site = 1
-                    self.say('I know of {0}, a {1} located at {2}'.format(site.name, site.type_, g.WORLD.tiles[site.x][site.y].get_location_description() ))
+                    if site.faction and self.owner.creature.faction.is_hostile_to(site.faction):
+                        found_site = 1
+                        if site.name:
+                            name = ' called {0}'.format(site.name)
+                        else:
+                            name = ''
+                        self.say('I know of a {0}{1} located in {2}'.format(site.type_, name, g.WORLD.tiles[site.x][site.y].get_location_description_relative_to((self.owner.wx, self.owner.wy)) ))
+                    #elif site.faction is None:
+                    #    self.say(' -- DBG -- {0} is a {1} without a faction'.format(site.name, site.type_))
 
                 if not found_site:
                     self.say('I actually don\'t know about any sites at all')
