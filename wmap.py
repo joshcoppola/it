@@ -480,6 +480,10 @@ class Wmap(Map):
                 population_start = world_last_dir_to_rect[population.world_last_dir]
                 population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[], place_anywhere=place_anywhere)
 
+            for site in self.world.tiles[self.wx][self.wy].get_all_sites():
+                for building in site.buildings:
+                    building.add_housed_objects_to_map()
+
         ###### Site placement - try to place people inside buildings ######
         elif site:
             for entity in entities:
@@ -501,6 +505,9 @@ class Wmap(Map):
                     tavern = random.choice(taverns)
                     tavern.place_within(entity)
                     g.game.add_message('placing {0} in tavern at {1}, {2}'.format(entity.fulltitle(), entity.x, entity.y))
+
+            for building in site.buildings:
+                building.add_housed_objects_to_map()
 
         # placed_figures = []
         #

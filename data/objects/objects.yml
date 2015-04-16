@@ -94,6 +94,30 @@ crate:
             coverage: 1
             layer_thickness: .01
             dimensions: [.5, 1, .5, .75]
+book:
+   char: "B"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a book"
+   weapon_component: null
+   wearable: 0
+   creature: null
+   components:
+      - name: book
+        functions: []
+        attacks: []
+        position: null
+        attaches_to: null
+        attach_strength: null
+        sharp: 0
+        wearing_info: null
+        layers:
+          - material_tokens: [flax]
+            material_types: []
+            coverage: 1
+            layer_thickness: .01
+            dimensions: [.2, .25, .2, .95]
 shirt:
     char: T
     color: use_material

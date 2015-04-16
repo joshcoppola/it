@@ -3,11 +3,15 @@ import os
 import economy as econ
 import copy
 import yaml
+from collections import defaultdict
 
 import random
 from random import randint as roll
 import libtcodpy as libtcod
 from helpers import join_list
+
+# Clever solution to making dicts several levels deep as detailed here http://stackoverflow.com/questions/4178249/infinitely-nested-dictionary-in-python
+infinite_defaultdict = lambda: defaultdict(infinite_defaultdict)
 
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
@@ -324,6 +328,11 @@ class ObjectComponent:
             self.bodypart_attach_strength = None
         ###############################################
 
+        # Any text written or engraved on the component
+        self.text = {}
+        # Any text that carries some written or engraved information on the component
+        self.information = infinite_defaultdict()
+
         self.storage = None
         ## functions, such as attaching, holding, or grasping
         self.functions = functions
@@ -331,6 +340,49 @@ class ObjectComponent:
             self.storage = []
 
         self.grasped_item = None
+
+    def add_text(self, method, language, text):
+        # Method = how it's written (etched, ink, etc)
+        if not method in self.text:
+            self.text[method] = {}
+
+        if not self.text[method][language]:
+            self.text[method][languae] = [text]
+        else:
+            self.text[method][language].append(text)
+
+    def add_person_location_information(self, language, person, date_written, date_at_loc, location, author):
+        ''' Updates knowledge of the last time we learned about the location of the other '''
+        self.information[language]['entities'][person]['location']['coords'] = location
+        self.information[language]['entities'][person]['location']['date_written'] = date_written
+        self.information[language]['entities'][person]['location']['date_at_loc'] = date_at_loc
+        self.information[language]['entities'][person]['location']['author'] = author
+        #self.information[language]['entities'][person]['location']['heading'] = heading
+        #self.knowledge['entities'][person]['location']['destination'] = destination
+
+    def add_information_of_event(self, language, event_id, date_written, author, location_accuracy=1):
+        self.information[language]['events'][event_id] = {'description': {}, 'location': {} }
+
+        self.information[language]['events'][event_id]['description']['date_written'] = date_written
+        self.information[language]['events'][event_id]['description']['source'] = author
+
+        self.information[language]['events'][event_id]['location']['accuracy'] = location_accuracy
+        self.information[language]['events'][event_id]['location']['date_written'] = date_written
+        self.information[language]['events'][event_id]['location']['source'] = author
+
+    def add_information_of_site(self, language, site, date_written, author, location_accuracy=1, is_part_of_map=1, describe_site=0):
+        self.information[language]['sites'][site] = {'description': {}, 'location': {} }
+
+        # Add some stuff describing the site
+        if describe_site:
+            self.information[language]['sites'][site]['description']['date_written'] = date_written
+            self.information[language]['sites'][site]['description']['source'] = author
+
+        self.information[language]['sites'][site]['location']['accuracy'] = location_accuracy
+        self.information[language]['sites'][site]['location']['is_part_of_map'] = is_part_of_map
+        self.information[language]['sites'][site]['location']['date_written'] = date_written
+        self.information[language]['sites'][site]['location']['source'] = author
+
 
 
     def apply_force(self, other_obj_comp, total_force, targeted_layer):

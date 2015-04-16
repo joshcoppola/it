@@ -1732,6 +1732,35 @@ class World(Map):
                     for site in chunk.get_all_sites():
                         entity.creature.add_knowledge_of_site(site=site, date_learned=entity.creature.born, source=entity, location_accuracy=5)
 
+
+        # Some history books
+        for city in created_cities:
+            object_blueprint = phys.object_dict['book']
+            material = phys.materials['wood']
+
+            book = assemble_object(object_blueprint=object_blueprint, force_material=material, wx=city.x, wy=city.y)
+
+            for event_id in hist.historical_events:
+                book.components[0].add_information_of_event(language=city.culture.language, event_id=event_id,
+                                                            date_written=g.WORLD.time_cycle.get_current_date(),
+                                                            author=None, location_accuracy=1)
+
+            book.interactable = {'func':self.make_cave_map, 'args':[x, y, 'lol'], 'text':'Read {0}'.format(book.name), 'hover_text':['Cave entrance']}
+
+            self.add_famous_object(obj=book)
+
+            city_hall = city.get_building('City Hall')
+            book.set_current_building(building=city_hall)
+
+            #for obj in city_hall.housed_objects:
+            #    print obj.fullname()
+
+            # Object will be owned by the High Priest
+            #for worker in city_hall.current_workers:
+            #    if worker.creature.profession.name == 'King':
+            #        obj.set_current_owner(worker)
+            #        break
+
         # Some timing and debug info
         #g.game.add_message('Civs created in %.2f seconds' %(time.time() - begin))
         #g.game.add_message('%i dynasties so far...' %len(self.dynasties), libtcod.grey)
@@ -2949,6 +2978,7 @@ class Building:
     def add_housed_objects_to_map(self):
         ''' will be expanded later? '''
         for obj in self.housed_objects:
+            print obj.fullname()
             self.place_within(obj)
 
     def place_within(self, obj):
@@ -4314,9 +4344,9 @@ def attack_menu(actor, target):
                 hover_odds = ['{0} cannot fight back'.format(target.fullname())]
 
 
-            buttons.append(gui.Button(gui_panel=wpanel, func=g.player.creature.set_combat_attack, args=[target, combat_move, combat_move],
-                                   text=combat_move.name, topleft=(xval, yval), width=20, height=3, color=button_color, hcolor=libtcod.white, do_draw_box=True,
-                                   hover_header=[combat_move.name, can_hit], hover_text=hover_odds, hover_text_offset=(30, 0)) )
+            buttons.append(gui.Button(gui_panel=wpanel, func=g.player.creature.set_combat_attack, args=[target, listed_combat_move, listed_combat_move],
+                                   text=listed_combat_move.name, topleft=(xval, yval), width=20, height=3, color=button_color, hcolor=libtcod.white, do_draw_box=True,
+                                   hover_header=[listed_combat_move.name, can_hit], hover_text=hover_odds, hover_text_offset=(30, 0)) )
         ######### End new simultaneous combat system preview #########
 
         mid_y += 4
@@ -4675,7 +4705,7 @@ def choose_object_to_interact_with(objs, x, y):
     This function handles that. '''
 
     # If there's only one object, either talk to it or attack it (for now)
-    if len(objs) == 1 and (not g.M.tiles[x][y].interactable):
+    if len(objs) == 1 and (not g.M.tiles[x][y].interactable and not objs[0].interactable):
 
         obj = objs[0]
         if obj.creature and obj.creature and obj.creature.status == 'alive':
@@ -4684,7 +4714,7 @@ def choose_object_to_interact_with(objs, x, y):
             attack_menu(actor=g.player, target=obj)
 
     # Else, a button menu which shows the interactions
-    elif len(objs) > 1:
+    else:
 
         (x, y) = g.game.camera.map2cam(x, y)
 
@@ -4711,10 +4741,19 @@ def choose_object_to_interact_with(objs, x, y):
                 buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
                                   text='Talk to ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                i += 4
+
+            if obj.interactable:
+                buttons.append(gui.Button(gui_panel=wpanel, func=obj.interactable['func'], args=obj.interactable['args'],
+                                  text=obj.interactable['text'], topleft=(bx, i),
+                                  width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                i += 4
+
             else:
                 buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
                                   text='Interact with ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                i += 4
 
         wpanel.gen_buttons = buttons
 
@@ -5714,7 +5753,9 @@ class Creature:
 
         ## Modify creature's XP
         self.modify_experience(skill='fighting', amount=5)
-        target.creature.modify_experience(skill='fighting', amount=5)
+        ## Can't modify experience if we attack an inanimate object
+        if target.creature:
+            target.creature.modify_experience(skill='fighting', amount=5)
 
         return combat_log
 
@@ -6438,7 +6479,6 @@ class Creature:
             opinion = prof_opinion + personal_opinion
             # Now we save the issue, our opinion, and the reasoning
             self.opinions[issue] = [opinion, reasons]
-
 
 
     def add_person_fact_knowledge(self, other_person, info_type, info):
