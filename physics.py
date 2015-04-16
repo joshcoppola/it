@@ -371,7 +371,7 @@ class ObjectComponent:
         self.information[language]['events'][event_id]['location']['source'] = author
 
     def add_information_of_site(self, language, site, date_written, author, location_accuracy=1, is_part_of_map=1, describe_site=0):
-        self.information[language]['sites'][site] = {'description': {}, 'location': {} }
+        #self.information[language]['sites'][site] = {'description': {}, 'location': {} }
 
         # Add some stuff describing the site
         if describe_site:

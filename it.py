@@ -1735,25 +1735,29 @@ class World(Map):
 
         # Some history books
         for city in created_cities:
-            object_blueprint = phys.object_dict['book']
-            material = phys.materials['wood']
-
-            book = assemble_object(object_blueprint=object_blueprint, force_material=material, wx=city.x, wy=city.y)
+            c_language = city.culture.language
+            date = g.WORLD.time_cycle.get_current_date()
+            #### Book ####
+            book = assemble_object(object_blueprint=phys.object_dict['book'], force_material=phys.materials['wood'], wx=city.x, wy=city.y)
 
             for event in hist.historical_events:
-                book.components[0].add_information_of_event(language=city.culture.language, event_id=event.id_,
-                                                            date_written=g.WORLD.time_cycle.get_current_date(),
-                                                            author=None, location_accuracy=1)
+                book.components[0].add_information_of_event(language=c_language, event_id=event.id_, date_written=date, author=None, location_accuracy=1)
 
             book.interactable = {'func':book.read_information, 'args':[], 'text':'Read {0}'.format(book.name), 'hover_text':['Cave entrance']}
-
             self.add_famous_object(obj=book)
-
             city_hall = city.get_building('City Hall')
             book.set_current_building(building=city_hall)
 
-            #for obj in city_hall.housed_objects:
-            #    print obj.fullname()
+            #### Map ####
+            map_ = assemble_object(object_blueprint=phys.object_dict['map'], force_material=phys.materials['wood'], wx=city.x, wy=city.y)
+
+            for site in g.WORLD.sites:
+                map_.components[0].add_information_of_site(language=c_language, site=site, date_written=date, author=None, location_accuracy=5, is_part_of_map=1, describe_site=0)
+
+            map_.interactable = {'func':map_.read_information, 'args':[], 'text':'Read {0}'.format(map_.name), 'hover_text':['Cave entrance']}
+            self.add_famous_object(obj=map_)
+            city_hall = city.get_building('City Hall')
+            map_.set_current_building(building=city_hall)
 
             # Object will be owned by the High Priest
             #for worker in city_hall.current_workers:
@@ -3546,7 +3550,6 @@ class Object:
         # Loop through all components, and then all languages in components, and then all messages in that language
         for component in self.components:
             for language in component.information:
-
                 g.game.add_message('The {0} contains information written in {1}'.format(component.name, language.name))
 
                 # Check whether this is readable
@@ -3559,16 +3562,42 @@ class Object:
                         location_accuracy = component.information[language]['events'][event_id]['location']['accuracy']
                         entity.creature.add_knowledge_of_event(event_id=event_id, date_learned=date, source=self, location_accuracy=location_accuracy)
 
-                # Handle not being able to read this
-                elif language not in entity.creature.languages or entity.creature.languages[language]['written'] == 0:
-                    g.game.add_message('You can\'t read {0}'.format(language.name), libtcod.red)
+                    for site in component.information[language]['sites']:
+                        # This is for site information that is not part of a map, since that's something we need to read
+                        if not component.information[language]['sites']['is_part_of_map']:
+                            g.game.add_message('Adding knowledge of {0}'.format(site.get_name()))
 
-        # self.information[language]['events'][event_id]['description']['date_written'] = date_written
-        # self.information[language]['events'][event_id]['description']['source'] = author
-        #
-        # self.information[language]['events'][event_id]['location']['accuracy'] = location_accuracy
-        # self.information[language]['events'][event_id]['location']['date_written'] = date_written
-        # self.information[language]['events'][event_id]['location']['source'] = author
+                            #location_accuracy = component.information[language]['sites'][site]['location']['accuracy']
+                            #entity.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=location_accuracy)
+
+                # End language check - below info is readable anyway
+                # Loop to figure out if there's any map infor (don't need language to read a map)
+                map_info = 0
+                for site in component.information[language]['sites']:
+                    if component.information[language]['sites']['is_part_of_map']:
+                        map_info = 1
+                        # If you can read about the site
+                        if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
+                            message = 'You can read that {0} is indicated on the map, a {1} that you are already familiar with.'.format( site.get_name(), site.type_ )
+                        # You can't read it, but you deduce that it's a named site you know about
+                        elif site.name and site in entity.creature.knowledge['sites']:
+                            message = 'Although cannot read it, the {0} indicated on the map must be {1}.'.format(site.type_, site.name)
+                        # You can't read it, and you already know about it
+                        elif site in entity.creature.knowledge['sites']:
+                            message = 'Although you cannot read it, there seems to be a {0} indicated on the map that you already know about.'.format(site.type_)
+                        # You can't read it, and don't know about it
+                        else:
+                            message = 'A {0} is indicated on the map that you did not know about.'.format(site.type_)
+
+                        # Add the message to the game
+                        g.game.add_message(message, PANEL_FRONT)
+
+                        location_accuracy = component.information[language]['sites'][site]['location']['accuracy']
+                        entity.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=location_accuracy)
+
+                    # There is information there, that is not part of a map, and you can't read it
+                    if (language not in entity.creature.languages or entity.creature.languages[language]['written'] == 0) and not map_info:
+                        g.game.add_message('You can\'t read {0}'.format(language.name), libtcod.red)
 
 
     def set_current_owner(self, figure):
