@@ -1740,12 +1740,12 @@ class World(Map):
 
             book = assemble_object(object_blueprint=object_blueprint, force_material=material, wx=city.x, wy=city.y)
 
-            for event_id in hist.historical_events:
-                book.components[0].add_information_of_event(language=city.culture.language, event_id=event_id,
+            for event in hist.historical_events:
+                book.components[0].add_information_of_event(language=city.culture.language, event_id=event.id_,
                                                             date_written=g.WORLD.time_cycle.get_current_date(),
                                                             author=None, location_accuracy=1)
 
-            book.interactable = {'func':self.make_cave_map, 'args':[x, y, 'lol'], 'text':'Read {0}'.format(book.name), 'hover_text':['Cave entrance']}
+            book.interactable = {'func':book.read_information, 'args':[], 'text':'Read {0}'.format(book.name), 'hover_text':['Cave entrance']}
 
             self.add_famous_object(obj=book)
 
@@ -3537,6 +3537,40 @@ class Object:
 
     def add_infamy(self, amount):
         self.infamy += amount
+
+    def read_information(self, entity=None):
+
+        date = g.WORLD.time_cycle.get_current_date()
+        if entity is None:
+            entity = g.player
+
+        # Loop through all components, and then all languages in components, and then all messages in that language
+        for component in self.components:
+            for language in component.information:
+
+                g.game.add_message('The {0} contains information written in {1}'.format(component.name, language.name))
+
+                # Check whether this is readable
+                if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
+                    g.game.add_message('You can read this.')
+
+                    for event_id in component.information[language]['events']:
+                        g.game.add_message(hist.historical_events[event_id].describe())
+
+                        location_accuracy = component.information[language]['events'][event_id]['location']['accuracy']
+                        entity.creature.add_knowledge_of_event(event_id=event_id, date_learned=date, source=self, location_accuracy=location_accuracy)
+
+                # Handle not being able to read this
+                elif language not in entity.creature.languages or entity.creature.languages[language]['written'] == 0:
+                    g.game.add_message('You can\'t read {0}'.format(language.name), libtcod.red)
+
+        # self.information[language]['events'][event_id]['description']['date_written'] = date_written
+        # self.information[language]['events'][event_id]['description']['source'] = author
+        #
+        # self.information[language]['events'][event_id]['location']['accuracy'] = location_accuracy
+        # self.information[language]['events'][event_id]['location']['date_written'] = date_written
+        # self.information[language]['events'][event_id]['location']['source'] = author
+
 
     def set_current_owner(self, figure):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
@@ -8576,6 +8610,10 @@ class Game:
         g.playerciv = g.WORLD.cities[0]
         born = g.WORLD.time_cycle.years_ago(roll(20, 45))
         g.player = g.playerciv.culture.create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        # Make player literate
+        for language in g.player.creature.languages:
+            g.player.creature.update_language_knowledge(language=language, verbal=0, written=g.player.creature.languages[language]['verbal'])
+
         g.WORLD.tiles[g.player.wx][g.player.wy].entities.append(g.player)
         g.WORLD.tiles[g.player.wx][g.player.wy].chunk.entities.append(g.player)
 
