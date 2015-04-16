@@ -264,7 +264,7 @@ POSSIBLE_ONSETS = [
                 [[213, None, []], ['plosive', 0, []] ],
                 [[213, None, []], ['nasal', None, [220]] ],
                 #[[213, None, []], ['fricative', 0, [211, 212, 213, 215, 216]] ],
-                [[213, None, []], ['fricative', 0, [212, 216]] ],
+                [[213, None, []], ['fricative', 0, [212, 215, 216]] ],
                 [[213, None, []], ['plosive', 0, []], ['approximant', None, [222, 223]] ]
                 ]
 
@@ -762,8 +762,20 @@ class Language:
                 break
 
 
-        # Use our transcription to find phonemes
+        # New step added 4/15/15. This prevents the weird cases where by coincidence, two identical phonemes were selected
+        # to go next to each other. This step does a quick check to see whether this occurs, and omits adding the phoneme if so
+        pruned_word = []
+        prev_phoneme = None
         for phoneme in word:
+            if phoneme != prev_phoneme:
+                pruned_word.append(phoneme)
+            #else:
+            #    print 'lang {0} - successfully found duplicate phoneme'.format(self.name)
+            prev_phoneme = phoneme
+
+
+        # Use our transcription to find phonemes
+        for phoneme in pruned_word: # Pre- 4/15/15, used to read "for phoneme in word:"
             wordphon = wordphon + self.orthography.mapping[phoneme]
 
         return wordphon
