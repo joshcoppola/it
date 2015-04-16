@@ -4735,25 +4735,23 @@ def choose_object_to_interact_with(objs, x, y):
 
         i = 0
         for obj in objs:
-            i += 4
-
             if obj.creature and obj.creature.status == 'alive':
+                i += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
                                   text='Talk to ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
-                i += 4
 
             if obj.interactable:
+                i += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=obj.interactable['func'], args=obj.interactable['args'],
                                   text=obj.interactable['text'], topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
-                i += 4
 
             else:
+                i += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
                                   text='Interact with ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
-                i += 4
 
         wpanel.gen_buttons = buttons
 
