@@ -2978,7 +2978,6 @@ class Building:
     def add_housed_objects_to_map(self):
         ''' will be expanded later? '''
         for obj in self.housed_objects:
-            print obj.fullname()
             self.place_within(obj)
 
     def place_within(self, obj):
