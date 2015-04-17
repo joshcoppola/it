@@ -3573,27 +3573,40 @@ class Object:
                 # End language check - below info is readable anyway
                 # Loop to figure out if there's any map infor (don't need language to read a map)
                 map_info = 0
+                site_info = {'readable':{
+                                    'named': {'known':[], 'unknown':[] },
+                                    'unnamed': {'known':[], 'unknown':[] },
+                                    },
+                             'unreadable':{
+                                    'named': {'known':[], 'unknown':[] },
+                                    'unnamed': {'known':[], 'unknown':[] }
+                                    }
+                            }
+
                 for site in component.information[language]['sites']:
                     if component.information[language]['sites'][site]['location']['is_part_of_map']:
                         map_info = 1
                         # If you can read about the site
-                        if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0 and site in entity.creature.knowledge['sites']:
-                            message = 'You can read that {0} is indicated on the map, a {1} that you are already familiar with.'.format( site.get_name(), site.type_ )
-                        ## You can read, but are not familiar
-                        elif language in entity.creature.languages and entity.creature.languages[language]['written'] > 0 and not site in entity.creature.knowledge['sites']:
-                            message = 'You can read that {0} is indicated on the map, a {1} that did not know about.'.format( site.get_name(), site.type_ )
-                        # You can't read it, but you deduce that it's a named site you know about
-                        elif site.name and site in entity.creature.knowledge['sites']:
-                            message = 'Although cannot read it, the {0} indicated on the map must be {1}.'.format(site.type_, site.name)
-                        # You can't read it, and you already know about it
-                        elif site in entity.creature.knowledge['sites']:
-                            message = 'Although you cannot read it, there seems to be a {0} indicated on the map that you already know about.'.format(site.type_)
-                        # You can't read it, and don't know about it
-                        else:
-                            message = 'A {0} is indicated on the map that you did not know about.'.format(site.type_)
+                        if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
+                            if site.name and site in entity.creature.knowledge['sites']:
+                                site_info['readable']['named']['known'].append(site)
+                            elif site.name and site not in entity.creature.knowledge['sites']:
+                                site_info['readable']['named']['known'].append(site)
+                            elif site.name is None and site in entity.creature.knowledge['sites']:
+                                site_info['readable']['unnamed']['known'].append(site)
+                            elif site.name is None and site not in entity.creature.knowledge['sites']:
+                                site_info['readable']['unnamed']['unknown'].append(site)
 
-                        # Add the message to the game
-                        g.game.add_message(message, PANEL_FRONT)
+                        ## You can read, but are not familiar
+                        elif not language in entity.creature.languages or not entity.creature.languages[language]['written']:
+                            if site.name and site in entity.creature.knowledge['sites']:
+                                site_info['unreadable']['named']['known'].append(site)
+                            elif site.name and site not in entity.creature.knowledge['sites']:
+                                site_info['unreadable']['named']['unknown'].append(site)
+                            elif site.name is None and site in entity.creature.knowledge['sites']:
+                                site_info['unreadable']['unnamed']['known'].append(site)
+                            elif site.name is None and site not in entity.creature.knowledge['sites']:
+                                site_info['unreadable']['unnamed']['unknown'].append(site)
 
                         location_accuracy = component.information[language]['sites'][site]['location']['accuracy']
                         entity.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=location_accuracy)
@@ -3602,6 +3615,9 @@ class Object:
                     if (language not in entity.creature.languages or entity.creature.languages[language]['written'] == 0) and not map_info:
                         g.game.add_message('You can\'t read {0}'.format(language.name), libtcod.red)
 
+                # Condense the site descriptions into some readable text
+                msg = describe_map_contents(site_info)
+                g.game.add_message(msg, PANEL_FRONT)
 
     def set_current_owner(self, figure):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''

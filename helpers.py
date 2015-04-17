@@ -3,7 +3,7 @@ import math
 import libtcodpy as libtcod
 import random
 from random import randint as roll
-
+from collections import Counter
 
 
 ## For individual facing information
@@ -24,6 +24,53 @@ def join_list(string_list, null_value="nothing"):
         #return ', '.join([s for s in string_list]) + ', and ', string_list[-1]
         return '{0}, and {1}'.format(', '.join([s for s in string_list[:-1]]), string_list[-1])
 
+
+def describe_map_contents(site_info):
+    ''' Condenses a dict containing read information about sites into a readable paragraph '''
+    msg = 'On the map, '
+    if site_info['readable']['named']['known']:
+        sites_by_type = Counter([s.type_ for s in site_info['readable']['named']['known']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There are {0} that you already know about: {1}. '.format(tmp, join_list([s.get_name() for s in site_info['readable']['named']['known']]))
+
+    if site_info['readable']['named']['unknown']:
+        sites_by_type = Counter([s.type_ for s in site_info['readable']['named']['unknown']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There are {0} that you did not know about: {1}. '.format(tmp, join_list([s.get_name() for s in site_info['readable']['named']['unknown']]))
+
+    if site_info['readable']['unnamed']['known']:
+        sites_by_type = Counter([s.type_ for s in site_info['readable']['unnamed']['known']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There are {0} that you already know about. '.format(tmp)
+
+    if site_info['readable']['unnamed']['unknown']:
+        sites_by_type = Counter([s.type_ for s in site_info['readable']['unnamed']['unknown']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There are {0} that you did not know about. '.format(tmp)
+
+
+
+    if site_info['unreadable']['named']['known']:
+        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['named']['known']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'Although you can\'t read it, there are {0} that must be {1}. '.format(tmp, join_list([s.get_name() for s in site_info['unreadable']['named']['known']]))
+
+    if site_info['unreadable']['named']['unknown']:
+        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['named']['unknown']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There are {0} that you cannot recognize. '.format(tmp)
+
+    if site_info['unreadable']['unnamed']['known']:
+        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['unnamed']['known']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There appear to be {0} that you already know about. '.format(tmp)
+
+    if site_info['unreadable']['unnamed']['unknown']:
+        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['unnamed']['unknown']])
+        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        msg += 'There appear to be {0} that you did not know about. '.format(tmp)
+
+    return msg
 
 def determine_commander(figures):
         ''' Find the figure with the greatest number of commanded beings and set as commander '''
