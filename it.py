@@ -3284,7 +3284,7 @@ class Faction:
         self.members.append(figure)
 
     def remove_member(self, figure):
-        figure.creature.faction = None
+        #figure.creature.faction = None
         self.members.remove(figure)
 
     def set_leader(self, leader):
@@ -3364,8 +3364,10 @@ class Faction:
     def get_heirs(self, number):
         # First, make sure to clear the knowledge of inheritance from all heirs
         if self.leader_prefix is not None:
-            for heir in self.heirs:
-                self.unset_heir(heir)
+            # TODO - this is causing dict to change size during iteration on death, because it is removing the dead entity from the list
+            # Must rewrite to take this into account
+            #for heir in self.heirs:
+            #          self.unset_heir(heir)
 
             if self.leader and self.succession == 'dynasty':
                 self.heirs = []
@@ -5860,7 +5862,7 @@ class Creature:
         if self.blood < 3 and self.status == 'alive':
             self.pass_out(reason='loss of blood')
         elif self.blood < 2:
-            self.map_death(reason='blood loss')
+            self.die(reason='blood loss')
 
     def evaluate_wounds(self):
         max_number_of_grievous_wounds = 2
@@ -5926,33 +5928,6 @@ class Creature:
 
         self.owner.set_display_color(self.owner.pass_out_color)
         self.owner.creature.nonverbal_behavior('passes out due to %s' %reason, libtcod.darker_red)
-
-
-    def map_death(self, reason):
-        ''' Die ! '''
-        creature_obj = self.owner
-        self.set_status('dead')
-
-        # Drop any things we have
-        for component in self.get_graspers():
-            if component.grasped_item is not None:
-                # Drop the object (and release hold on it)
-                creature_obj.drop_object(own_component=component, obj=component.grasped_item)
-
-        if creature_obj.creature.commander and self.owner in creature_obj.creature.commander.creature.commanded_figures:
-            creature_obj.creature.commander.creature.remove_commanded_figure(creature_obj)
-
-        g.M.creatures.remove(creature_obj)
-        g.M.objects.append(creature_obj)
-
-        if creature_obj.creature:
-            g.game.add_message('{0} has died due to {1}'.format(creature_obj.fulltitle(), reason), libtcod.darker_red)
-
-        creature_obj.set_display_color(creature_obj.death_color)
-        creature_obj.blocks_mov = False
-        creature_obj.local_brain = None
-        libtcod.map_set_properties(g.M.fov_map, creature_obj.x, creature_obj.y, True, True)
-        creature_obj.name = 'Corpse of {0}'.format(creature_obj.fulltitle())
 
 
     #def add_enemy_faction(self, faction):
@@ -6365,8 +6340,7 @@ class Creature:
 
     def get_minor_successor(self):
         ''' A way for minor figures to pass down their profession, in cases where it's not a huge deal'''
-        possible_successors = [child for child in self.children if
-                               child.sex == 1 and child.creatire.get_age() >= MIN_MARRIAGE_AGE]
+        possible_successors = [child for child in self.children if child.creature.sex == 1 and child.creature.get_age() >= MIN_MARRIAGE_AGE]
         if possible_successors != []:
             return possible_successors[0]
         else:
@@ -6384,85 +6358,83 @@ class Creature:
 
     def die(self, reason):
         figure = self.owner
+        successor = None
+
         self.set_status('dead')
-        #if g.WORLD.tiles[figure.wx][figure.wy].site:  location = g.WORLD.tiles[figure.wx][figure.wy].site.name
-        location = g.WORLD.tiles[figure.wx][figure.wx].get_location_description()
 
-        # Notify world!
-        g.game.add_message('{0} has died in {1} due to{2}! ({3}, {4})'.format(figure.fulltitle(), location, reason, figure.wx, figure.wy), libtcod.red)
-
-        # Remo
-        if self.current_citizenship:
-            self.current_citizenship.citizens.remove(figure)
-
-        g.WORLD.tiles[figure.wx][figure.wy].entities.remove(figure)
         # Remove from the list of all figures, and the important ones if we're important
-        g.WORLD.all_figures.remove(figure)
+        if figure in g.WORLD.all_figures:
+            g.WORLD.all_figures.remove(figure)
+            g.WORLD.tiles[figure.wx][figure.wy].entities.remove(figure)
+
+
+            # The faction lead passes on, if we lead a faction
+            if self.is_faction_leader:
+                self.is_faction_leader.standard_succession()
+            # Only check profession if we didn't have a title, so profession associated with title doesn't get weird
+            elif self.profession:
+                # Find who will take over all our stuff
+                successor = self.get_minor_successor()
+                self.profession.give_profession_to(successor)
+
+            if self.current_citizenship:
+                self.current_citizenship.citizens.remove(figure)
+
+            if self.faction:
+                self.faction.remove_member(figure)
+
+            event = hist.Death(date=g.WORLD.time_cycle.get_current_date(), location=(self.owner.wx, self.owner.wy), figure=figure, reason=reason)
+            g.game.add_message(event.describe(), libtcod.red)
+
+        elif g.game.map_scale == 'human' and player in g.M.sapients:
+            location = g.WORLD.tiles[figure.wx][figure.wy].get_location_description()
+            g.game.add_message('{0} has died in {1} due to {2}!'.format(figure.fulltitle(), location, reason), libtcod.red)
+
         if figure in g.WORLD.important_figures:
             g.WORLD.important_figures.remove(figure)
 
-        if self.faction:
-            self.faction.remove_member(figure)
-
-        successor = None
-        # The faction lead passes on, if we lead a faction
-        if self.is_faction_leader:
-            self.is_faction_leader.standard_succession()
-
-        # Only check profession if we didn't have a title, so profession associated with title doesn't get weird
-        elif self.profession:
-            # Find who will take over all our stuff
-            successor = self.get_minor_successor()
-            self.profession.give_profession_to(successor)
 
         ## If we were set to inherit anything, that gets updated now
-        #  File "E:\Dropbox\Code\Iron Testament\it.py", line 8650, in year_tick
-        #    if figure.sapient.get_age() > 70:
-        #    File "E:\Dropbox\Code\Iron Testament\it.py", line 7485, in die
-        #    RuntimeError: dictionary changed size during iteration
         for faction, position in self.inheritance.iteritems():
             heirs = faction.get_heirs(3) # Should ignore us now since we're dead
             # If our position was 1st in line, let the world know who is now first in line
             if position == 1 and heirs != []:
                 g.game.add_message('After the death of {0}, {1} is now the heir of {2}.'.format(figure.fulltitle(), heirs[0].fullname(), faction.name), libtcod.light_blue)
-
             elif position == 1:
                 g.game.add_message('After the death of {0}, no heirs to {1} remiain'.format(figure.fulltitle(), faction.name), libtcod.light_blue)
-
 
         # Remove self from any armies we might be in
         if self.commander:
             if self in self.commander.creature.commanded_figures:
                 self.commander.remove_commanded_figure(figure)
-        elif self.is_commander():
-            ## The is a possibility that this is a caravan at another city; this will bring the successor there if needed
-            # TODO - should just have the person walk there and join up with the army
-#             if successor:
-#                 ## Pretty ugly hack for now. When a merchant dies naturally, we're gonna teleport
-#                 ## a successor to his location. In order to do this, we may have to leave our
-#                 ## current city and then get added to the new city.
-#                 try:
-#                     for city in g.WORLD.cities:
-#                         if army in city.caravans and successor.sapient.current_city != city:
-#                             print '%s was teleported to %s upon the death of %s'%(successor.fulltitle(), city.name, figure.fulltitle())
-#                             break
-#                 except:
-#                     print ('%s, successor to %s, looked for caravan in %s but something went wrong!'%(successor.fulltitle(), figure.fulltitle(), city.name))
-#
-#                 # Actually join the army
-#                 successor.sapient.join_army(army)
 
-
-            if self.economy_agent and successor:
-                self.economy_agent.update_holder(successor)
-                #g.game.add_message(successor.fulltitle() + ' is now ' + successor.sapient.economy_agent.name, libtcod.light_green)
+        # Handle successor to economy
+        if self.economy_agent and successor:
+            self.economy_agent.update_holder(successor)
+            #g.game.add_message(successor.fulltitle() + ' is now ' + successor.sapient.economy_agent.name, libtcod.light_green)
 
         if self.house:
-            try:
-                self.house.remove_inhabitant(figure)
-            except:
-                print figure.fulltitle(), 'was not in his house!'
-                g.game.add_message(figure.fulltitle(), 'was not in his house!')
+            self.house.remove_inhabitant(figure)
+
+
+        ### Handle map stuff
+        if g.game.map_scale == 'human':
+            # Drop any things we have
+            for component in self.get_graspers():
+                if component.grasped_item is not None:
+                    # Drop the object (and release hold on it)
+                    self.owner.drop_object(own_component=component, obj=component.grasped_item)
+
+            g.M.creatures.remove(creature_obj)
+            g.M.objects.append(creature_obj)
+            libtcod.map_set_properties(g.M.fov_map, self.owner.x, self.owner.y, True, True)
+
+        # Object properties
+        self.owner.set_display_color(self.owner.death_color)
+        self.owner.blocks_mov = False
+        self.owner.local_brain = None
+        self.owner.name = 'Corpse of {0}'.format(self.owner.fulltitle())
+
 
     def get_age(self):
         return g.WORLD.time_cycle.date_dif(earlier_date=self.born, later_date=g.WORLD.time_cycle.get_current_date())

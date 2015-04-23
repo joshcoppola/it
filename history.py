@@ -67,6 +67,18 @@ class Birth(HistoricalEvent):
     def get_entities(self):
         return self.parents + [self.child]
 
+class Death(HistoricalEvent):
+    def __init__(self, date, location, figure, reason):
+        HistoricalEvent.__init__(self, date, location)
+        self.figure = figure
+        self.reason = reason
+
+    def describe(self):
+        des = 'On {0}, {1} died due to {2}'.format(g.WORLD.time_cycle.date_to_text(self.date), self.figure.fulltitle(), self.reason)
+        return des
+
+    def get_entities(self):
+        return self.figure
 
 class TravelStart(HistoricalEvent):
     def __init__(self, date, location, to_location, figures, populations, reason=None):
