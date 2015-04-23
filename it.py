@@ -3554,7 +3554,7 @@ class Object:
                 g.game.add_message('The {0} contains information written in {1}'.format(component.name, language.name))
 
                 # Check whether this is readable
-                if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
+                if entity.creature.can_read(language):
                     can_glean_some_information = 1
                     g.game.add_message('You can read this.')
 
@@ -3590,7 +3590,7 @@ class Object:
                         can_glean_some_information = 1
                         map_info = 1
                         # If you can read about the site
-                        if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
+                        if entity.creature.can_read(language):
                             if site.name and site in entity.creature.knowledge['sites']:
                                 site_info['readable']['named']['known'].append(site)
                             elif site.name and site not in entity.creature.knowledge['sites']:
@@ -3601,7 +3601,7 @@ class Object:
                                 site_info['readable']['unnamed']['unknown'].append(site)
 
                         ## You can read, but are not familiar
-                        elif not language in entity.creature.languages or not entity.creature.languages[language]['written']:
+                        elif not entity.creature.can_read(language):
                             if site.name and site in entity.creature.knowledge['sites']:
                                 site_info['unreadable']['named']['known'].append(site)
                             elif site.name and site not in entity.creature.knowledge['sites']:
@@ -4541,13 +4541,13 @@ def talk_screen(actor, target):
 
         # Calculate some info about languages
         lang_info = 'Speaks {0}'.format(join_list([l.name for l in target.creature.languages]))
-        written_langs = [l.name for l in target.creature.languages if target.creature.languages[l]['written'] > 0]
+        written_langs = [l.name for l in target.creature.languages if target.creature.can_read(l)]
         written_lang_info = 'Can write {0}'.format(join_list(written_langs)) if written_langs else 'Illiterate'
         # Show the language information
         libtcod.console_print(wpanel.con, b1x, 5, lang_info)
         libtcod.console_print(wpanel.con, b1x, 6, written_lang_info)
 
-        libtcod.console_print(wpanel.con, b1x, 7, str(len(target.creature.children)) + ' children')
+        libtcod.console_print(wpanel.con, b1x, 7, ct('child', len(target.creature.children)))
 
     # Ugly ugly...
     wpanel.update_button_refresh_func(refresh_buttons, () )
@@ -5552,6 +5552,9 @@ class Creature:
         self.set_initial_traits()
         ## Set initial opinions - this is without having a profession
         self.set_opinions()
+
+    def can_read(self, language):
+        return language in self.languages and self.languages[language]['written'] > 0
 
 
     def update_language_knowledge(self, language, verbal=0, written=0):
