@@ -128,7 +128,7 @@ map:
    wearable: 0
    creature: null
    components:
-      - name: book
+      - name: map
         functions: []
         attacks: []
         position: null
