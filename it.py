@@ -385,17 +385,17 @@ class Region:
             if dist == 0:
                 return '{0}'.format(city.name)
             elif 0 < dist <= 3:
-                return 'the {0}s just to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0} just to the {1} of {2}'.format(pl(self.region), cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist <= 15:
-                return 'the {0}s to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0} to the {1} of {2}'.format(pl(self.region), cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist > 75:
-                return 'the distant {0}ern {1}s'.format(cart2card(city.x, city.y, self.x, self.y), self.region)
+                return 'the distant {0}ern {1}'.format(cart2card(city.x, city.y, self.x, self.y), pl(self.region))
             elif dist > 50:
-                return 'the {0}s far, far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0} far, far to the {1} of {2}'.format(pl(self.region), cart2card(city.x, city.y, self.x, self.y), city.name)
             elif dist > 15:
-                return 'the {0}s far to the {1} of {2}'.format(self.region, cart2card(city.x, city.y, self.x, self.y), city.name)
+                return 'the {0} far to the {1} of {2}'.format(pl(self.region), cart2card(city.x, city.y, self.x, self.y), city.name)
             else:
-                return 'the unknown {0}s'.format(self.region)
+                return 'the unknown {0}'.format(pl(self.region))
 
     def get_location_description_relative_to(self, relative_location):
 
@@ -405,11 +405,11 @@ class Region:
         if self.x == wx and self.y == wy:
             return 'this very place'
         elif dist is None:
-            return 'the unreachable {0}s'.format(self.region)
+            return 'the unreachable {0}'.format(pl(self.region))
         elif dist < 30:
-            return 'the {0}s about {1} days\' journey to the {2}'.format(self.region, dist, cart2card(wx, wy, self.x, self.y))
+            return 'the {0} about {1} days\' journey to the {2}'.format(pl(self.region), dist, cart2card(wx, wy, self.x, self.y))
         else:
-            return 'the {0}s far to the {1}'.format(self.region, cart2card(wx, wy, self.x, self.y))
+            return 'the {0} far to the {1}'.format(pl(self.region), cart2card(wx, wy, self.x, self.y))
 
 
 
@@ -1896,7 +1896,7 @@ class World(Map):
             self.time_cycle.day_tick(1)
         #g.game.add_message('History run in %.2f seconds' %(time.time() - begin))
         # List the count of site types
-        g.game.add_message(join_list(['{0} {1}s'.format(len(self.site_index[type_]), type_) for type_ in self.site_index]))
+        g.game.add_message(join_list([ ct(type_, len(self.site_index[type_])) for type_ in self.site_index]))
 
 
     def initialize_fov(self):
@@ -2208,7 +2208,7 @@ class World(Map):
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
 
-        ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ruins', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ancient settlement', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
         self.tiles[x][y].char = 259
         self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
@@ -2218,7 +2218,7 @@ class World(Map):
         if 0 < self.get_astar_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
             race_name = random.choice(self.brutish_races)
             name = '{0} raiders'.format(race_name)
-            faction = Faction(leader_prefix='Chief', name='{0}s of {1}'.format(race_name, site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
+            faction = Faction(leader_prefix='Chief', name='{0} of {1}'.format(pl(race_name, num=2), site_name), color=libtcod.black, succession='strongman', defaultly_hostile=1)
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
             born = g.WORLD.time_cycle.years_ago(roll(20, 45))
@@ -3550,10 +3550,12 @@ class Object:
         # Loop through all components, and then all languages in components, and then all messages in that language
         for component in self.components:
             for language in component.information:
+                can_glean_some_information = 0
                 g.game.add_message('The {0} contains information written in {1}'.format(component.name, language.name))
 
                 # Check whether this is readable
                 if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
+                    can_glean_some_information = 1
                     g.game.add_message('You can read this.')
 
                     for event_id in component.information[language]['events']:
@@ -3585,6 +3587,7 @@ class Object:
 
                 for site in component.information[language]['sites']:
                     if component.information[language]['sites'][site]['location']['is_part_of_map']:
+                        can_glean_some_information = 1
                         map_info = 1
                         # If you can read about the site
                         if language in entity.creature.languages and entity.creature.languages[language]['written'] > 0:
@@ -3611,13 +3614,14 @@ class Object:
                         location_accuracy = component.information[language]['sites'][site]['location']['accuracy']
                         entity.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=location_accuracy)
 
-                    # There is information there, that is not part of a map, and you can't read it
-                    if (language not in entity.creature.languages or entity.creature.languages[language]['written'] == 0) and not map_info:
-                        g.game.add_message('You can\'t read {0}'.format(language.name), libtcod.red)
+                # There is information there, that is not part of a map, and you can't read it
+                if not can_glean_some_information:
+                    g.game.add_message('The {0} text on the {1} is entirely indecipherable to you'.format(language.name, component.name), libtcod.red)
 
-                # Condense the site descriptions into some readable text
-                msg = describe_map_contents(site_info)
-                g.game.add_message(msg, PANEL_FRONT)
+                if map_info:
+                    # Condense the site descriptions into some readable text
+                    msg = describe_map_contents(site_info)
+                    g.game.add_message(msg, PANEL_FRONT)
 
     def set_current_owner(self, figure):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
@@ -8085,15 +8089,15 @@ def get_info_under_mouse():
             if site:
                 info.append(('{0} ({1})'.format(site.name.capitalize(), site.type_), color))
                 if site.type_ == 'city':
-                    info.append(('{0} caravans harbored here'.format(len(site.caravans)), color))
+                    info.append(('{0} harbored here'.format(ct('caravan', len(site.caravans))), color))
                     num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.creature.is_commander() or not f.creature.commander)])
-                    info.append(('{0} figures or parties here'.format(num_figures), color))
+                    info.append(('{0} or {1} here'.format(ct('entity', num_figures), pl('party', num_figures)), color))
             else:
                 # Entities
                 for entity in g.WORLD.tiles[x][y].entities:
                     # Commanders of parties or armies
                     if entity.creature and entity.creature.is_commander():
-                        info.append(('{0} ({1} total men)'.format(entity.fulltitle(), entity.creature.get_total_number_of_commanded_beings()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
+                        info.append(('{0} ({1} total)'.format(entity.fulltitle(), ct('man', entity.creature.get_total_number_of_commanded_beings())), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
 
                     # Individual travellers
                     elif entity.creature and not entity.creature.commander:

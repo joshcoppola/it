@@ -4,14 +4,31 @@ import libtcodpy as libtcod
 import random
 from random import randint as roll
 from collections import Counter
-
+from pattern.en import pluralize, NOUN
 
 ## For individual facing information
 NEIGHBORS = ( (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1) )
 COMPASS = ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest')
 
+PLURAL_EXCEPTIONS = {'mine':'mines'}
+
 # from http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
 int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
+
+def ct(word, num):
+    ''' Return a string counting + pluralizing, if necessary, the word  '''
+    return '{0} {1}'.format(num, pl(word, num))
+
+
+def pl(word, num=2):
+    ''' Pluralize word based on count '''
+    if num != 1:
+        if word not in PLURAL_EXCEPTIONS:
+            word = pluralize(word, pos='NOUN')
+        else:
+            word = PLURAL_EXCEPTIONS[word]
+
+    return word
 
 def join_list(string_list, null_value="nothing"):
     if len(string_list) == 0:
@@ -30,44 +47,44 @@ def describe_map_contents(site_info):
     msg = 'On the map, '
     if site_info['readable']['named']['known']:
         sites_by_type = Counter([s.type_ for s in site_info['readable']['named']['known']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There are {0} that you already know about: {1}. '.format(tmp, join_list([s.get_name() for s in site_info['readable']['named']['known']]))
 
     if site_info['readable']['named']['unknown']:
         sites_by_type = Counter([s.type_ for s in site_info['readable']['named']['unknown']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There are {0} that you did not know about: {1}. '.format(tmp, join_list([s.get_name() for s in site_info['readable']['named']['unknown']]))
 
     if site_info['readable']['unnamed']['known']:
         sites_by_type = Counter([s.type_ for s in site_info['readable']['unnamed']['known']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There are {0} that you already know about. '.format(tmp)
 
     if site_info['readable']['unnamed']['unknown']:
         sites_by_type = Counter([s.type_ for s in site_info['readable']['unnamed']['unknown']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There are {0} that you did not know about. '.format(tmp)
 
 
 
     if site_info['unreadable']['named']['known']:
         sites_by_type = Counter([s.type_ for s in site_info['unreadable']['named']['known']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'Although you can\'t read it, there are {0} that must be {1}. '.format(tmp, join_list([s.get_name() for s in site_info['unreadable']['named']['known']]))
 
     if site_info['unreadable']['named']['unknown']:
         sites_by_type = Counter([s.type_ for s in site_info['unreadable']['named']['unknown']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There are {0} that you cannot recognize. '.format(tmp)
 
     if site_info['unreadable']['unnamed']['known']:
         sites_by_type = Counter([s.type_ for s in site_info['unreadable']['unnamed']['known']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There appear to be {0} that you already know about. '.format(tmp)
 
     if site_info['unreadable']['unnamed']['unknown']:
         sites_by_type = Counter([s.type_ for s in site_info['unreadable']['unnamed']['unknown']])
-        tmp = join_list(['{0} {1}s'.format(num, type_) for type_, num in sites_by_type.iteritems()])
+        tmp = join_list([ct(type_, num) for type_, num in sites_by_type.iteritems()])
         msg += 'There appear to be {0} that you did not know about. '.format(tmp)
 
     return msg

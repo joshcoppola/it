@@ -6,7 +6,7 @@ import os
 import random
 from random import randint as roll
 
-from helpers import weighted_choice, determine_commander
+from helpers import weighted_choice, determine_commander, ct, pl
 from history import HistoricalEvent
 import config as g
 import wmap
@@ -193,14 +193,14 @@ class WorldBattle(HistoricalEvent):
 
         # Generate message for the game to display!
         if f1_total_number + len(self.faction1_named) == 1:   faction1_desc = self.faction1_commander.fulltitle()
-        else:   faction1_desc = '{0} men of {1} led by {2}'.format(f1_total_number + len(self.faction1_named), self.faction1_commander.creature.faction.name, self.faction1_commander.fulltitle())
+        else:   faction1_desc = '{0} of {1} led by {2}'.format(ct('man', f1_total_number + len(self.faction1_named)), self.faction1_commander.creature.faction.name, self.faction1_commander.fulltitle())
 
         if f2_total_number + len(self.faction2_named) == 1:   faction2_desc = self.faction2_commander.fulltitle()
-        else:   faction2_desc = '{0} men of {1} led by {2}'.format(f2_total_number + len(self.faction2_named), self.faction2_commander.creature.faction.name, self.faction2_commander.fulltitle())
+        else:   faction2_desc = '{0} of {1} led by {2}'.format(ct('man', f2_total_number + len(self.faction2_named)), self.faction2_commander.creature.faction.name, self.faction2_commander.fulltitle())
 
         if self.battle_type == 'small-scale':
             victor = max(self.faction1_remaining, self.faction2_remaining, key=len)
-            victory_info = '{0} was victorious with {1} men remaining.'.format(victor[0].creature.faction.name, len(victor))
+            victory_info = '{0} was victorious with {1} remaining.'.format(victor[0].creature.faction.name, ct('man', len(victor)))
 
             des = 'On {0}, {1} attacked {2} at {3}. {4}'.format(g.WORLD.time_cycle.date_to_text(self.date), faction1_desc, faction2_desc,
                                                                 g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), victory_info)
