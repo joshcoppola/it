@@ -8,7 +8,7 @@ from collections import defaultdict
 import random
 from random import randint as roll
 import libtcodpy as libtcod
-from helpers import join_list
+from helpers import join_list, ct
 
 # Clever solution to making dicts several levels deep as detailed here http://stackoverflow.com/questions/4178249/infinitely-nested-dictionary-in-python
 infinite_defaultdict = lambda: defaultdict(infinite_defaultdict)
@@ -275,13 +275,13 @@ class MaterialLayer:
 
         wound_list = []
         if light_wounds > 0:
-            wound_list.append('{0} light wounds'.format(light_wounds))
+            wound_list.append(ct('light wound', light_wounds))
         if medium_wounds > 0:
-            wound_list.append('{0} medium wounds'.format(medium_wounds))
+            wound_list.append(ct('medium wound', medium_wounds))
         if serious_wounds > 0:
-            wound_list.append('{0} serious wounds'.format(serious_wounds))
+            wound_list.append(ct('serious wound', serious_wounds))
         if grievous_wounds > 0:
-            wound_list.append('{0} grievous wounds'.format(grievous_wounds))
+            wound_list.append(ct('grievous wound', grievous_wounds))
 
         return join_list(wound_list)
 

@@ -4592,8 +4592,8 @@ def player_give_order(target, order):
 
             libtcod.console_print(con=g.game.interface.map_console.con, x=int(g.game.interface.map_console.width/2)-30, y=8, fmt='Click where you would like %s to move (right click to cancel)'%target.creature.firstname)
             ## Draw the path that the guy will take
-            path = libtcod.path_compute(p=M.path_map, ox=target.x, oy=target.y, dx=x, dy=y)
-            while not libtcod.path_is_empty(p=M.path_map):
+            path = libtcod.path_compute(p=g.M.path_map, ox=target.x, oy=target.y, dx=x, dy=y)
+            while not libtcod.path_is_empty(p=g.M.path_map):
                 px, py = libtcod.path_walk(g.M.path_map, True)
                 cpx, cpy = g.game.camera.map2cam(px, py)
                 libtcod.console_put_char_ex(con=g.game.interface.map_console.con, x=cpx, y=cpy, c='*', fore=libtcod.light_grey, back=libtcod.BKGND_NONE)
@@ -6016,7 +6016,7 @@ class Creature:
 
             elif question_type == 'profession':
                 if self.profession:
-                    self.say('I am a %s.' % self.profession.name)
+                    self.say('I am {0}'.format(indef(self.profession.name)))
                 else:
                     self.say('I do not have any profession.')
 
@@ -6033,7 +6033,7 @@ class Creature:
 
             elif question_type == 'events':
                 found_event = 0
-                other_event_types = ('marriage', 'birth', 'travel_start', 'travel_end')
+                other_event_types = ('marriage', 'birth', 'death', 'travel_start', 'travel_end')
                 for event_id in self.get_knowledge_of_events(days_ago=360):
                     if hist.historical_events[event_id].type_ in other_event_types:
                         found_event = 1
@@ -6052,7 +6052,7 @@ class Creature:
                             name = ' called {0}'.format(site.name)
                         else:
                             name = ''
-                        self.say('I know of a {0}{1} located in {2}'.format(site.type_, name, g.WORLD.tiles[site.x][site.y].get_location_description_relative_to((self.owner.wx, self.owner.wy)) ))
+                        self.say('I know of {0}{1} located in {2}'.format(indef(site.type_), name, g.WORLD.tiles[site.x][site.y].get_location_description_relative_to((self.owner.wx, self.owner.wy)) ))
                     #elif site.faction is None:
                     #    self.say(' -- DBG -- {0} is a {1} without a faction'.format(site.name, site.type_))
 
@@ -6101,7 +6101,7 @@ class Creature:
                 if self.commander:
                     self.say('I am already a member of %s.' % self.commander.name)
                 elif self.get_profession:
-                    self.say('As a %s, I cannot join you.' % self.get_profession() )
+                    self.say('As {0}, I cannot join you.'.format(indef(self.get_profession() )))
                 else:
                     self.say('I cannot join you.')
 
@@ -8249,7 +8249,7 @@ class RenderHandler:
                     libtcod.console_print(panel3.con, 2, y, '{0} ({1})'.format(grasper.grasped_item.name, grasper.name))
 
             y += 2
-            wearing_info = join_list([c.name for c in g.player.wearing])
+            wearing_info = join_list([indef(c.name) for c in g.player.wearing])
             libtcod.console_print_rect(panel3.con, 2, y, panel3.width-2, panel3.height-y, 'Wearing {0}'.format(wearing_info))
 
 
@@ -8344,9 +8344,9 @@ def battle_hover_information():
 
             inventory = target.get_inventory()
 
-            header.append('Wearing ' + ', '.join([item.name for item in inventory['clothing'] ]))
-            header.append('Holding ' + ', '.join([item.name for item in inventory['grasped'] ]))
-            header.append('Storing ' + ', '.join([item.name for item in inventory['stored'] ]))
+            header.append('Wearing {0}'.format(join_list([indef(item.name) for item in inventory['clothing'] ])))
+            header.append('Holding {0}'.format(join_list([indef(item.name) for item in inventory['grasped'] ])))
+            header.append('Storing {0}'.format(join_list([indef(item.name) for item in inventory['stored'] ])))
 
             text = [skill + ': ' + str(value) for skill, value in target.creature.skills.iteritems()]
             text.insert(0, target.creature.stance + ' stance')
@@ -8358,8 +8358,9 @@ def battle_hover_information():
                 text.insert(0, line)
 
             text.append(' ')
-            text.append('Wounds:')
-            for wound in target.get_wound_descriptions():
+            wounds = target.get_wound_descriptions()
+            text.append('{0}{1}'.format(ct('wound', len(wounds)), ':' if len(wounds) else ''))
+            for wound in wounds:
                 text.append(wound)
             text.append(' ')
 
@@ -8369,7 +8370,7 @@ def battle_hover_information():
                 text.append('Target_fig: %s'%target.local_brain.target_figure.fullname() if target.local_brain.target_figure else 'Target_fig: None' )
                 text.append('Target_loc: %s, %s'%(target.local_brain.target_location[0], target.local_brain.target_location[1]) if target.local_brain.target_location else 'Target_loc: None' )
                 text.append('Path reset: %s'%target.local_brain.astar_refresh_cur )
-                text.append('Closest_enemy: %s'%target.local_brain.perception_info['closest_enemy'])
+                text.append('Closest_enemy: {0}'.format(target.local_brain.perception_info['closest_enemy'].fullname() if target.local_brain.perception_info['closest_enemy'] else 'None'))
                 text.append('Closest_dist: %s'%target.local_brain.perception_info['closest_enemy_distance'])
                 #text.append('State: ' + target.local_brain.ai_state )
 
@@ -8476,7 +8477,7 @@ def show_object_info(obj):
         comptitle = ''.join([name, ': ', mass, 'kg, ', density, 'kg/m^3'])
 
         if component.grasped_item is not None:
-            comptitle += '. Holding a ' + component.grasped_item.name
+            comptitle += '. Holding {0}'.format(indef(component.grasped_item.name))
 
         complist.append(comptitle)
         ### Display attachments (packs, bags, etc)
