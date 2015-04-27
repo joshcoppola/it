@@ -4792,18 +4792,18 @@ def choose_object_to_interact_with(objs, x, y):
     This function handles that. '''
 
     # If there's only one object, either talk to it or attack it (for now)
-    if len(objs) == 1 and (not g.M.tiles[x][y].interactable and not objs[0].interactable):
-
-        obj = objs[0]
-        if obj.creature and obj.creature and obj.creature.status == 'alive':
-            talk_screen(actor=g.player, target=obj)
-        else:
-            attack_menu(actor=g.player, target=obj)
+    # if len(objs) == 1 and (not g.M.tiles[x][y].interactable and not objs[0].interactable):
+    #
+    #     obj = objs[0]
+    #     if obj.creature and obj.creature and obj.creature.status == 'alive':
+    #         talk_screen(actor=g.player, target=obj)
+    #     else:
+    #         attack_menu(actor=g.player, target=obj)
 
     # Else, a button menu which shows the interactions
-    else:
+    if 1:
 
-        (x, y) = g.game.camera.map2cam(x, y)
+        (cx, cy) = g.game.camera.map2cam(x, y)
 
         height = 30
         width = 28
@@ -4813,7 +4813,7 @@ def choose_object_to_interact_with(objs, x, y):
 
         b_width = width - (4 * 2)
 
-        wpanel = gui.GuiPanel(width=width, height=height, xoff=x, yoff=y, interface=g.game.interface)
+        wpanel = gui.GuiPanel(width=width, height=height, xoff=cx, yoff=cy, interface=g.game.interface)
 
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
                               topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
@@ -4840,36 +4840,17 @@ def choose_object_to_interact_with(objs, x, y):
                                   text='Interact with ' + obj.fullname(), topleft=(bx, i),
                                   width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
-        wpanel.gen_buttons = buttons
+        # Specific tile interaction...
+        if g.M.tiles[x][y].interactable:
 
-    # Specific tile interaction...
-    if g.M.tiles[x][y].interactable:
+            func = g.M.tiles[x][y].interactable['func']
+            args = g.M.tiles[x][y].interactable['args']
+            text = g.M.tiles[x][y].interactable['text']
 
-        func = g.M.tiles[x][y].interactable['func']
-        args = g.M.tiles[x][y].interactable['args']
-        text = g.M.tiles[x][y].interactable['text']
+            i += 4
+            buttons.append(gui.Button(gui_panel=wpanel, func=func, args=args, text=text,
+                                   topleft=(bx, i), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
-        (x, y) = g.game.camera.map2cam(x, y)
-
-        height = 12
-        width = 22
-
-        bx = 4
-        by = 5
-
-        b_width = width - (4 * 2)
-
-        wpanel = gui.GuiPanel(width=width, height=height, xoff=x, yoff=y, interface=g.game.interface)
-
-
-        buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Cancel',
-                              topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
-                   gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
-
-
-        buttons.append(gui.Button(gui_panel=wpanel, func=func, args=args, text=text,
-                                   topleft=(bx, 2), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         wpanel.gen_buttons = buttons
 
