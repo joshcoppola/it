@@ -304,6 +304,7 @@ class Region:
         self.color = None
         self.char = ' '
         self.char_color = libtcod.black
+        self.region_number = None # For figuring out play region
 
         self.blocks_mov = False
         self.blocks_vis = False
@@ -335,6 +336,9 @@ class Region:
         self.site = None
         self.territory = None
         self.explored = False
+
+    def in_play_region(self):
+        return g.WORLD.play_region == self.region_number
 
     def has_feature(self, type_):
         ''' Check if certain feature is in region '''
@@ -1326,7 +1330,7 @@ class World(Map):
 
         for site in self.sites:
             # Populate the cave with creatures
-            if site.type_ == 'cave' and roll(1, 10) > 8:
+            if self.tiles[site.x][site.y].in_play_region() and site.type_ == 'cave' and roll(1, 10) >= 2:
                 race = random.choice(self.brutish_races)
                 name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
                 faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
