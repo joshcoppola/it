@@ -312,6 +312,7 @@ class Region:
         self.res = {}
         self.entities = []
         self.populations = []
+        self.objects = []
 
         self.features = []
         self.minor_sites = []
@@ -427,6 +428,7 @@ class World(Map):
 
         #self.travelers = []
         self.sites = []
+        self.all_sites = []
         self.resources = []
         self.ideal_locs = []
 
@@ -454,6 +456,7 @@ class World(Map):
 
         self.cultures = []
         self.languages = []
+        self.ancient_languages = []
         self.lingua_franca = None
 
         self.cities = []
@@ -1308,6 +1311,11 @@ class World(Map):
         language = lang.Language()
         self.languages.append(language)
 
+        # Adding some ancient languages that are no longer spoken
+        for i in xrange(5):
+            ancient_language = lang.Language()
+            self.ancient_languages.append(ancient_language)
+
         ## These guys will be less intelligent and more brute-ish. Generally live in lairs or move into existing empty structures
         num_brute_races = roll(3, 5)
         for i in xrange(num_brute_races):
@@ -1328,7 +1336,7 @@ class World(Map):
 
         self.default_mythic_culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=self.brutish_races)
 
-        for site in self.sites:
+        for site in self.all_sites:
             # Populate the cave with creatures
             if self.tiles[site.x][site.y].in_play_region() and site.type_ == 'cave' and roll(1, 10) >= 2:
                 race = random.choice(self.brutish_races)
@@ -1730,9 +1738,10 @@ class World(Map):
 
 
         # Some history books
+        date = g.WORLD.time_cycle.get_current_date()
+
         for city in created_cities:
             c_language = city.culture.language
-            date = g.WORLD.time_cycle.get_current_date()
             #### Book ####
             book = assemble_object(object_blueprint=phys.object_dict['book'], force_material=phys.materials['wood'], wx=city.x, wy=city.y)
 
@@ -1760,6 +1769,25 @@ class World(Map):
             #    if worker.creature.profession.name == 'King':
             #        obj.set_current_owner(worker)
             #        break
+
+        ### Set some ancient maps to appear, in ancient languages
+        potential_map_sites = {'cave':5, 'ancient settlement':100}
+        for site in self.all_sites:
+            if site.type_ in potential_map_sites and roll(1, 100) < potential_map_sites[site.type_]:
+                language = random.choice(self.ancient_languages)
+                # Create a map
+                map_ = assemble_object(object_blueprint=phys.object_dict['map'], force_material=phys.materials['wood'], wx=site.x, wy=site.y)
+                # Find info for map
+                for chunk in self.get_nearby_chunks(chunk=self.tiles[site.x][site.y].chunk, distance=1):
+                    for other_site in chunk.get_all_sites():
+                        if roll(1, 100) < 90:
+                            map_.components[0].add_information_of_site(language=language, site=other_site, date_written=date, author=None, location_accuracy=5, is_part_of_map=1, describe_site=0)
+
+                # Set map's interactivity
+                map_.interactable = {'func':map_.read_information, 'args':[], 'text':'Read {0}'.format(map_.name), 'hover_text':['Map']}
+
+                if site.buildings:
+                    map_.set_current_building(building=random.choice(site.buildings))
 
         # Some timing and debug info
         #g.game.add_message('Civs created in %.2f seconds' %(time.time() - begin))
@@ -2168,6 +2196,7 @@ class World(Map):
 
         self.sites.append(city)
         self.cities.append(city)
+        self.all_sites.append(city)
 
         return city
 
@@ -2177,6 +2206,8 @@ class World(Map):
         mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "+"
         self.tiles[x][y].char_color = city.faction.color
+        self.all_sites.append(mine)
+
         return mine
 
     def add_farm(self, x, y, city):
@@ -2186,6 +2217,8 @@ class World(Map):
         if not self.tiles[x][y].has_feature('road'):
             self.tiles[x][y].char = "."
             self.tiles[x][y].char_color = city.faction.color
+        self.all_sites.append(farm)
+
         return farm
 
     def add_shrine(self, x, y, city):
@@ -2194,6 +2227,7 @@ class World(Map):
         shrine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "^"
         self.tiles[x][y].char_color = libtcod.black
+        self.all_sites.append(shrine)
 
         city.culture.pantheon.add_holy_site(shrine)
 
@@ -2209,6 +2243,8 @@ class World(Map):
         self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
             building = ruin_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+
+        self.all_sites.append(ruin_site)
 
         # Move some unintelligent creatures in if it's near cities
         if 0 < self.get_astar_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
@@ -2235,7 +2271,7 @@ class World(Map):
         cave = Site(world=self, type_='cave', x=x, y=y, char='C', name=name, color=libtcod.black, underground=1)
         #cave = Site(world=self, type_='cave', x=cx, y=cy, char='#', name=name, color=libtcod.black)
         #self.tiles[cx][cy].site = cave
-        self.sites.append(cave)
+        self.all_sites.append(cave)
 
         # Add stuff to region tile
         self.tiles[x][y].caves.append(cave)

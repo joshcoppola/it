@@ -34,7 +34,7 @@ def ct(word, num, use_a=False):
     # Switch the numeral 1 to 'a' if the use_a flag is set
     if num == 1 and use_a:
         # Auto-choose "a" or "an" based on word
-        num = referenced(word)
+        return referenced(word)
 
     return '{0} {1}'.format(num, pl(word, num))
 
