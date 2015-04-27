@@ -1215,10 +1215,8 @@ class World(Map):
 
                 ################## OUT OF PLACE CAVE GEN CODE ###############
                 if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > g.MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
-                    cave = Site(world=self, type_='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
-                    self.tiles[x][y].caves.append(cave)
-                    self.tiles[x][y].chunk.add_cave(cave)
-                    self.tiles[x][y].char = 'C'
+                    #cave = Site(world=self, type_='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
+                    self.add_cave(x=x, y=y, name=None)
 
 
 
@@ -1302,12 +1300,14 @@ class World(Map):
 
     def gen_mythological_creatures(self):
 
+        # Create a language for the culture to use
+        language = lang.Language()
+        self.languages.append(language)
+
         ## These guys will be less intelligent and more brute-ish. Generally live in lairs or move into existing empty structures
         num_brute_races = roll(3, 5)
         for i in xrange(num_brute_races):
-            # Throwaway language for now
-            race_name_lang = lang.Language()
-            creature_name = race_name_lang.gen_word(syllables=roll(1, 2), num_phonemes=(2, 10))
+            creature_name = language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 10))
             # Shares physical components with humans for now
             phys_info = copy.deepcopy(phys.creature_dict['human'])
 
@@ -1322,28 +1322,20 @@ class World(Map):
 
             #g.game.add_message('- {0} added'.format(lang.spec_cap(creature_name)))
 
-
-        # Create a language for the culture to use
-        language = lang.Language()
-        self.languages.append(language)
         self.default_mythic_culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=self.brutish_races)
 
-        num_placed_beings = 0
-        while num_placed_beings < 50:
+        for site in self.sites:
+            # Populate the cave with creatures
+            if site.type_ == 'cave' and roll(1, 10) > 8:
+                race = random.choice(self.brutish_races)
+                name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
+                faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
+                born = g.WORLD.time_cycle.years_ago(50)
+                myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char="L", dynasty=None, important=1, faction=faction, wx=site.x, wy=site.y, armed=1, race=race, save_being=1, intelligence_level=2)
 
-            num_placed_beings += 1
-
-            x, y = random.choice(self.play_tiles)
-
-            race = random.choice(self.brutish_races)
-            name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
-            faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
-            born = g.WORLD.time_cycle.years_ago(50)
-            myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char="L", dynasty=None, important=1, faction=faction, wx=x, wy=y, armed=1, race=race, save_being=1, intelligence_level=2)
-
-            num_creatures = roll(5, 25)
-            sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
-            population = self.create_population(char="L", name="myth creature group", faction=faction, creatures=None, sentients=sentients, goods={'food':1}, wx=x, wy=y, commander=myth_creature)
+                num_creatures = roll(5, 25)
+                sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
+                population = self.create_population(char="L", name="myth creature group", faction=faction, creatures=None, sentients=sentients, goods={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
 
 
     def gen_sentient_races(self):
@@ -2235,11 +2227,16 @@ class World(Map):
         return ruin_site
 
 
-    def add_cave(self, cx, cy, name):
-        cave = Site(world=self, type_='cave', x=cx, y=cy, char='#', name=name, color=libtcod.black)
-
-        self.tiles[cx][cy].site = cave
+    def add_cave(self, x, y, name):
+        cave = Site(world=self, type_='cave', x=x, y=y, char='C', name=name, color=libtcod.black, underground=1)
+        #cave = Site(world=self, type_='cave', x=cx, y=cy, char='#', name=name, color=libtcod.black)
+        #self.tiles[cx][cy].site = cave
         self.sites.append(cave)
+
+        # Add stuff to region tile
+        self.tiles[x][y].caves.append(cave)
+        self.tiles[x][y].chunk.add_cave(cave)
+        self.tiles[x][y].char = 'C'
 
 
     def create_and_move_bandits_to_site(self, wx, wy, hideout_site):
