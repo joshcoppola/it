@@ -264,7 +264,7 @@ POSSIBLE_ONSETS = [
                 [[213, None, []], ['plosive', 0, []] ],
                 [[213, None, []], ['nasal', None, [220]] ],
                 #[[213, None, []], ['fricative', 0, [211, 212, 213, 215, 216]] ],
-                [[213, None, []], ['fricative', 0, [212, 215, 216]] ],
+                [[213, None, []], ['fricative', 0, [211, 212, 215, 216]] ],
                 [[213, None, []], ['plosive', 0, []], ['approximant', None, [222, 223]] ]
                 ]
 
