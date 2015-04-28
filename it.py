@@ -2201,8 +2201,7 @@ class World(Map):
         return city
 
     def add_mine(self, x, y, city):
-        name = '{0} mine'.format(city.name)
-        mine = self.tiles[x][y].add_minor_site(world=self, type_='mine', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+        mine = self.tiles[x][y].add_minor_site(world=self, type_='mine', x=x, y=y, char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
         mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "+"
         self.tiles[x][y].char_color = city.faction.color
@@ -2211,8 +2210,7 @@ class World(Map):
         return mine
 
     def add_farm(self, x, y, city):
-        name = '{0} farm'.format(city.name)
-        farm = self.tiles[x][y].add_minor_site(world=self, type_='farm', x=x, y=y, char='#', name=name, color=city.faction.color, culture=city.culture, faction=city.faction)
+        farm = self.tiles[x][y].add_minor_site(world=self, type_='farm', x=x, y=y, char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
         farm.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         if not self.tiles[x][y].has_feature('road'):
             self.tiles[x][y].char = "."
@@ -2236,7 +2234,7 @@ class World(Map):
     def add_ruins(self, x, y):
         # Make ruins
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
-        name = 'Ruins of {0}'.format(lang.spec_cap(site_name))
+        name = lang.spec_cap(site_name)
 
         ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ancient settlement', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
         self.tiles[x][y].char = 259
@@ -2292,7 +2290,7 @@ class World(Map):
 
         ## Choose building for site
         if hideout_site is None:
-            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, type_='hideout', x=wx, y=wy, char='#', name='Hideout', color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
+            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, type_='hideout', x=wx, y=wy, char='#', name=None, color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
             hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         else:
             hideout_building = random.choice(hideout_site.buildings)
@@ -4281,12 +4279,7 @@ class Object:
 
                 # Update knowledge of sites
                 sites = g.WORLD.tiles[self.wx][self.wy].get_all_sites()
-                if sites:
-                    date = g.WORLD.time_cycle.get_current_date()
-                    for site in sites:
-                        if site not in self.creature.knowledge['sites']:
-                            self.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=1)
-                            # g.game.add_message('{0} has learned that {1} is located at {2}'.format(self.fullname(), site.get_name(), (site.x, site.y)))
+                self.creature.add_knowledge_of_sites_on_move(sites=sites)
 
         #self.update_figures_and_check_for_city()
 
@@ -6651,6 +6644,29 @@ class Creature:
             self.knowledge['sites'][site]['location']['accuracy'] = location_accuracy
             self.knowledge['sites'][site]['location']['date_learned'] = date_learned
             self.knowledge['sites'][site]['location']['source'] = source
+
+    def add_knowledge_of_sites_on_move(self, sites):
+
+        if sites:
+            date = g.WORLD.time_cycle.get_current_date()
+            for site in sites:
+                if site not in self.knowledge['sites']:
+                    self.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=1)
+
+            if self.owner == g.player:
+                sites_by_type = Counter([s.type_ for s in sites])
+                tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
+                tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
+
+
+                if len(sites) == 1 and sites[0].name:
+                    msg = 'The {0} of {1} is here. '.format(sites[0].type_, sites[0].get_name())
+                else:
+                    msg = 'There {0} {1}{2} here. '.format(cj('is', tmplist[0][1]), qaunt(tmplist[0][1]), tmp)
+
+                g.game.add_message(msg)
+                # g.game.add_message('{0} has learned that {1} is located at {2}'.format(self.fullname(), site.get_name(), (site.x, site.y)))
+
 
 
     def get_relations(self, other_person):
