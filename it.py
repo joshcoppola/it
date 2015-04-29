@@ -358,9 +358,6 @@ class Region:
 
         return feature_list
 
-    def get_all_sites(self):
-        return self.minor_sites + self.caves
-
     def get_base_color(self):
         # Give the map a base color
         base_rgb_color = g.MCFG[self.region]['base_color']
@@ -371,12 +368,29 @@ class Region:
 
         return base_color
 
-    def add_minor_site(self, world, type_, x, y, char, name, color, culture, faction):
-        site = Site(world, type_, x, y, char, name, color, culture, faction)
+    def add_minor_site(self, world, type_, char, name, color, culture, faction):
+        site = Site(world, type_, self.x, self.y, char, name, color, culture, faction)
         self.minor_sites.append(site)
+        self.all_sites.append(site)
+
+        g.WORLD.all_sites.append(site)
+
+        # CHUNK
         self.chunk.add_minor_site(site)
 
         return site
+
+    def add_cave(self, world, name):
+        cave = Site(world=world, type_='cave', x=self.x, y=self.y, char='C', name=name, color=libtcod.black, underground=1)
+        self.caves.append(cave)
+        self.all_sites.append(cave)
+        self.char = 'C'
+
+        g.WORLD.all_sites.append(cave)
+
+        # CHUNK
+        self.chunk.add_cave(cave)
+
 
     def get_location_description(self):
         if self.site:
@@ -1222,9 +1236,7 @@ class World(Map):
 
                 ################## OUT OF PLACE CAVE GEN CODE ###############
                 if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > g.MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
-                    #cave = Site(world=self, type_='cave', x=x, y=y, char=' ', name=None, color=libtcod.black, underground=1)
-                    self.add_cave(x=x, y=y, name=None)
-
+                    self.tiles[x][y].add_cave(world=self, name=None)
 
 
         exclude_smooth = ['ocean']
@@ -2191,6 +2203,8 @@ class World(Map):
         city = City(world=self, type_='city', x=cx, y=cy, char=char, name=name, color=color, culture=self.tiles[cx][cy].culture, faction=faction)
 
         self.tiles[cx][cy].site = city
+        self.tiles[cx][cy].all_sites.append(city)
+
         self.tiles[cx][cy].chunk.add_site(city)
         self.make_world_road(cx, cy)
 
@@ -2201,31 +2215,28 @@ class World(Map):
         return city
 
     def add_mine(self, x, y, city):
-        mine = self.tiles[x][y].add_minor_site(world=self, type_='mine', x=x, y=y, char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
+        mine = self.tiles[x][y].add_minor_site(world=self, type_='mine',char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
         mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "+"
         self.tiles[x][y].char_color = city.faction.color
-        self.all_sites.append(mine)
 
         return mine
 
     def add_farm(self, x, y, city):
-        farm = self.tiles[x][y].add_minor_site(world=self, type_='farm', x=x, y=y, char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
+        farm = self.tiles[x][y].add_minor_site(world=self, type_='farm', char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
         farm.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         if not self.tiles[x][y].has_feature('road'):
             self.tiles[x][y].char = "."
             self.tiles[x][y].char_color = city.faction.color
-        self.all_sites.append(farm)
 
         return farm
 
     def add_shrine(self, x, y, city):
         name = '{0} shrine'.format(city.culture.pantheon.name)
-        shrine = self.tiles[x][y].add_minor_site(world=self, type_='shrine', x=x, y=y, char='^', name=name, color=libtcod.black, culture=None, faction=None)
+        shrine = self.tiles[x][y].add_minor_site(world=self, type_='shrine', char='^', name=name, color=libtcod.black, culture=None, faction=None)
         shrine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "^"
         self.tiles[x][y].char_color = libtcod.black
-        self.all_sites.append(shrine)
 
         city.culture.pantheon.add_holy_site(shrine)
 
@@ -2236,13 +2247,12 @@ class World(Map):
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = lang.spec_cap(site_name)
 
-        ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ancient settlement', x=x, y=y, char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black, culture=None, faction=None)
         self.tiles[x][y].char = 259
         self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
             building = ruin_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
 
-        self.all_sites.append(ruin_site)
 
         # Move some unintelligent creatures in if it's near cities
         if 0 < self.get_astar_distance_to(x, y, self.site_index['city'][0].x, self.site_index['city'][0].y) < 45: #roll(0, 1):
@@ -2265,18 +2275,6 @@ class World(Map):
         return ruin_site
 
 
-    def add_cave(self, x, y, name):
-        cave = Site(world=self, type_='cave', x=x, y=y, char='C', name=name, color=libtcod.black, underground=1)
-        #cave = Site(world=self, type_='cave', x=cx, y=cy, char='#', name=name, color=libtcod.black)
-        #self.tiles[cx][cy].site = cave
-        self.all_sites.append(cave)
-
-        # Add stuff to region tile
-        self.tiles[x][y].caves.append(cave)
-        self.tiles[x][y].chunk.add_cave(cave)
-        self.tiles[x][y].char = 'C'
-
-
     def create_and_move_bandits_to_site(self, wx, wy, hideout_site):
         ''' Creates a group of bandits to move to an uninhabited site '''
 
@@ -2290,7 +2288,7 @@ class World(Map):
 
         ## Choose building for site
         if hideout_site is None:
-            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, type_='hideout', x=wx, y=wy, char='#', name=None, color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
+            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
             hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         else:
             hideout_building = random.choice(hideout_site.buildings)
@@ -4278,8 +4276,7 @@ class Object:
                     commanded_figure_or_population.w_move(dx=dx, dy=dy)
 
                 # Update knowledge of sites
-                sites = g.WORLD.tiles[self.wx][self.wy].get_all_sites()
-                self.creature.add_knowledge_of_sites_on_move(sites=sites)
+                self.creature.add_knowledge_of_sites_on_move(sites=g.WORLD.tiles[self.wx][self.wy].all_sites)
 
         #self.update_figures_and_check_for_city()
 
@@ -7892,9 +7889,13 @@ class Culture:
 
 
     def add_village(self, x, y):
-        village = Site(world=g.WORLD, type_='village', x=x, y=y, char=chr(7), name=self.name + ' village', color=self.color)
+        name = lang.spec_cap(self.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 14)))
+        village = Site(world=g.WORLD, type_='village', x=x, y=y, char=chr(7), name=name, color=self.color)
         g.WORLD.sites.append(village)
+
         g.WORLD.tiles[x][y].site = village
+        g.WORLD.tiles[x][y].all_sites.append(village)
+
         self.villages.append(village)
 
 
@@ -8087,7 +8088,7 @@ def get_info_under_mouse():
             for feature in g.WORLD.tiles[x][y].features + g.WORLD.tiles[x][y].caves:
                 info.append((feature.get_name(), color))
             for site in g.WORLD.tiles[x][y].minor_sites:
-                info.append((site.name, color))
+                info.append((site.get_name(), color))
                 if site.is_holy_site_to:
                     for pantheon in site.is_holy_site_to:
                         info.append((' - This is considered a holy site to the {0}.'.format(pantheon.name), color ))
@@ -8096,7 +8097,7 @@ def get_info_under_mouse():
             # Sites
             site = g.WORLD.tiles[x][y].site
             if site:
-                info.append(('{0} ({1})'.format(site.name.capitalize(), site.type_), color))
+                info.append(('The {0} of {1}'.format(site.type_, site.name.capitalize()), color))
                 if site.type_ == 'city':
                     info.append(('{0} harbored here'.format(ct('caravan', len(site.caravans))), color))
                     num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.creature.is_commander() or not f.creature.commander)])
@@ -8741,7 +8742,7 @@ class Game:
         enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
 
 
-        hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, type_='hideout', x=1, y=1, char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
+        hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
         hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
         faction1.set_leader(leader=g.player)

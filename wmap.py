@@ -480,7 +480,7 @@ class Wmap(Map):
                 population_start = world_last_dir_to_rect[population.world_last_dir]
                 population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[], place_anywhere=place_anywhere)
 
-            for site in self.world.tiles[self.wx][self.wy].get_all_sites():
+            for site in self.world.tiles[self.wx][self.wy].all_sites:
                 for building in site.buildings:
                     building.add_housed_objects_to_map()
 
