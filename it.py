@@ -2248,6 +2248,8 @@ class World(Map):
         name = lang.spec_cap(site_name)
 
         ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        self.tiles[x][y].chunk.add_site(ruin_site)
+
         self.tiles[x][y].char = 259
         self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
@@ -7895,6 +7897,8 @@ class Culture:
 
         g.WORLD.tiles[x][y].site = village
         g.WORLD.tiles[x][y].all_sites.append(village)
+
+        g.WORLD.tiles[x][y].chunk.add_site(village)
 
         self.villages.append(village)
 
