@@ -94,41 +94,78 @@ def condense_list_into_string(list_):
 
 def describe_map_contents(site_info):
     ''' Condenses a dict containing read information about sites into a readable paragraph '''
-    msg = 'On the map, '
+
+    paragraph = Paragraph(introduction='', first_sentence_beginning='On the map, ')
+
     if site_info['readable']['named']['known']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['named']['known']] )
-        msg += 'There {0} {1}{2} that you already know about: {3}. '.format(cj('is', num), qaunt(num), count_in_string, join_list([s.get_name() for s in site_info['readable']['named']['known']]))
+        paragraph.add_sentence('there {0} {1}{2} that you already know about: {3}. '.format(cj('is', num), qaunt(num), count_in_string, join_list([s.get_name() for s in site_info['readable']['named']['known']])) )
 
     if site_info['readable']['named']['unknown']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['named']['unknown']] )
-        msg += 'There {0} {1}{2} that you did not know about: {3}. '.format(cj('is', num), qaunt(num),  count_in_string, join_list([s.get_name() for s in site_info['readable']['named']['unknown']]))
+        paragraph.add_sentence('there {0} {1}{2} that you did not know about: {3}. '.format(cj('is', num), qaunt(num),  count_in_string, join_list([s.get_name() for s in site_info['readable']['named']['unknown']])) )
 
     if site_info['readable']['unnamed']['known']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['unnamed']['known']])
-        msg += 'There {0} {1}{2} that you already know about. '.format(cj('is', num),  qaunt(num), count_in_string)
+        paragraph.add_sentence('there {0} {1}{2} that you already know about. '.format(cj('is', num),  qaunt(num), count_in_string) )
 
     if site_info['readable']['unnamed']['unknown']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['unnamed']['unknown']])
-        msg += 'There {0} {1}{2} that you did not know about. '.format(cj('is', num), qaunt(num),  count_in_string)
+        paragraph.add_sentence('there {0} {1}{2} that you did not know about. '.format(cj('is', num), qaunt(num),  count_in_string) )
 
 
     if site_info['unreadable']['named']['known']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['named']['known']])
-        msg += 'Although you can\'t read it, there {0} {1}{2} that must be {3}. '.format(cj('is', num),  qaunt(num), count_in_string, join_list([s.get_name() for s in site_info['unreadable']['named']['known']]))
+        paragraph.add_sentence('although you can\'t read it, there {0} {1}{2} that must be {3}. '.format(cj('is', num),  qaunt(num), count_in_string, join_list([s.get_name() for s in site_info['unreadable']['named']['known']])) )
 
     if site_info['unreadable']['named']['unknown']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['named']['unknown']])
-        msg += 'There {0} {1}{2} that you were not previously aware of. '.format(cj('is', num), qaunt(num),  count_in_string)
+        paragraph.add_sentence('there {0} {1}{2} that you were not previously aware of. '.format(cj('is', num), qaunt(num),  count_in_string) )
 
     if site_info['unreadable']['unnamed']['known']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['unnamed']['known']])
-        msg += 'There {0} to be {1}{2} that you already know about. '.format(cj('appear', num), qaunt(num),  count_in_string)
+        paragraph.add_sentence('there {0} to be {1}{2} that you already know about. '.format(cj('appear', num), qaunt(num),  count_in_string) )
 
     if site_info['unreadable']['unnamed']['unknown']:
         count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['unnamed']['unknown']])
-        msg += 'There {0} to be {1}{2} that you did not know about. '.format(cj('appear', num),  qaunt(num), count_in_string)
+        paragraph.add_sentence('there {0} to be {1}{2} that you did not know about. '.format(cj('appear', num),  qaunt(num), count_in_string) )
 
-    return msg
+    return paragraph.to_text()
+
+
+class Paragraph:
+    def __init__(self, introduction, first_sentence_beginning):
+        self.introduction = introduction
+        self.first_sentence_beginning = first_sentence_beginning
+
+        self.sentences = []
+
+        self.sentence_joiners = ['additionally', 'also', 'in addition', 'furthermore']
+        self.paragraph_enders = ['finally', 'lastly']
+
+    def add_sentence(self, sentence):
+        if not self.sentences:
+            sentence = self.first_sentence_beginning + sentence
+
+        self.sentences.append(sentence)
+
+    def to_text(self):
+        num_sentences = len(self.sentences)
+
+        text = self.introduction # Can be emtpy string for no introduction
+
+        for i, sentence in enumerate(self.sentences, start=1):
+            if i == 1:
+                text += sentence.capitalize()
+            elif (1 < i < num_sentences) or (1 < i and num_sentences < 3):
+                text += '{0}, {1}'.format(random.choice(self.sentence_joiners), sentence).capitalize()
+            elif i == num_sentences:
+                text += '{0}, {1}'.format(random.choice(self.paragraph_enders), sentence).capitalize()
+
+        return text
+
+
+
 
 def determine_commander(figures):
     ''' Find the figure with the greatest number of commanded beings and set as commander '''
