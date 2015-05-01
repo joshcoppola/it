@@ -81,59 +81,52 @@ def join_list(string_list, null_value="nothing"):
         return '{0}, and {1}'.format(', '.join([s for s in string_list[:-1]]), string_list[-1])
 
 
+def condense_list_into_string(list_):
+    ''' Input should be a list of strings, output will be a condensed enumeration of the list in descending order (e.g. 5 dogs, 2 cats, and a rabbit) '''
+    list_items_by_num = Counter(list_)
+    # Sort in descending order
+    descending_items = sorted([(type_, num) for type_, num in list_items_by_num.iteritems()], key=lambda x: x[1], reverse=True)
+    first_number = descending_items[0][1]
+    # Count the number of each to string and join the list with commas and "and" if necessary
+    count_in_string = join_list([ct(type_, num, True) for type_, num in descending_items])
+
+    return count_in_string, first_number
+
 def describe_map_contents(site_info):
     ''' Condenses a dict containing read information about sites into a readable paragraph '''
     msg = 'On the map, '
     if site_info['readable']['named']['known']:
-        sites_by_type = Counter([s.type_ for s in site_info['readable']['named']['known']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} {1}{2} that you already know about: {3}. '.format(cj('is', tmplist[0][1]), qaunt(tmplist[0][1]), tmp, join_list([s.get_name() for s in site_info['readable']['named']['known']]))
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['named']['known']] )
+        msg += 'There {0} {1}{2} that you already know about: {3}. '.format(cj('is', num), qaunt(num), count_in_string, join_list([s.get_name() for s in site_info['readable']['named']['known']]))
 
     if site_info['readable']['named']['unknown']:
-        sites_by_type = Counter([s.type_ for s in site_info['readable']['named']['unknown']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} {1}{2} that you did not know about: {3}. '.format(cj('is', tmplist[0][1]), qaunt(tmplist[0][1]),  tmp, join_list([s.get_name() for s in site_info['readable']['named']['unknown']]))
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['named']['unknown']] )
+        msg += 'There {0} {1}{2} that you did not know about: {3}. '.format(cj('is', num), qaunt(num),  count_in_string, join_list([s.get_name() for s in site_info['readable']['named']['unknown']]))
 
     if site_info['readable']['unnamed']['known']:
-        sites_by_type = Counter([s.type_ for s in site_info['readable']['unnamed']['known']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} {1}{2} that you already know about. '.format(cj('is', tmplist[0][1]),  qaunt(tmplist[0][1]), tmp)
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['unnamed']['known']])
+        msg += 'There {0} {1}{2} that you already know about. '.format(cj('is', num),  qaunt(num), count_in_string)
 
     if site_info['readable']['unnamed']['unknown']:
-        sites_by_type = Counter([s.type_ for s in site_info['readable']['unnamed']['unknown']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} {1}{2} that you did not know about. '.format(cj('is', tmplist[0][1]), qaunt(tmplist[0][1]),  tmp)
-
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['readable']['unnamed']['unknown']])
+        msg += 'There {0} {1}{2} that you did not know about. '.format(cj('is', num), qaunt(num),  count_in_string)
 
 
     if site_info['unreadable']['named']['known']:
-        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['named']['known']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        print tmplist
-        msg += 'Although you can\'t read it, there {0} {1}{2} that must be {3}. '.format(cj('is', tmplist[0][1]),  qaunt(tmplist[0][1]), tmp, join_list([s.get_name() for s in site_info['unreadable']['named']['known']]))
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['named']['known']])
+        msg += 'Although you can\'t read it, there {0} {1}{2} that must be {3}. '.format(cj('is', num),  qaunt(num), count_in_string, join_list([s.get_name() for s in site_info['unreadable']['named']['known']]))
 
     if site_info['unreadable']['named']['unknown']:
-        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['named']['unknown']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} {1}{2} that you were not previously aware of. '.format(cj('is', tmplist[0][1]), qaunt(tmplist[0][1]),  tmp)
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['named']['unknown']])
+        msg += 'There {0} {1}{2} that you were not previously aware of. '.format(cj('is', num), qaunt(num),  count_in_string)
 
     if site_info['unreadable']['unnamed']['known']:
-        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['unnamed']['known']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} to be {1}{2} that you already know about. '.format(cj('appear', tmplist[0][1]), qaunt(tmplist[0][1]),  tmp)
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['unnamed']['known']])
+        msg += 'There {0} to be {1}{2} that you already know about. '.format(cj('appear', num), qaunt(num),  count_in_string)
 
     if site_info['unreadable']['unnamed']['unknown']:
-        sites_by_type = Counter([s.type_ for s in site_info['unreadable']['unnamed']['unknown']])
-        tmplist = sorted([(type_, num) for type_, num in sites_by_type.iteritems()], key=lambda x: x[1], reverse=True)
-        tmp = join_list([ct(type_, num, True) for type_, num in tmplist])
-        msg += 'There {0} to be {1}{2} that you did not know about. '.format(cj('appear', tmplist[0][1]),  qaunt(tmplist[0][1]), tmp)
+        count_in_string, num = condense_list_into_string( list_=[s.type_ for s in site_info['unreadable']['unnamed']['unknown']])
+        msg += 'There {0} to be {1}{2} that you did not know about. '.format(cj('appear', num),  qaunt(num), count_in_string)
 
     return msg
 
