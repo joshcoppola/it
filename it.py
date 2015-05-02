@@ -709,8 +709,7 @@ class World(Map):
                         self.tiles[rx][ry].moist /= 2
 
 
-                for i in xrange(len(riv_cur)):
-                    (x, y) = riv_cur[i]
+                for i, (x, y) in enumerate(riv_cur):
                     self.tiles[x][y].char_color = libtcod.Color(10, 35, int(round(self.tiles[x][y].height)))
                     river_feature = River(x=x, y=y)
                     self.tiles[x][y].features.append(river_feature)
@@ -4458,26 +4457,26 @@ def pick_up_menu():
     wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=bwidth, height=3)
     wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
-    i = 0
+    y = 0
     for obj in objs:
-        i += 5
+        y += 5
 
         wpanel.add_button(func=storage_menu, args=[obj], text='Store ' + obj.name + '...',
-                                          topleft=(atx, i), width=bwidth, height=4, closes_menu=1)
+                                          topleft=(atx, y), width=bwidth, height=4, closes_menu=1)
         # Hold in one of the hands
         for grasper in g.player.creature.get_graspers():
             if grasper.grasped_item is None:
-                i += 5
+                y += 5
 
                 wpanel.add_button(func=g.player.pick_up_object, args=[grasper, obj], text='Hold ' + obj.name + ' in ' + grasper.name,
-                                          topleft=(atx, i), width=bwidth, height=4, closes_menu=1)
+                                          topleft=(atx, y), width=bwidth, height=4, closes_menu=1)
 
         # Wear it, if possible
         if obj.wearable:
-            i += 5
+            y += 5
 
             wpanel.add_button(func=g.player.put_on_clothing, args=[obj], text='Wear the ' + obj.name,
-                                      topleft=(atx, i), width=bwidth, height=4, closes_menu=1)
+                                      topleft=(atx, y), width=bwidth, height=4, closes_menu=1)
 
 
 def manage_inventory():
@@ -4501,26 +4500,26 @@ def manage_inventory():
         wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=b_width, height=3)
         wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
-        i = 0
+        Y = 0
         for obj in inventory['clothing']:
-            i += 3
-            wpanel.add_button(func=g.player.take_off_clothing, args=[obj], text='Take off ' + obj.name, topleft=(bx, by+i), width=b_width, height=3)
+            y += 3
+            wpanel.add_button(func=g.player.take_off_clothing, args=[obj], text='Take off ' + obj.name, topleft=(bx, by+y), width=b_width, height=3)
 
         #draw_box(panel=root_con.con, x=bx-2, x2=bx+7+2, y=by-1, y2=i+1, color=libtcod.red)
 
-        i += 3
+        y += 3
         for obj in inventory['grasped']:
-            i += 3
-            wpanel.add_button(func=storage_menu, args=[obj], text='Store ' + obj.name + '...', topleft=(bx, by+i), width=b_width, height=3)
-            i += 3
-            wpanel.add_button(func=g.player.drop_object, args=[obj.being_grasped_by, obj], text='Drop ' + obj.name, topleft=(bx, by+i), width=b_width, height=3)
+            y += 3
+            wpanel.add_button(func=storage_menu, args=[obj], text='Store ' + obj.name + '...', topleft=(bx, by+y), width=b_width, height=3)
+            y += 3
+            wpanel.add_button(func=g.player.drop_object, args=[obj.being_grasped_by, obj], text='Drop ' + obj.name, topleft=(bx, by+y), width=b_width, height=3)
 
-        i += 3
+        y += 3
         for obj in inventory['stored']:
             for grasper in g.player.creature.get_graspers():
                 if grasper.grasped_item is None:
-                    i += 3
-                    wpanel.add_button(func=g.player.take_out_of_storage, args=[obj, grasper], text='Hold ' + obj.name + '\n in ' + grasper.name, topleft=(bx, by+i), width=b_width, height=3)
+                    y += 3
+                    wpanel.add_button(func=g.player.take_out_of_storage, args=[obj, grasper], text='Hold ' + obj.name + '\n in ' + grasper.name, topleft=(bx, by+y), width=b_width, height=3)
 
         # Update gui panel buttons
         #wpanel.gen_buttons = buttons
@@ -4549,11 +4548,11 @@ def storage_menu(obj):
                           text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     # Store item
-    i = 0
+    y = 0
     for component_with_storage in storage_items:
-        i += 5
+        y += 5
         buttons.append(gui.Button(gui_panel=wpanel, func=component_with_storage.owner.place_inside, args=[component_with_storage, obj],
-                                  text='Place ' + obj.name + ' in ' + component_with_storage.name, topleft=(bx, i),
+                                  text='Place ' + obj.name + ' in ' + component_with_storage.name, topleft=(bx, y),
                                   width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
     wpanel.gen_buttons = buttons
@@ -4592,24 +4591,24 @@ def choose_object_to_interact_with(objs, x, y):
                    gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
-        i = 0
+        y = 0
         for obj in objs:
             if obj.creature and obj.creature.status == 'alive':
-                i += 4
+                y += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
-                                  text='Talk to ' + obj.fullname(), topleft=(bx, i),
+                                  text='Talk to ' + obj.fullname(), topleft=(bx, y),
                                   width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
             if obj.interactable:
-                i += 4
+                y += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=obj.interactable['func'], args=obj.interactable['args'],
-                                  text=obj.interactable['text'], topleft=(bx, i),
+                                  text=obj.interactable['text'], topleft=(bx, y),
                                   width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
             else:
-                i += 4
+                y += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
-                                  text='Interact with ' + obj.fullname(), topleft=(bx, i),
+                                  text='Interact with ' + obj.fullname(), topleft=(bx, y),
                                   width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         # Specific tile interaction...
@@ -4619,9 +4618,9 @@ def choose_object_to_interact_with(objs, x, y):
             args = g.M.tiles[x][y].interactable['args']
             text = g.M.tiles[x][y].interactable['text']
 
-            i += 4
+            y += 4
             buttons.append(gui.Button(gui_panel=wpanel, func=func, args=args, text=text,
-                                   topleft=(bx, i), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                   topleft=(bx, y), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
 
         wpanel.gen_buttons = buttons
@@ -7967,9 +7966,9 @@ class RenderHandler:
                 y += 2
                 libtcod.console_print(panel4.con, 2, y, '-* Last turn *-')
                 h = 1
-                for j in xrange(len(agent.last_turn)):
+                for action in agent.last_turn:
                     y += h
-                    h = libtcod.console_print_rect(panel4.con, 2, y, PANEL4_WIDTH -4, 2, ' - ' + agent.last_turn[j])
+                    h = libtcod.console_print_rect(panel4.con, 2, y, PANEL4_WIDTH -4, 2, ' - ' + action)
 
                 y += h + 2
                 libtcod.console_print(panel4.con, 2, y, '-* Inventory *-')
