@@ -8,9 +8,6 @@ import gen_languages as lang
 from helpers import join_list, looped_increment
 from traits import *
 
-PANEL_BACK = libtcod.Color(18, 15, 15)
-#PANEL_FRONT = libtcod.Color(88, 80, 64)
-PANEL_FRONT = libtcod.Color(138, 115, 95)
 
 mouse = libtcod.Mouse()
 key = libtcod.Key()
@@ -19,7 +16,7 @@ key = libtcod.Key()
 class GuiPanel:
     def __init__(self, width, height, xoff, yoff, interface,
                  is_root=0, append_to_panels=1, transp=1,
-                 backcolor=PANEL_BACK, frontcolor=PANEL_FRONT, name='default'):
+                 backcolor=g.PANEL_BACK, frontcolor=g.PANEL_FRONT, name='default'):
 
         self.name = name
 
@@ -210,13 +207,13 @@ class GuiPanel:
 
         return player_input
 
-    def add_button(self, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
+    def add_button(self, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
         ''' Pretty ugly because the panel has multiple button lists for now... '''
         self.gen_buttons.append(Button(self, func, args, text, topleft, width, height, hover_header, hover_text, hover_text_offset, color, hcolor, do_draw_box, closes_menu))
 
 class Button:
     # A button. Usually has a border, needs to highlight on mouseover, and execute its function on click
-    def __init__(self, gui_panel, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
+    def __init__(self, gui_panel, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
         x, y = topleft
 
         self.gui_panel = gui_panel
@@ -524,13 +521,13 @@ def show_cultures(world, spec_culture=None):
         language_box_y = culture_box_y + 1
 
         #### General ######
-        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
+        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, g.PANEL_FRONT) #Box around everything
         ## Box around cultural descriptions
-        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, culture_box_y, PANEL_FRONT)
+        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, culture_box_y, g.PANEL_FRONT)
         ## Header
         libtcod.console_print(0, 2, 2, 'Cultures and Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
 
-        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
         libtcod.console_print(0, 4, 4, '-* The {0} culture *-'.format(culture.name))
 
         ## Background info, including subsitence and races
@@ -543,7 +540,7 @@ def show_cultures(world, spec_culture=None):
         libtcod.console_print(0, 4, 11, 'Their arsenal includes {0}'.format(join_list(culture.weapons)))
 
         ###### PHONOLOGY ########
-        g.game.interface.root_console.draw_box(x=1, x2=40, y=language_box_y, y2=language_box_y + 2 + len(language.consonants), color=PANEL_FRONT)
+        g.game.interface.root_console.draw_box(x=1, x2=40, y=language_box_y, y2=language_box_y + 2 + len(language.consonants), color=g.PANEL_FRONT)
         y = language_box_y + 1
         libtcod.console_print(0, 4, y, 'Consonants in {0}'.format(language.name))
         for consonant in language.consonants:
@@ -553,7 +550,7 @@ def show_cultures(world, spec_culture=None):
             libtcod.console_print(0, 7, y, lang.PHON_TO_ENG_EXAMPLES[cnum])
 
         y += 4
-        g.game.interface.root_console.draw_box(x=1, x2=40, y=y-1, y2=y-1 + 2 + len(language.vowel_freqs), color=PANEL_FRONT)
+        g.game.interface.root_console.draw_box(x=1, x2=40, y=y-1, y2=y-1 + 2 + len(language.vowel_freqs), color=g.PANEL_FRONT)
         libtcod.console_print(0, 4, y, 'Vowels in {0}'.format(language.name))
         for (vnum, vfreq) in language.vowel_freqs:
             y += 1
@@ -563,7 +560,7 @@ def show_cultures(world, spec_culture=None):
 
         ###### VOCABULARY ########
         y = language_box_y + 1
-        g.game.interface.root_console.draw_box(x=41, x2=68, y=y-1, y2=y-1 + 2 + len(language.vocabulary), color=PANEL_FRONT)
+        g.game.interface.root_console.draw_box(x=41, x2=68, y=y-1, y2=y-1 + 2 + len(language.vocabulary), color=g.PANEL_FRONT)
         libtcod.console_print(0, 43, y, 'Basic {0} vocabulary'.format(language.name))
         sorted_vocab = [(k, v) for k, v in language.vocabulary.iteritems()]
         sorted_vocab.sort()
@@ -636,13 +633,13 @@ def show_civs(world):
 
 
         #### General ######
-        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
-        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, 7, PANEL_FRONT)
+        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, g.PANEL_FRONT) #Box around everything
+        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, 7, g.PANEL_FRONT)
         libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to change city, PGUP PGDOWN to scroll vertically)')
         libtcod.console_print(0, 2, 4, '<p> Show people   <b> Show buildings   <f> Show figures   <e> Show economy   <d> Detailed economy   <c> Culture')
 
         ## Show government type - left panel
-        g.game.interface.root_console.draw_box(1, 28, 8, g.SCREEN_HEIGHT - 2, PANEL_FRONT) # Around relations
+        g.game.interface.root_console.draw_box(1, 28, 8, g.SCREEN_HEIGHT - 2, g.PANEL_FRONT) # Around relations
         # Check for title holder
         if city.faction.leader:
             title_info = '{0} {1}, age {2}'.format(city.faction.leader_prefix, city.faction.get_leader().fullname(), city.faction.get_leader().creature.get_age())
@@ -657,10 +654,10 @@ def show_civs(world):
             y += 1
 
         ######### Cities and governers #############
-        g.game.interface.root_console.draw_box(29, g.SCREEN_WIDTH - 2, 8, g.SCREEN_HEIGHT - 2, PANEL_FRONT) # Around cities + govs
+        g.game.interface.root_console.draw_box(29, g.SCREEN_WIDTH - 2, 8, g.SCREEN_HEIGHT - 2, g.PANEL_FRONT) # Around cities + govs
 
         y = 14
-        libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, PANEL_FRONT, .5))
+        libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, g.PANEL_FRONT, .5))
         libtcod.console_print(0, 32, y - 4, 'City of {0} (Population: {1}, {2} gold)'.format(city.name, city.get_population(), city.treasury))
         libtcod.console_print(0, 32, y - 3, 'Access to: {0}'.format(join_list(city.native_res.keys())))
         if city.faction.parent is None:
@@ -668,7 +665,7 @@ def show_civs(world):
         else:
             liege = 'Vassal to ' + city.faction.parent.site.name + '. '
         libtcod.console_print(0, 32, y - 2, liege + 'Vassals: ' + ', '.join([vassal.site.name for vassal in city.faction.subfactions]))
-        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
         if view == 'building':
             ####### Positions of interest in the city ###########
@@ -691,18 +688,18 @@ def show_civs(world):
         elif view == 'economy':
 
             ####### AGENTS ############
-            libtcod.console_set_default_foreground(0, PANEL_FRONT * .7)
+            libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .7)
             libtcod.console_print(0, 32, y, 'Agent name')
-            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, PANEL_FRONT, .7))
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, g.PANEL_FRONT, .7))
             libtcod.console_print(0, 60, y, 'Gold')
-            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, PANEL_FRONT, .7))
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
             libtcod.console_print_ex(0, 70, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Buys')
-            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, PANEL_FRONT, .7))
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, g.PANEL_FRONT, .7))
             libtcod.console_print(0, 72, y, 'Sells')
-            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, PANEL_FRONT, .7))
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, .7))
             libtcod.console_print(0, 78, y, 'Alive')
 
-            libtcod.console_set_default_foreground(0, PANEL_FRONT)
+            libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
 
             all_agents = (city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants)
@@ -734,27 +731,27 @@ def show_civs(world):
                     if mouse.lbutton_pressed:
                         agent.update_holder(figure=g.player)
                         panel4.render = True
-                        pcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.light_green, .5)
+                        pcolor = libtcod.color_lerp(g.PANEL_FRONT, libtcod.light_green, .5)
                         hcolor = pcolor * 2
                         panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=g.WORLD.time_cycle.goto_next_week, args=[],
                                                               text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, hcolor=hcolor, do_draw_box=True) )
 
                 else:
-                    acolor = PANEL_FRONT
+                    acolor = g.PANEL_FRONT
 
                 libtcod.console_set_default_foreground(0, acolor)
                 libtcod.console_print(0, 32, y, agent_name[:26])
-                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, PANEL_FRONT, .7))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, g.PANEL_FRONT, .7))
                 libtcod.console_print(0, 60, y, str(agent.gold))
-                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, PANEL_FRONT, .7))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
                 libtcod.console_print(0, 68, y, str(agent.buys))
-                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, PANEL_FRONT, .7))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, g.PANEL_FRONT, .7))
                 libtcod.console_print(0, 73, y, str(agent.sells))
-                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, PANEL_FRONT, .7))
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, .7))
                 libtcod.console_print(0, 78, y, str(agent.turns_alive))
 
             # Set color back
-            libtcod.console_set_default_foreground(0, PANEL_FRONT)
+            libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
             ###### End print individual agents ######
 
             ## Print good info ##
@@ -778,13 +775,13 @@ def show_civs(world):
 
                     # Color trades - green means price last round was > than avg, red means < than avg
                     if auction.mean_price <= auction.get_last_valid_price():
-                        color = libtcod.color_lerp(libtcod.green, PANEL_FRONT, auction.mean_price / auction.get_last_valid_price())
+                        color = libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, auction.mean_price / auction.get_last_valid_price())
                     else:
-                        color = libtcod.color_lerp(libtcod.red, PANEL_FRONT, auction.get_last_valid_price() / auction.mean_price)
+                        color = libtcod.color_lerp(libtcod.red, g.PANEL_FRONT, auction.get_last_valid_price() / auction.mean_price)
                     libtcod.console_set_default_foreground(0, color)
                     libtcod.console_print(0, 105, y, str(auction.get_last_valid_price()))
                     ## /color trades
-                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+                    libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
                     libtcod.console_print(0, 110, y, str(auction.supply))
                     libtcod.console_print(0, 114, y, str(auction.demand))
                     # Ratio
@@ -800,9 +797,9 @@ def show_civs(world):
                         color_mod = min(abs(1 - d_s_ratio), .75)
                         color = libtcod.green
 
-                    libtcod.console_set_default_foreground(0, libtcod.color_lerp(color, PANEL_FRONT, color_mod))
+                    libtcod.console_set_default_foreground(0, libtcod.color_lerp(color, g.PANEL_FRONT, color_mod))
                     libtcod.console_print(0, 118, y, "{0:.2f}".format(round(d_s_ratio, 2)))
-                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+                    libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
                     # Iteration in economy
                     libtcod.console_print(0, 124, y, str(auction.iterations))
@@ -852,7 +849,7 @@ def show_civs(world):
 
                     libtcod.console_set_default_foreground(0, color)
                     libtcod.console_print(0, 85, ny, symb)
-                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+                    libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
                     libtcod.console_print(0, 87, ny, figure.fullname())
                     libtcod.console_print(0, 85, ny + 1,
@@ -891,11 +888,11 @@ def show_civs(world):
                             libtcod.console_print(0, 86, ny, reason + ': ' + str(amount))
 
                 if selected:
-                    libtcod.console_set_default_foreground(0, libtcod.color_lerp(PANEL_FRONT, libtcod.yellow, .5))
+                    libtcod.console_set_default_foreground(0, libtcod.color_lerp(g.PANEL_FRONT, libtcod.yellow, .5))
                     selected = False
 
-                elif libtcod.console_get_default_foreground != PANEL_FRONT:
-                    libtcod.console_set_default_foreground(0, PANEL_FRONT)
+                elif libtcod.console_get_default_foreground != g.PANEL_FRONT:
+                    libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
                 libtcod.console_print(0, 34, y, figure.fullname())
 
@@ -917,7 +914,7 @@ def show_civs(world):
 
                 libtcod.console_set_default_foreground(0, color)
                 libtcod.console_print(0, 55, y, symb)
-                libtcod.console_set_default_foreground(0, PANEL_FRONT)
+                libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
 
                 # Increase so next figure goes onto next line
@@ -960,23 +957,23 @@ def economy_tab(world, city):
         libtcod.console_clear(0) ## 0 should be variable "con"?
 
         #### General ######
-        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, PANEL_FRONT) #Box around everything
-        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, 7, PANEL_FRONT)
+        g.game.interface.root_console.draw_box(0, g.SCREEN_WIDTH - 1, 0, g.SCREEN_HEIGHT - 1, g.PANEL_FRONT) #Box around everything
+        g.game.interface.root_console.draw_box(1, g.SCREEN_WIDTH - 2, 1, 7, g.PANEL_FRONT)
         libtcod.console_print(0, 2, 2, 'Civilizations (ESC to exit, LEFT and RIGHT arrows to scroll)')
         libtcod.console_print(0, 2, 4, '<p> - Show people    <b> - Show buildings    <f> - Show figures    <e> Show economy')
 
-        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
         libtcod.console_print(0, 2, 5, '{0} square km. Access to: {1}'.format(len(city.territory), join_list(city.native_res.keys())))
 
         ####### AGENTS ############
         y = 10
 
-        libtcod.console_set_default_foreground(0, PANEL_FRONT * .7)
+        libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .7)
         libtcod.console_print(0, 5, y, 'Agent name')
         libtcod.console_print(0, 25, y, 'Inventory')
         libtcod.console_print(0, 45, y, 'Beliefs')
 
-        libtcod.console_set_default_foreground(0, PANEL_FRONT)
+        libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
         #for agent in city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants:
         iy, cy, ly = y, y, y
         agent_list = city.econ.resource_gatherers + city.econ.good_producers #+ city.econ.buy_merchants + city.econ.sell_merchants
