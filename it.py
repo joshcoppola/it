@@ -1243,14 +1243,22 @@ class World(Map):
             ####################################
 
             # Setup satellites around the city #
-            for resource_loc in nearby_resource_locations:
-                wx, wy = resource_loc
-                for location in [(city.x, city.y) for city in created_cities] + city_sites:
-                    if get_distance_to(location[0], location[1], wx, wy) <= 3:
+            for rx, ry in nearby_resource_locations:
+                for xx, yy in [(city.x, city.y) for city in created_cities] + city_sites:
+                    if get_distance_to(xx, yy, rx, ry) <= 3:
                         break
                 ## Add to cities if it's not too close
                 else:
-                    city_sites.append((wx, wy))
+                    city_sites.append((rx, ry))
+
+        ## This is a quick fix for cases where the economy module has detected some nearby resources which
+        ## may be essential for the full economy, but for some reason a city couldn't be built nearby. For
+        ## now, we just let the closest city to an unclaimed resource location acquire that region.
+        for rx, ry in nearby_resource_locations:
+            if not self.tiles[rx][ry].territory:
+                city = self.get_closest_city(x=rx, y=ry)[0]
+                city.acquire_tile(rx, ry)
+                print '{0} has expanded its territory for {1}'.format(city.get_name(), join_list(self.tiles[rx][ry].res.keys()))
 
         ## We assume the domestication of food has spread to all nearby cities
         for city in created_cities:
@@ -8175,10 +8183,8 @@ def battle_hover_information():
             g.game.handle_fov_recompute()
 
 
-def infobox(header, options, xb=0, yb=0, xoffset=2, yoffset=2, textc=libtcod.grey, selcolor=libtcod.white,
-            bcolor=libtcod.black, transp=.5, buttons=0):
+def infobox(header, options, xb=0, yb=0, xoffset=2, yoffset=2, textc=libtcod.grey, bcolor=libtcod.black, transp=.5):
 
-    global mouse, key
     ## First find width of the box
     total_width = xoffset * 2
     for column in options:
@@ -8282,8 +8288,8 @@ def show_object_info(obj):
         complist.append(' ')
 
     infobox(header=obj.name, options=[objlist, complist], xb=1, yb=1,
-            xoffset=2, yoffset=2, textc=libtcod.white, selcolor=libtcod.white,
-            bcolor=obj.color, transp=.8, buttons=0)
+            xoffset=2, yoffset=2, textc=libtcod.white,
+            bcolor=obj.color, transp=.8)
 
     g.game.handle_fov_recompute()
     #g.game.render_handler.render_all()
@@ -8693,7 +8699,6 @@ class Game:
 
 
 def main_menu():
-    global mouse, key
 
     b_width = 20
     # Set button origin points
