@@ -4023,7 +4023,7 @@ class Object:
             self.turns_since_move = 0
 
             # Make sure to also move any units commanded with us
-            if self.creature:
+            if self.creature and (dx, dy) != (0, 0):
                 for commanded_figure_or_population in self.creature.commanded_figures + self.creature.commanded_populations:
                     commanded_figure_or_population.w_move(dx=dx, dy=dy)
 
