@@ -30,265 +30,8 @@ from wmap import *
 from map_base import *
 import history as hist
 
-# Code to detect screen resolution (libtcod's doesn't work for some reason?)
-try:
-    from ctypes import windll
-    user32 = windll.user32
-    SCREEN_RES = ( user32.GetSystemMetrics(0), user32.GetSystemMetrics(1) )
-except:
-    print 'Cannot auto-size resolution, fall back to default...'
-    SCREEN_RES = (1280, 720)
 
 
-#size of the battle map
-MAP_WIDTH = 250
-MAP_HEIGHT = 250
-# Size for cities
-CITY_MAP_WIDTH = 350
-CITY_MAP_HEIGHT = 350
-
-#size of the WORLD
-WORLD_WIDTH = 240
-WORLD_HEIGHT = 220
-
-LIMIT_FPS = 60
-
-# Sites must be this far apart
-MIN_SITE_DIST = 4
-
-# There can be this much space between cities when starting an economy
-MAX_ECONOMY_DISTANCE = 25
-
-
-# When looping trough, these are the tree trunk characters for large (2x2) trees
-TREE_CHARS = {0:(307, 308), 1:(311, 312), 2:(313, 314), 3:(309, 310) }
-TREE_STUMP_CHARS = {0:315, 1:317, 2:318, 3:316 }
-
-## colors ##
-PANEL_BACK = libtcod.Color(18, 15, 15)
-PANEL_FRONT = libtcod.Color(138, 115, 95)
-
-
-PAIN_FRONT = libtcod.color_lerp(PANEL_FRONT, libtcod.red, .6)
-PAIN_BACK = libtcod.color_lerp(libtcod.dark_red, libtcod.black, .6)
-
-
-DIJMAP_CREATURE_DISTANCE = 10
-
-
-'''
-UNIT_COSTS = {'Light Cavalry': {'horses': 1, 'ores': 1},
-              'Heavy Cavalry': {'horses': 1, 'ores': 2},
-              'Chariots': {'horses': 1, 'woods': 1, 'ores': 1},
-              'Spearmen': {'woods': 1},
-              'Swordsmen': {'ores': 2},
-              'Archers': {'woods': 1},
-              'Supply Wagon': {'horses': 1, 'woods': 2},
-              'Supply Cart': {'woods': 2}
-}
-'''
-
-PROF_OPINIONS = {
-    'General taxes': {'state_gov': 4, 'merchant': -4, 'city_gov': 4, 'commoner': -4},
-    'Noble taxes': {'state_gov': 4, 'city_gov': 4, 'noble': -4},
-    'Church taxes': {'state_gov': 4, 'city_gov': 4, 'religion': -4}
-                }
-
-PERSONAL_OPINIONS = {
-    'General taxes': {'Greedy': -2, 'Charitable': 2, 'Fiscal Liberal': 4, 'Fiscal Conservative': -4},
-    'Noble taxes': {'Greedy': -2, 'Charitable': 2, 'Fiscal Liberal': 4, 'Fiscal Conservative': -4},
-    'Church taxes': {'Greedy': -2, 'Charitable': 2, 'Fiscal Liberal': 4, 'Fiscal Conservative': -4, 'Devout': -4,
-                     'Unbeliever': 4}
-                }
-
-PROFESSION_INFAMY = {
-    'King': 100,
-    'Noble': 75,
-    'General': 75,
-    'High Priest': 75,
-    'Tax Collector': 50,
-    'Spymaster': 50,
-    'Vizier': 75,
-    'Militia Captain': 50,
-    'Scribe': 20,
-
-    'Adventurer': 5,
-    'Tavern Keeper': 10,
-    'Bard': 10,
-    'Assassin': 0,
-    'Bandit': 0,
-
-    'Swordsman': 0,
-    'Caravan Guard': 0,
-
-    'merchant': 0
-}
-
-LITERATE_PROFESSIONS = set(['Noble', 'noble', 'merchant', 'King', 'High Priest', 'Scribe', 'Tax Collector', 'Vizier', 'Tavern Keeper'])
-
-MIN_MARRIAGE_AGE = 16
-MAX_MARRIAGE_AGE = 50
-MIN_CHILDBEARING_AGE = 16
-MAX_CHILDBEARING_AGE = 40
-
-DYNASTY_SYMBOLS = (3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 20, 21, 22, 30, 31, 127, 156, 157,
-                   224, 228, 232, 234, 235, 237, 239, 240, 241, 242, 243, 244, 245, 247,
-                   248, 253, 174, 175, 176, 220, 221, 222, 223, 227, 158, 42, 43, 32, 206,
-                   197)
-
-LIGHT_COLORS = (
-                libtcod.Color(238, 233, 233), libtcod.Color(205, 201, 201), libtcod.Color(248, 248, 255),
-                libtcod.Color(245, 245, 245), libtcod.Color(220, 220, 220), libtcod.Color(255, 250, 240),
-                libtcod.Color(253, 245, 230), libtcod.Color(240, 240, 230), libtcod.Color(250, 235, 215),
-                libtcod.Color(238, 223, 204), libtcod.Color(205, 192, 176), libtcod.Color(255, 222, 173),
-                libtcod.Color(255, 228, 181), libtcod.Color(255, 248, 220), libtcod.Color(238, 232, 205),
-                libtcod.Color(205, 200, 177), libtcod.Color(255, 255, 240), libtcod.Color(238, 238, 224),
-                libtcod.Color(205, 205, 193), libtcod.Color(255, 250, 205), libtcod.Color(255, 245, 238),
-                libtcod.Color(238, 229, 222), libtcod.Color(205, 197, 191), libtcod.Color(240, 255, 240),
-                libtcod.Color(244, 238, 224), libtcod.Color(193, 205, 193), libtcod.Color(245, 255, 250),
-                libtcod.Color(240, 255, 255), libtcod.Color(230, 230, 250), libtcod.Color(255, 240, 245),
-                libtcod.Color(255, 228, 225), libtcod.Color(173, 216, 230), libtcod.Color(176, 224, 230),
-                libtcod.Color(175, 238, 238), libtcod.Color(190, 190, 190), libtcod.Color(211, 211, 211),
-                libtcod.Color(238, 160, 238), libtcod.Color(221, 175, 221)
-                )
-
-DARK_COLORS = (
-               libtcod.Color(49, 79, 79), libtcod.Color(85, 85, 85), libtcod.Color(92, 118, 124),
-               libtcod.Color(19, 136, 53), libtcod.Color(25, 25, 112), libtcod.Color(0, 0, 128),
-               libtcod.Color(72, 61, 139), libtcod.Color(106, 90, 135), libtcod.Color(0, 0, 205),
-               libtcod.Color(6, 10, 13), libtcod.Color(0, 0, 135), libtcod.Color(60, 110, 150),
-               libtcod.Color(0, 106, 109), libtcod.Color(65, 108, 110), libtcod.Color(0, 100, 0),
-               libtcod.Color(85, 107, 47), libtcod.Color(103, 118, 93), libtcod.Color(36, 109, 67),
-               libtcod.Color(40, 109, 83), libtcod.Color(32, 108, 100),
-               libtcod.Color(50, 105, 50), libtcod.Color(64, 105, 50), libtcod.Color(34, 139, 34),
-               libtcod.Color(107, 142, 35), libtcod.Color(38, 125, 32), libtcod.Color(104, 74, 11),
-               libtcod.Color(58, 23, 23), libtcod.Color(115, 82, 82), libtcod.Color(139, 69, 19),
-               libtcod.Color(160, 82, 45), libtcod.Color(120, 113, 43),
-               libtcod.Color(30, 20, 8), libtcod.Color(120, 85, 10),
-               libtcod.Color(128, 34, 34), libtcod.Color(125, 42, 42),
-               libtcod.Color(106, 38, 76), libtcod.Color(109, 21, 63),
-               libtcod.Color(118, 43, 26), libtcod.Color(107, 95, 50)
-               )
-
-DEBUG_MSG_COLOR = libtcod.dark_red
-
-
-STANCES = {
-    'Aggressive': {'attack_bonus': 10, 'defense_bonus': -15, 'disarm_bonus': 0, 'disarm_defense': 10, 'knock_bonus': 10,
-                   'knock_defense': 10},
-    'Defensive': {'attack_bonus': 0, 'defense_bonus': 10, 'disarm_bonus': 0, 'disarm_defense': -5, 'knock_bonus': 0,
-                  'knock_defense': -10},
-    'Prone': {'attack_bonus': -20, 'defense_bonus': -20, 'disarm_bonus': -20, 'disarm_defense': -20, 'knock_bonus': -20,
-                  'knock_defense': -20}
-}
-
-TAVERN_ADJECTIVES = ('Dancing', 'Grinning', 'Crimson', 'Green', 'Red', 'Blue', 'Kingly', 'Happy', 'Drowsy',
-                     'Hungry', 'Thirsty', 'Ailing', 'Friendly', 'Blind', 'Drunken', 'Noble', 'Tiny',
-                     'Yawning', 'Tipsy', 'Snoring', 'Salty', 'Merry', 'Black', 'White', 'Mighty',
-                     'Scheming', 'Singing', 'Ancient', 'Wise', 'Weary', 'Weeping', 'Helpless', 'Firey',
-                     'Wayward')
-
-TAVERN_NOUNS = ('Gnome', 'Knave', 'Dragon', 'Giant', 'Pony', 'Hunter', 'Boar', 'Lion', 'Dog', 'Cat',
-                'Frog', 'Goblin', 'Fox', 'Snake', 'Troll', 'Serpent', 'Widow', 'Soldier', 'Wolf',
-                'Wizard', 'Sage', 'Jester', 'Orphan', 'Seeker', 'Trickster', 'Griffon', 'Witch',
-                'Barkeep', 'Minion')
-
-TAVERN_OBJECTS = ('Belly', 'Smile', 'Kettle', 'Stout', 'Host', 'House', 'Cave', 'Pride', 'Story',
-                  'Secret', 'Castle', 'Keep', 'Helm', 'Cloak', 'Shield', 'Dagger', 'Pint', 'Bane',
-                  'Triumph', 'Folly', 'Flask', 'Cask', 'Casket', 'Delight', 'Lair', 'Mug', 'Nest', 'Keg',
-                  'Bride', 'Flagon', 'Eyes', 'Brew', 'Fancy', 'Barrel', 'Wisdom', 'Jewel', 'Potion',
-                  'Stew', 'Stein', 'Goblet', 'Tankard', 'Tumbler', 'Pitcher', 'Gizzard')
-
-
-QUESTION_RESPONSES = {
-             'name':{
-                     'ask': ['What is your name?'],
-                     'respond':{
-                                'truth':['My name is %s', '%s'],
-                                'no answer':['I don\'t want to answer that.']
-                                }
-                     },
-
-             'profession':{
-                     'ask': ['What do you do?'],
-                     'respond':{
-                                'truth':['I am a %s'],
-                                'no answer':['I don\'t want to answer that.']
-                                }
-                     },
-
-             'age':{
-                     'ask': ['How old are you?'],
-                     'respond':{
-                                'truth':['I am %s', '%s'],
-                                'no answer':['I don\'t want to answer that.']
-                                }
-                     },
-
-             'city':{
-                     'ask': ['From where do you hail?'],
-                     'respond':{
-                                'truth':['I currently live in %s'],
-                                'no answer':['I don\'t want to answer that.']
-                                }
-                     },
-
-             'goals':{
-                     'ask': ['What are your current goals?'],
-                     'respond':{
-                                'truth':['I am currently %s'],
-                                'no answer':['I don\'t want to answer that.']
-                                }
-                     },
-
-             'recruit':{
-                     'ask': ['Will you join me on my quest?'],
-                     'respond':{
-                                'yes':['I will gladly join you'],
-                                'no':['No.']
-                                }
-                     }
-}
-
-CONVERSATION_QUESTIONS= {
-                            'greet':'Hello.',
-                            'name':'What is your name?',
-                            'profession':'What do you do?',
-                            'sites':'What sites do you know about?',
-                            'battles':'Have there been any battles lately?',
-                            'events':'What\'s been going on?',
-                            'age':'How old are you?,',
-                            'city':'From where do you hail?',
-                            'goals':'What are your current goals?',
-                            'recruit':'Will you join me on my quest?'}
-
-CONVERSATION_TOPICS = ['the weather', 'religion', 'travel', 'current events',
-               'politics', 'family', 'life stories', 'the economy']
-
-
-civ_colors = (
-              libtcod.Color(18, 113, 113), libtcod.Color(125, 72, 72), libtcod.Color(64, 64, 89),
-              libtcod.Color(112, 138, 144), libtcod.Color(49, 79, 79), libtcod.Color(178, 34, 34),
-              libtcod.Color(72, 61, 139), libtcod.Color(25, 25, 112), libtcod.Color(0, 0, 128),
-              libtcod.Color(132, 112, 165), libtcod.Color(72, 61, 139), libtcod.Color(106, 90, 155),
-              libtcod.Color(105, 136, 130), libtcod.Color(30, 144, 165), libtcod.Color(5, 5, 125),
-              libtcod.Color(0, 106, 109), libtcod.Color(103, 156, 30), libtcod.Color(70, 130, 50),
-              libtcod.Color(102, 155, 170), libtcod.Color(75, 128, 130), libtcod.Color(52, 139, 134),
-              libtcod.Color(50, 155, 50), libtcod.Color(22, 148, 140), libtcod.Color(127, 165, 162),
-              libtcod.Color(105, 105, 0), libtcod.Color(168, 165, 32), libtcod.Color(165, 165, 0),
-              libtcod.Color(165, 69, 0), libtcod.Color(160, 108, 108), libtcod.Color(165, 127, 80),
-              libtcod.Color(160, 32, 190), libtcod.Color(96, 121, 106), libtcod.Color(147, 112, 169),
-              libtcod.Color(136, 28, 66), libtcod.Color(169, 112, 147), libtcod.Color(95, 122, 103),
-              libtcod.Color(101, 120, 101), libtcod.Color(18, 90, 128), libtcod.Color(109, 11, 63),
-              libtcod.Color(113, 40, 113),
-
-              libtcod.Color(66, 115, 61), libtcod.Color(36, 96, 36), libtcod.Color(189, 169, 18),
-              libtcod.Color(128, 0, 0), libtcod.Color(142, 56, 142), libtcod.Color(113, 113, 198),
-              libtcod.Color(56, 142, 142), libtcod.Color(113, 198, 113), libtcod.Color(198, 113, 113),
-              libtcod.Color(238, 106, 80), libtcod.Color(48, 128, 20), libtcod.Color(0, 199, 140),
-              libtcod.Color(125, 38, 205), libtcod.Color(132, 112, 255), libtcod.Color(61, 89, 171),
-              libtcod.Color(148, 62, 15), libtcod.Color(205, 38, 38), libtcod.Color(255, 64, 64)
-              )
 
 
 mouse = libtcod.Mouse()
@@ -542,9 +285,9 @@ class World(Map):
         ######## Add some buttons #######
         panel2.wmap_buttons = [
                           gui.Button(gui_panel=panel2, func=self.gen_history, args=[1],
-                                     text='Generate History', topleft=(4, PANEL2_HEIGHT-11), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                                     text='Generate History', topleft=(4, PANEL2_HEIGHT-11), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
                           gui.Button(gui_panel=panel2, func=self.generate, args=[],
-                                     text='Regenerate Map', topleft=(4, PANEL2_HEIGHT-6), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
+                                     text='Regenerate Map', topleft=(4, PANEL2_HEIGHT-6), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
                           ]
 
     def tile_blocks_mov(self, x, y):
@@ -1314,7 +1057,7 @@ class World(Map):
                 break
         else:
             panel2.wmap_buttons.append(gui.Button(gui_panel=panel2, func=g.game.new_game, args=[],
-                                    text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                    text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
 
     def gen_mythological_creatures(self):
@@ -1346,7 +1089,7 @@ class World(Map):
 
             #g.game.add_message('- {0} added'.format(lang.spec_cap(creature_name)))
 
-        self.default_mythic_culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=self.brutish_races)
+        self.default_mythic_culture = Culture(color=random.choice(g.CIV_COLORS), language=language, world=self, races=self.brutish_races)
 
         for site in self.all_sites:
             # Populate the cave with creatures
@@ -1407,7 +1150,7 @@ class World(Map):
                                 races.append(race)
                                 break
 
-                culture = Culture(color=random.choice(civ_colors), language=language, world=self, races=races)
+                culture = Culture(color=random.choice(g.CIV_COLORS), language=language, world=self, races=races)
                 culture.edge = [(x, y)]
                 culture.add_territory(x, y)
                 self.cultures.append(culture)
@@ -1451,9 +1194,9 @@ class World(Map):
         unavailable_resource_types = ['initial_dummy_value']
         while unavailable_resource_types:
             x, y = random.choice(self.ideal_locs)
-            if self.is_valid_site(x, y, None, MIN_SITE_DIST):
+            if self.is_valid_site(x, y, None, g.MIN_SITE_DIST):
                 # Check for economy
-                nearby_resources, nearby_resource_locations = self.find_nearby_resources(x=x, y=y, distance=MAX_ECONOMY_DISTANCE)
+                nearby_resources, nearby_resource_locations = self.find_nearby_resources(x=x, y=y, distance=g.MAX_ECONOMY_DISTANCE)
                 ## Use nearby resource info to determine whether we can sustain an economy
                 unavailable_resource_types = economy.check_strategic_resources(nearby_resources)
 
@@ -1483,7 +1226,7 @@ class World(Map):
                 continue
 
             #### Create a civilization #####
-            civ_color = random.choice(civ_colors)
+            civ_color = random.choice(g.CIV_COLORS)
             name = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
 
             profession = Profession(name='King', category='noble')
@@ -1709,7 +1452,7 @@ class World(Map):
 
         # For now, just add some ruins in some unused possible city slots
         for x, y in self.ideal_locs:
-            if self.is_valid_site(x, y, None, MIN_SITE_DIST):
+            if self.is_valid_site(x, y, None, g.MIN_SITE_DIST):
                 self.add_ruins(x, y)
 
         target_nodes = [(city.x, city.y) for city in created_cities]
@@ -2048,9 +1791,9 @@ class World(Map):
 
         ## Set size of map
         if self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'city':
-            g.M = Wmap(world=self, wx=x, wy=y, width=CITY_MAP_WIDTH, height=CITY_MAP_HEIGHT)
+            g.M = Wmap(world=self, wx=x, wy=y, width=g.CITY_MAP_WIDTH, height=g.CITY_MAP_HEIGHT)
         else:
-            g.M = Wmap(world=self, wx=x, wy=y, width=MAP_WIDTH, height=MAP_HEIGHT)
+            g.M = Wmap(world=self, wx=x, wy=y, width=g.MAP_WIDTH, height=g.MAP_HEIGHT)
 
 
 
@@ -2479,7 +2222,7 @@ class Site:
             if entity1 != entity2:
                 entity1.creature.encounter(other=entity2)
                 entity2.creature.encounter(other=entity1)
-                # g.game.add_message(' -*- {0} encounters {1} in {2} -*-'.format(entity1.fulltitle(), entity2.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.color, .3))
+                # g.game.add_message(' -*- {0} encounters {1} in {2} -*-'.format(entity1.fulltitle(), entity2.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.color, .3))
 
     def distance_to(self, other):
         #return the distance to another object
@@ -2721,7 +2464,7 @@ class City(Site):
                 if figure in market.current_workers:
                     market.remove_worker(figure)
                 else:
-                    g.game.add_message('{0} tried to dispatch with the caravan but was not in {1}\'s list of figures'.format(figure.fulltitle(), self.name), DEBUG_MSG_COLOR)
+                    g.game.add_message('{0} tried to dispatch with the caravan but was not in {1}\'s list of figures'.format(figure.fulltitle(), self.name), g.DEBUG_MSG_COLOR)
 
             # Remove from city's list of caravans
             if caravan_leader in self.caravans:
@@ -2907,7 +2650,7 @@ class City(Site):
 
 
         # Give a "Noble" profession to any new male members
-        for figure in filter(lambda f: f.creature.get_age() >= MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
+        for figure in filter(lambda f: f.creature.get_age() >= g.MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
             profession = Profession(name='Noble', category='noble')
             profession.give_profession_to(figure=figure)
 
@@ -3037,19 +2780,19 @@ class Building:
         if self.type_ == 'Tavern':
             num = roll(1, 5)
             if num == 1:
-                front = 'The {0} {1}'.format(random.choice(TAVERN_ADJECTIVES), random.choice(TAVERN_NOUNS))
+                front = 'The {0} {1}'.format(random.choice(g.TAVERN_ADJECTIVES), random.choice(g.TAVERN_NOUNS))
                 ending = random.choice(['', '', '', ' Inn', ' Tavern', ' Tavern', ' Lodge', ' Bar and Inn'])
             elif num == 2:
-                front = 'The {0}\'s {1}'.format(random.choice(TAVERN_NOUNS), random.choice(TAVERN_OBJECTS))
+                front = 'The {0}\'s {1}'.format(random.choice(g.TAVERN_NOUNS), random.choice(g.TAVERN_OBJECTS))
                 ending = ''
             elif num == 3:
-                front = '{0}\'s {1}'.format(random.choice(TAVERN_NOUNS), random.choice(TAVERN_OBJECTS))
+                front = '{0}\'s {1}'.format(random.choice(g.TAVERN_NOUNS), random.choice(g.TAVERN_OBJECTS))
                 ending = random.choice([' Inn', ' Tavern', ' Tavern', ' Lodge', ' Bar and Inn'])
             elif num == 4:
-                front = '{0}\'s {1}'.format(self.site.name, random.choice(TAVERN_OBJECTS))
+                front = '{0}\'s {1}'.format(self.site.name, random.choice(g.TAVERN_OBJECTS))
                 ending = ''
             elif num == 5:
-                front = 'The {0} of the {1} {2}'.format(random.choice(('Inn', 'Tavern', 'Lodge')), random.choice(TAVERN_ADJECTIVES), random.choice(TAVERN_NOUNS))
+                front = 'The {0} of the {1} {2}'.format(random.choice(('Inn', 'Tavern', 'Lodge')), random.choice(g.TAVERN_ADJECTIVES), random.choice(g.TAVERN_NOUNS))
                 ending = ''
 
             self.name = front + ending
@@ -3073,7 +2816,7 @@ class Building:
     def fill_position(self, profession):
         # Give temples and nobles and stuff an initial dynasty to begin with
         potential_employees = [figure for figure in g.WORLD.tiles[self.site.x][self.site.y].entities if
-                               figure.creature.profession is None and figure.creature.sex == 1 and figure.creature.get_age() > MIN_MARRIAGE_AGE]
+                               figure.creature.profession is None and figure.creature.sex == 1 and figure.creature.get_age() > g.MIN_MARRIAGE_AGE]
         if profession.name in ('High Priest', 'General'):
             # Create new dynasty
             human, all_new_figures = self.site.create_initial_dynasty()
@@ -3205,16 +2948,16 @@ class Profession:
 
         figure.creature.profession = self
         # Update infamy, if necessary
-        if self.name in PROFESSION_INFAMY:
-            figure.add_infamy(amount=PROFESSION_INFAMY[self.name])
+        if self.name in g.PROFESSION_INFAMY:
+            figure.add_infamy(amount=g.PROFESSION_INFAMY[self.name])
         ## Quick fix for merchants all having unique names
-        elif self.category in PROFESSION_INFAMY:
-            figure.add_infamy(amount=PROFESSION_INFAMY[self.category])
+        elif self.category in g.PROFESSION_INFAMY:
+            figure.add_infamy(amount=g.PROFESSION_INFAMY[self.category])
         #else:
         #    print '{0} not part of PROFESSION_INFAMY'.format(self.name)
 
         # Put as a placeholder until we track satasfying the requirements beforehand
-        if self.name in LITERATE_PROFESSIONS  or self.category in LITERATE_PROFESSIONS:
+        if self.name in g.LITERATE_PROFESSIONS  or self.category in g.LITERATE_PROFESSIONS:
             figure.creature.update_language_knowledge(language=g.WORLD.lingua_franca, written=10)
 
 
@@ -3658,7 +3401,7 @@ class Object:
                 if map_info:
                     # Condense the site descriptions into some readable text
                     msg = describe_map_contents(site_info)
-                    g.game.add_message(msg, PANEL_FRONT)
+                    g.game.add_message(msg, g.PANEL_FRONT)
 
     def set_current_owner(self, figure):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
@@ -4400,9 +4143,9 @@ def attack_menu(actor, target):
         atx, aty = 4, 14
         # Setup buttons
         buttons = [gui.Button(gui_panel=wpanel, func=show_object_info, args=[target],
-                                  text='Obj info', topleft=(mid_x, 40), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                                  text='Obj info', topleft=(mid_x, 40), width=bwidth, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
                    gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         ########## New simultaneous combat system preview ############
         weapon = g.player.creature.get_current_weapon()
@@ -4413,7 +4156,7 @@ def attack_menu(actor, target):
             yval += 3
             xval = 2
 
-            if listed_combat_move  not in g.player.creature.last_turn_moves:  button_color = PANEL_FRONT
+            if listed_combat_move  not in g.player.creature.last_turn_moves:  button_color = g.PANEL_FRONT
             else:                                                   button_color = libtcod.dark_red
 
             #### Find parts which we can hit ####
@@ -4467,7 +4210,7 @@ def attack_menu(actor, target):
 
         mid_y += 4
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                                  text='Cancel', topleft=(mid_x, 44), width=bwidth, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='Cancel', topleft=(mid_x, 44), width=bwidth, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
 
@@ -4528,28 +4271,28 @@ def talk_screen(actor, target):
     def refresh_buttons():
         aty = 10
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         talk_options = g.player.creature.get_valid_questions(target)
 
         for option in talk_options:
             button = gui.Button(gui_panel=wpanel, func=g.player.creature.ask_question, args=(target, option),
-                                text=option, topleft=(atx, aty), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
+                                text=option, topleft=(atx, aty), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
 
             buttons.append(button)
             aty += 3
 
-        #buttons.append(gui.Button(gui_panel=wpanel, func=recruit, args=[target], text='Recruit', origin=(atx, aty), width=6, tall=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+        #buttons.append(gui.Button(gui_panel=wpanel, func=recruit, args=[target], text='Recruit', origin=(atx, aty), width=6, tall=1, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
         buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, target],
-                                  text='Attack!', topleft=(atx, aty+3), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  text='Attack!', topleft=(atx, aty+3), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         buttons.append(gui.Button(gui_panel=wpanel, func=order_menu, args=[g.player, target],
-                                  text='Order', topleft=(atx, aty+6), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  text='Order', topleft=(atx, aty+6), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.render_handler.debug_dijmap_view, args=[target],
-                                  text='See DMap', topleft=(atx, aty+9), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='See DMap', topleft=(atx, aty+9), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                                  text='Done', topleft=(atx, aty+12), width=16, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='Done', topleft=(atx, aty+12), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
 
@@ -4566,7 +4309,7 @@ def talk_screen(actor, target):
             libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.creature.dynasty.symbol, target.creature.dynasty.symbol_color, target.creature.dynasty.background_color)
         else:
             dynasty_info = 'No major dynasty'
-            libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.creature.lastname[0], PANEL_FRONT, libtcod.darker_grey)
+            libtcod.console_put_char_ex(wpanel.con, b1x, 4, target.creature.lastname[0], g.PANEL_FRONT, libtcod.darker_grey)
 
         libtcod.console_print(wpanel.con, b1x + 2, 4, dynasty_info)
 
@@ -4801,9 +4544,9 @@ def storage_menu(obj):
     storage_items = g.player.get_storage_items()
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
-                          topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                          topleft=(bx, height-5), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
                gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     # Store item
     i = 0
@@ -4811,7 +4554,7 @@ def storage_menu(obj):
         i += 5
         buttons.append(gui.Button(gui_panel=wpanel, func=component_with_storage.owner.place_inside, args=[component_with_storage, obj],
                                   text='Place ' + obj.name + ' in ' + component_with_storage.name, topleft=(bx, i),
-                                  width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
     wpanel.gen_buttons = buttons
 
@@ -4845,9 +4588,9 @@ def choose_object_to_interact_with(objs, x, y):
         wpanel = gui.GuiPanel(width=width, height=height, xoff=cx, yoff=cy, interface=g.game.interface)
 
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
-                              topleft=(bx, height-5), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                              topleft=(bx, height-5), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
                    gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
         i = 0
         for obj in objs:
@@ -4855,19 +4598,19 @@ def choose_object_to_interact_with(objs, x, y):
                 i += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
                                   text='Talk to ' + obj.fullname(), topleft=(bx, i),
-                                  width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
             if obj.interactable:
                 i += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=obj.interactable['func'], args=obj.interactable['args'],
                                   text=obj.interactable['text'], topleft=(bx, i),
-                                  width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
             else:
                 i += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
                                   text='Interact with ' + obj.fullname(), topleft=(bx, i),
-                                  width=b_width, height=4, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
         # Specific tile interaction...
         if g.M.tiles[x][y].interactable:
@@ -4878,7 +4621,7 @@ def choose_object_to_interact_with(objs, x, y):
 
             i += 4
             buttons.append(gui.Button(gui_panel=wpanel, func=func, args=args, text=text,
-                                   topleft=(bx, i), width=b_width, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                   topleft=(bx, i), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
 
 
         wpanel.gen_buttons = buttons
@@ -4892,20 +4635,20 @@ def debug_menu():
 
     if g.game.map_scale == 'world':
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                 text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                 text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
 
                    gui.Button(gui_panel=wpanel, func=list_people, args=[],
-                 text='People', topleft=(3, 5), width=width-4, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1),
+                 text='People', topleft=(3, 5), width=width-4, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1),
 
                     gui.Button(gui_panel=wpanel, func=list_factions, args=[],
-                 text='Factions', topleft=(3, 8), width=width-4, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
+                 text='Factions', topleft=(3, 8), width=width-4, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
                    ]
     elif g.game.map_scale == 'human':
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                 text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                 text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
 
                  gui.Button(gui_panel=wpanel, func=list_people, args=[],
-                 text='People', topleft=(3, 5), width=width-4, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
+                 text='People', topleft=(3, 5), width=width-4, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
                    ]
 
     wpanel.gen_buttons = buttons
@@ -4918,7 +4661,7 @@ def list_people():
     wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-             text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     y = 5
     for faction in g.WORLD.factions:
@@ -4927,7 +4670,7 @@ def list_people():
         if leader is not None:
             y += 1
             buttons.append(gui.Button(gui_panel=wpanel, func=leader.creature.die, args=['godly debug powers'],
-                 text=leader.fulltitle(), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
+                 text=leader.fulltitle(), topleft=(2, y), width=width-4, height=1, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
 
@@ -4939,14 +4682,14 @@ def list_factions():
     wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-             text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     y = 5
     for faction in g.WORLD.factions:
 
         y += 1
         buttons.append(gui.Button(gui_panel=wpanel, func=dbg_faction_relations, args=[faction],
-             text='%s (%i)' % (faction.name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
+             text='%s (%i)' % (faction.name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
 
@@ -4958,7 +4701,7 @@ def dbg_faction_relations(faction):
     wpanel = gui.GuiPanel(width=width, height=height, xoff=30, yoff=0, interface=g.game.interface)
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-             text='X', topleft=(width-4, 1), width=3, height=3, color=PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
 
     def render_text_func():
         y = 2
@@ -5145,10 +4888,10 @@ class Dynasty:
         if roll(1, 10) == 1:
             self.symbol = self.lastname[0]
         else:
-            self.symbol = chr(random.choice(DYNASTY_SYMBOLS))
+            self.symbol = chr(random.choice(g.DYNASTY_SYMBOLS))
 
-        self.symbol_color = random.choice(DARK_COLORS)
-        self.background_color = random.choice(LIGHT_COLORS)
+        self.symbol_color = random.choice(g.DARK_COLORS)
+        self.background_color = random.choice(g.LIGHT_COLORS)
 
         #def display_symbol(self, panel, x, y):
         #libtcod.console_put_char_ex(panel, x, y, self.symbol, self.symbol_color, self.background_color)
@@ -5216,11 +4959,11 @@ class WaitBehavior:
             self.goal.behavior_list.insert(0, MovLocBehavior(location=self.location, figure=self.figure, travel_verb=self.travel_verb))
             self.goal.behavior_list[0].initialize_behavior()
 
-            #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
+            #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
 
             event = hist.TravelStart(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
                                      to_location=self.location, figures=self.figure.creature.commanded_figures + [self.figure], populations=self.figure.creature.commanded_populations)
-            g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
+            g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
         else:
             self.is_active = 1
 
@@ -5229,7 +4972,7 @@ class WaitBehavior:
         if self.num_days_left == 0:
             event = hist.TravelEnd(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
                                    figures=self.figure.creature.commanded_figures  + [self.figure], populations=self.figure.creature.commanded_populations)
-            g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
+            g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
             return 1
 
         else:
@@ -5274,7 +5017,7 @@ class MovLocBehavior:
             self.figure.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
 
         #self.name = 'move to {0}.'.format(g.WORLD.tiles[self.x][self.y].get_location_description())
-        #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .5))
+        #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
 
     def is_completed(self):
         return (self.figure.wx, self.figure.wy) == (self.x, self.y)
@@ -5357,7 +5100,7 @@ class KillTargBehavior:
 
         battle = combat.WorldBattle(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
                                     faction1_named=[self.figure], faction1_populations=[], faction2_named=[self.target], faction2_populations=[])
-        g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, self.figure.color, .3))
+        g.game.add_message(battle.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
 
         self.has_attempted_kill = 1
 
@@ -5670,7 +5413,7 @@ class Creature:
 
     def get_attack_score(self, verbose=0):
 
-        return_dict = {self.stance + ' stance':STANCES[self.stance]['attack_bonus'],
+        return_dict = {self.stance + ' stance':g.STANCES[self.stance]['attack_bonus'],
                        'fighting skill':self.skills['fighting']
                        }
 
@@ -6011,7 +5754,7 @@ class Creature:
 
     def verbalize_question(self, target, question_type):
         # Ask the question
-        g.game.add_message(self.owner.fullname() + ': ' + CONVERSATION_QUESTIONS[question_type], libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5))
+        g.game.add_message(self.owner.fullname() + ': ' + g.CONVERSATION_QUESTIONS[question_type], libtcod.color_lerp(self.owner.color, g.PANEL_FRONT, .5))
 
 
     def verbalize_answer(self, asker, question_type, answer_type):
@@ -6163,7 +5906,7 @@ class Creature:
 
     #def change_topic(self, topic):
     #    self.topic = topic
-    #    g.game.add_message('You begin talking about ' + self.topic + '.', libtcod.color_lerp(g.player.color, PANEL_FRONT, .5))
+    #    g.game.add_message('You begin talking about ' + self.topic + '.', libtcod.color_lerp(g.player.color, g.PANEL_FRONT, .5))
 
 
     def determine_response(self, asker, question_type):
@@ -6231,7 +5974,7 @@ class Creature:
 
         elif question_type == 'recruit':
             ''' Try to recruit person into actor's party '''
-            if self.get_age() >= MIN_MARRIAGE_AGE and (self.sex == 1 or self.spouse is None) \
+            if self.get_age() >= g.MIN_MARRIAGE_AGE and (self.sex == 1 or self.spouse is None) \
                 and self.profession is None and not self.commander:
                 return 'yes'
 
@@ -6264,7 +6007,7 @@ class Creature:
     #    return score
 
     def say(self, text_string):
-        msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
+        msg_color = libtcod.color_lerp(self.owner.color, g.PANEL_FRONT, .5)
 
         g.game.add_message('{0}: {1}'.format(self.owner.fullname(), text_string), msg_color)
 
@@ -6272,7 +6015,7 @@ class Creature:
         ''' Any nonverbal behavior that this creature can undertake '''
         if g.game.map_scale == 'human':
             if msg_color is None:
-                msg_color = libtcod.color_lerp(self.owner.color, PANEL_FRONT, .5)
+                msg_color = libtcod.color_lerp(self.owner.color, g.PANEL_FRONT, .5)
 
             g.game.add_message('%s %s.' % (self.owner.fullname(), behavior), msg_color)
 
@@ -6350,7 +6093,7 @@ class Creature:
 
     def get_minor_successor(self):
         ''' A way for minor figures to pass down their profession, in cases where it's not a huge deal'''
-        possible_successors = [child for child in self.children if child.creature.sex == 1 and child.creature.get_age() >= MIN_MARRIAGE_AGE]
+        possible_successors = [child for child in self.children if child.creature.sex == 1 and child.creature.get_age() >= g.MIN_MARRIAGE_AGE]
         if possible_successors != []:
             return possible_successors[0]
         else:
@@ -6452,7 +6195,7 @@ class Creature:
     def get_profession(self):
         if self.profession:
             return self.profession.name
-        elif self.get_age() < MIN_CHILDBEARING_AGE:
+        elif self.get_age() < g.MIN_CHILDBEARING_AGE:
             return 'Child'
         elif self.sex == 0 and self.spouse:
             return 'Housewife'
@@ -6472,7 +6215,7 @@ class Creature:
             date = g.WORLD.time_cycle.get_current_date()
 
         event = hist.Marriage(date=date, location=(self.owner.wy, self.owner.wy), figures=[self.owner, spouse])
-        g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
+        g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .3))
 
     def have_child(self, date_born='today'):
 
@@ -6501,7 +6244,7 @@ class Creature:
         child.creature.generation = self.spouse.creature.generation + 1
 
         event = hist. Birth(date=date_born, location=(self.owner.wx, self.owner.wy), parents=[self.owner, self.spouse], child=child)
-        g.game.add_message(event.describe(), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .3))
+        g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .3))
 
         return child
 
@@ -6526,20 +6269,20 @@ class Creature:
         # Set opinions on various things according to our profession and personality
         self.opinions = {}
 
-        for issue in PROF_OPINIONS:
+        for issue in g.PROF_OPINIONS:
             prof_opinion = 0
             personal_opinion = 0
             reasons = {}
 
             ## Based on profession ##
-            if self.profession is not None and self.profession.category in PROF_OPINIONS[issue]:
-                prof_opinion = PROF_OPINIONS[issue][self.profession.category]
+            if self.profession is not None and self.profession.category in g.PROF_OPINIONS[issue]:
+                prof_opinion = g.PROF_OPINIONS[issue][self.profession.category]
                 reasons['profession'] = prof_opinion
 
             ## Based on personal traits ##
             for trait, multiplier in self.traits.iteritems():
-                if trait in PERSONAL_OPINIONS[issue]:
-                    amount = PERSONAL_OPINIONS[issue][trait] * multiplier
+                if trait in g.PERSONAL_OPINIONS[issue]:
+                    amount = g.PERSONAL_OPINIONS[issue][trait] * multiplier
                     reasons[trait] = amount
                     personal_opinion += amount
 
@@ -6892,14 +6635,14 @@ class DijmapSapient:
 
 
     def ai_state_attack(self):
-        if self.perception_info['closest_enemy_dist'] < DIJMAP_CREATURE_DISTANCE:
+        if self.perception_info['closest_enemy_dist'] < g.DIJMAP_CREATURE_DISTANCE:
             self.unset_target()
         # Use A* if enemy is out of certain distance
-        if self.target_figure is None and self.perception_info['closest_enemy'] is not None and self.perception_info['closest_enemy_dist'] >= DIJMAP_CREATURE_DISTANCE:
+        if self.target_figure is None and self.perception_info['closest_enemy'] is not None and self.perception_info['closest_enemy_dist'] >= g.DIJMAP_CREATURE_DISTANCE:
             self.set_target_figure(target_figure=self.perception_info['closest_enemy'])
 
         # Use A* move
-        if self.target_figure and self.perception_info['closest_enemy'] and self.perception_info['closest_enemy'] >= DIJMAP_CREATURE_DISTANCE:
+        if self.target_figure and self.perception_info['closest_enemy'] and self.perception_info['closest_enemy'] >= g.DIJMAP_CREATURE_DISTANCE:
             self.astar_move()
 
         else:
@@ -7069,7 +6812,7 @@ class BasicWorldBrain:
 
         ## Tell the world what you're doing
         #if goal_type != 'move_trade_goods_to_city':
-        #    g.game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(PANEL_FRONT, self.owner.color, .5))
+        #    g.game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .5))
 
         # Add the goal to the list. Automatically add a goal to return home after the goal is complete
         if len(self.goals) >= 2 and self.goals[-1].reason == 'I like to be home when I can.':
@@ -7104,13 +6847,13 @@ class BasicWorldBrain:
 
         if self.owner.creature.intelligence_level == 3:
             # Pick a spouse and get married immediately
-            if creature.spouse is None and self.owner.creature.sex == 1 and MIN_MARRIAGE_AGE <= age <= MAX_MARRIAGE_AGE:
+            if creature.spouse is None and self.owner.creature.sex == 1 and g.MIN_MARRIAGE_AGE <= age <= g.MAX_MARRIAGE_AGE:
                 if roll(1, 48) >= 48:
                     self.pick_spouse()
 
             # Have kids! Currenly limiting to 2 for non-important, 5 for important (will need to be fixed/more clear later)
             # Check female characters, and for now, a random chance they can have kids
-            if creature.spouse and self.owner.creature.sex == 0 and MIN_CHILDBEARING_AGE <= age <= MAX_CHILDBEARING_AGE and len(creature.children) <= (creature.important * 3) + 2:
+            if creature.spouse and self.owner.creature.sex == 0 and g.MIN_CHILDBEARING_AGE <= age <= g.MAX_CHILDBEARING_AGE and len(creature.children) <= (creature.important * 3) + 2:
                 if roll(1, 20) == 20:
                     creature.have_child()
 
@@ -7191,7 +6934,7 @@ class BasicWorldBrain:
                                  if figure.creature.sex != self.owner.creature.sex
                                  and figure.creature.type_ == self.owner.creature.type_
                                  and figure.creature.dynasty != self.owner.creature.dynasty
-                                 and MIN_MARRIAGE_AGE < figure.creature.get_age() < MAX_MARRIAGE_AGE]
+                                 and g.MIN_MARRIAGE_AGE < figure.creature.get_age() < g.MAX_MARRIAGE_AGE]
 
             if len(potential_spouses) == 0 and self.owner.creature.current_citizenship:
                 # Make a person out of thin air to marry
@@ -7348,7 +7091,7 @@ class BasicWorldBrain:
                                                     faction1_named=faction1_named, faction1_populations=faction1_populations,
                                                     faction2_named=faction2_named, faction2_populations=faction2_populations)
 
-                        g.game.add_message(battle.describe(), libtcod.color_lerp(PANEL_FRONT, faction1_named[0].color, .3))
+                        g.game.add_message(battle.describe(), libtcod.color_lerp(g.PANEL_FRONT, faction1_named[0].color, .3))
 
 
     '''
@@ -7884,7 +7627,7 @@ class Culture:
     def add_villages(self):
         for x, y in self.territory:
             for resource in g.WORLD.tiles[x][y].res:
-                if resource not in self.access_res and g.WORLD.is_valid_site(x, y, None, MIN_SITE_DIST) and not len(g.WORLD.tiles[x][y].minor_sites):
+                if resource not in self.access_res and g.WORLD.is_valid_site(x, y, None, g.MIN_SITE_DIST) and not len(g.WORLD.tiles[x][y].minor_sites):
                     self.access_res.append(resource)
                     self.add_village(x, y)
                     break
@@ -8014,17 +7757,17 @@ def get_info_under_mouse():
     (x, y) = g.game.camera.cam2map(mouse.cx, mouse.cy)
     info = []
     if g.game.map_scale == 'human' and g.M.is_val_xy((x, y)):
-        info.append(('Tick: {0}'.format(g.WORLD.time_cycle.current_tick), PANEL_FRONT))
-        info.append(('at coords {0}, {1} height is {2}'.format(x, y, g.M.tiles[x][y].height), PANEL_FRONT))
+        info.append(('Tick: {0}'.format(g.WORLD.time_cycle.current_tick), g.PANEL_FRONT))
+        info.append(('at coords {0}, {1} height is {2}'.format(x, y, g.M.tiles[x][y].height), g.PANEL_FRONT))
         ### This will spit out some info about the unit we've selected (debug stuff)
         if g.game.render_handler.debug_active_unit_dijmap and not g.M.tiles[x][y].blocks_mov:
             debug_unit = g.game.render_handler.debug_active_unit_dijmap
             info.append(('{0}: tick = {1}'.format(debug_unit.fullname(), debug_unit.creature.next_tick), libtcod.copper))
             total_desire = 0
             for desire, amount in debug_unit.creature.dijmap_desires.iteritems():
-                if amount < 0: dcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.red, amount/100)
-                elif amount > 0: dcolor = libtcod.color_lerp(PANEL_FRONT, libtcod.green, amount/100)
-                else: dcolor = PANEL_FRONT
+                if amount < 0: dcolor = libtcod.color_lerp(g.PANEL_FRONT, libtcod.red, amount/100)
+                elif amount > 0: dcolor = libtcod.color_lerp(g.PANEL_FRONT, libtcod.green, amount/100)
+                else: dcolor = g.PANEL_FRONT
                 info.append(('{0}: {1}'.format(desire, amount), dcolor ))
 
                 if g.M.dijmaps[desire].dmap[x][y] is not None:
@@ -8034,21 +7777,21 @@ def get_info_under_mouse():
         ###############################################################################
 
         # Info about the surface of the map
-        info.append((g.M.tiles[x][y].surface, libtcod.color_lerp(PANEL_FRONT, g.M.tiles[x][y].color, .5) ))
+        info.append((g.M.tiles[x][y].surface, libtcod.color_lerp(g.PANEL_FRONT, g.M.tiles[x][y].color, .5) ))
         info.append((' ', libtcod.white))
         # Zoning info
         if g.M.tiles[x][y].zone:
-            info.append((g.M.tiles[x][y].zone, PANEL_FRONT))
-            info.append((' ', PANEL_FRONT))
+            info.append((g.M.tiles[x][y].zone, g.PANEL_FRONT))
+            info.append((' ', g.PANEL_FRONT))
             # Building info
         if g.M.tiles[x][y].building:
-            info.append((g.M.tiles[x][y].building.get_name(), PANEL_FRONT))
-            info.append((' ', PANEL_FRONT))
+            info.append((g.M.tiles[x][y].building.get_name(), g.PANEL_FRONT))
+            info.append((' ', g.PANEL_FRONT))
 
-        color = PANEL_FRONT
+        color = g.PANEL_FRONT
         for obj in g.M.tiles[x][y].objects:
             if libtcod.map_is_in_fov(g.M.fov_map, obj.x, obj.y):
-                info.append((obj.fulltitle(), libtcod.color_lerp(PANEL_FRONT, obj.color, .3) ))
+                info.append((obj.fulltitle(), libtcod.color_lerp(g.PANEL_FRONT, obj.color, .3) ))
 
                 if obj.creature and obj.creature.status == 'alive':
                     info.append(('Facing {0}'.format(COMPASS[obj.creature.facing]), libtcod.color_lerp(libtcod.yellow, color, .5) ))
@@ -8063,7 +7806,7 @@ def get_info_under_mouse():
 				'''
 
     elif g.game.map_scale == 'world' and g.WORLD.is_val_xy((x, y)):
-        color = PANEL_FRONT
+        color = g.PANEL_FRONT
         xc, yc = g.game.camera.map2cam(x, y)
         if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
             if g.game.state == 'playing':
@@ -8158,8 +7901,8 @@ class RenderHandler:
         '''
 
         g.game.interface.map_console.render_bar(x=int(round(g.SCREEN_WIDTH / 2)) - 9, y=1, total_width=18, name=current_action, value=min_val,
-                   maximum=max_val, bar_color=libtcod.color_lerp(libtcod.dark_yellow, PANEL_FRONT, .5),
-                   back_color=PANEL_BACK, text_color=PANEL_FRONT, show_values=False, title_inset=False)
+                   maximum=max_val, bar_color=libtcod.color_lerp(libtcod.dark_yellow, g.PANEL_FRONT, .5),
+                   back_color=g.PANEL_BACK, text_color=g.PANEL_FRONT, show_values=False, title_inset=False)
         libtcod.console_blit(g.game.interface.map_console.con, 0, 0, g.game.camera.width, g.game.camera.height, 0, 0, 10)
         #libtcod.console_blit(con.con, 0, 0, g.SCREEN_WIDTH, PANEL1_HEIGHT, 0, 0, PANEL1_YPOS)
         libtcod.console_set_default_background(g.game.interface.map_console.con, libtcod.black)
@@ -8209,7 +7952,7 @@ class RenderHandler:
 
             ##### PANEL 4 - ECONOMY STUFF
             if g.player.creature.economy_agent is not None:
-                libtcod.console_set_default_foreground(panel4.con, PANEL_FRONT)
+                libtcod.console_set_default_foreground(panel4.con, g.PANEL_FRONT)
 
                 agent = g.player.creature.economy_agent
                 y = 5
@@ -8295,7 +8038,7 @@ class RenderHandler:
             ## bar showing current pain amount ##
             #panel3.render_bar(x=2, y=panel3.height - 4, total_width=panel3.width - 4, name='Pain',
             #           value=g.player.creature.get_pain(), maximum=g.player.creature.get_max_pain(),
-            #           bar_color=PAIN_FRONT, back_color=PAIN_BACK, text_color=libtcod.black, show_values=True,
+            #           bar_color=g.PAIN_FRONT, back_color=g.PAIN_BACK, text_color=libtcod.black, show_values=True,
             #           title_inset=True)
             ### Done rendering player info ###
 
@@ -8355,7 +8098,7 @@ def battle_hover_information():
 
         if g.M.tiles[x][y].interactable:
             itext = g.M.tiles[x][y].interactable['hover_text']
-            gui.HoverInfo(header=['Interact'], text=itext, cx=mouse.cx, cy=mouse.cy, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
+            gui.HoverInfo(header=['Interact'], text=itext, cx=mouse.cx, cy=mouse.cy, hoffset=1, textc=g.PANEL_FRONT, bcolor=g.PANEL_FRONT, transp=.8, interface=g.game.interface)
 
         ####### FOR OTHER OBJECTS ######
         if len(other_objects) > 0:
@@ -8372,7 +8115,7 @@ def battle_hover_information():
                 otext.append('')
 
 
-            gui.HoverInfo(header=oheader, text=otext, cx=mouse.cx+1, cy=mouse.cy+1, hoffset=1, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface, xy_corner=1)
+            gui.HoverInfo(header=oheader, text=otext, cx=mouse.cx+1, cy=mouse.cy+1, hoffset=1, textc=g.PANEL_FRONT, bcolor=g.PANEL_FRONT, transp=.8, interface=g.game.interface, xy_corner=1)
 
         ######## FOR SAPIENTS ###########
         if target and target.creature:
@@ -8413,7 +8156,7 @@ def battle_hover_information():
                 text.append('Closest_dist: %s'%target.local_brain.perception_info['closest_enemy_distance'])
                 #text.append('State: ' + target.local_brain.ai_state )
 
-            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
+            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=g.PANEL_FRONT, bcolor=g.PANEL_FRONT, transp=.8, interface=g.game.interface)
 
         ### If it's a non-creature creature....
         elif target:
@@ -8424,7 +8167,7 @@ def battle_hover_information():
                 text.append('')
                 text.append('AI State: %s' %target.local_brain.ai_state )
 
-            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=PANEL_FRONT, bcolor=PANEL_FRONT, transp=.8, interface=g.game.interface)
+            gui.HoverInfo(header=header, text=text, cx=mouse.cx, cy=mouse.cy, textc=g.PANEL_FRONT, bcolor=g.PANEL_FRONT, transp=.8, interface=g.game.interface)
         ######################################
 
         ## Only handle recompute if there's something uner the cursor
@@ -8662,7 +8405,7 @@ class Game:
     def create_new_world_and_begin_game(self):
         # Gen world
         g.WORLD = None # Clear in case previous world was generated
-        g.WORLD = World(WORLD_WIDTH, WORLD_HEIGHT)
+        g.WORLD = World(g.WORLD_WIDTH, g.WORLD_HEIGHT)
         g.WORLD.generate()
 
         self.camera.center(int(round(g.WORLD.width / 2)), int(round(g.WORLD.height / 2)))
@@ -8724,8 +8467,8 @@ class Game:
                 g.WORLD.tiles[x][y].height = 120
 
         ########### Factions ################
-        faction1 = Faction(leader_prefix='King', name='Player faction', color=random.choice(civ_colors), succession='dynasty')
-        faction2 = Faction(leader_prefix='King', name='Enemy faction', color=random.choice(civ_colors), succession='dynasty', defaultly_hostile=1)
+        faction1 = Faction(leader_prefix='King', name='Player faction', color=random.choice(g.CIV_COLORS), succession='dynasty')
+        faction2 = Faction(leader_prefix='King', name='Enemy faction', color=random.choice(g.CIV_COLORS), succession='dynasty', defaultly_hostile=1)
         # Set them as enemies (function will do so reciprocally)
         #faction1.set_enemy_faction(faction=faction2)
 
@@ -8769,7 +8512,7 @@ class Game:
 
 
         ## Make map
-        g.M = Wmap(world=g.WORLD, wx=1, wy=1, width=MAP_WIDTH, height=MAP_HEIGHT)
+        g.M = Wmap(world=g.WORLD, wx=1, wy=1, width=g.MAP_WIDTH, height=g.MAP_HEIGHT)
         hm = g.M.create_heightmap_from_surrounding_tiles()
         base_color = g.WORLD.tiles[1][1].get_base_color()
         g.M.create_map_tiles(hm=hm, base_color=base_color, explored=1)
@@ -9000,11 +8743,6 @@ if __name__ == '__main__':
 
     g.init()
 
-    TILE_SIZE = 16
-    #actual size of the window
-    g.SCREEN_WIDTH = int(SCREEN_RES[0]/TILE_SIZE)
-    g.SCREEN_HEIGHT = int(SCREEN_RES[1]/TILE_SIZE)
-
     PANEL1_HEIGHT = 17
     #sizes and coordinates relevant for the GUI
     PANEL2_WIDTH = 30
@@ -9041,7 +8779,7 @@ if __name__ == '__main__':
     libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
     libtcod.console_init_root(g.SCREEN_WIDTH, g.SCREEN_HEIGHT, 'Iron Testament v0.5', True, renderer=libtcod.RENDERER_GLSL)
     libtcod.mouse_show_cursor(visible=1)
-    libtcod.sys_set_fps(LIMIT_FPS)
+    libtcod.sys_set_fps(g.LIMIT_FPS)
 
     # PlayerInterface class has been initialized in GUI
     interface = gui.PlayerInterface()

@@ -134,6 +134,7 @@ def describe_map_contents(site_info):
 
 
 class Paragraph:
+    ''' Class meant for smoothly joining multiple sentences together, potentially with an introduction sentence '''
     def __init__(self, introduction, first_sentence_beginning):
         self.introduction = introduction
         self.first_sentence_beginning = first_sentence_beginning
@@ -163,8 +164,6 @@ class Paragraph:
                 text += '{0}, {1}'.format(random.choice(self.paragraph_enders), sentence).capitalize()
 
         return text
-
-
 
 
 def determine_commander(figures):
