@@ -17,7 +17,7 @@ import it
 MAX_BUILDING_SIZE = 18
 INITIAL_BLDG_CHK = 3 # for initial check around building radius
 INTIAL_BLDG_SIZE = 5
-DEVELOPED_SURFACES = set(['road', 'wall', 'floor', 'water'])
+DEVELOPED_SURFACES = {'road', 'wall', 'floor', 'water'}
 
 
 class Tile:
