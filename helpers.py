@@ -3,8 +3,12 @@ import math
 import libtcodpy as libtcod
 import random
 from random import randint as roll
-from collections import Counter
+from collections import Counter, defaultdict
 from pattern.en import pluralize, conjugate, referenced
+
+
+# Clever solution to making dicts several levels deep as detailed here http://stackoverflow.com/questions/4178249/infinitely-nested-dictionary-in-python
+infinite_defaultdict = lambda: defaultdict(infinite_defaultdict)
 
 ## For individual facing information
 NEIGHBORS = ( (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1) )
@@ -13,12 +17,12 @@ COMPASS = ('north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'wes
 PLURAL_EXCEPTIONS = {'mine':'mines'}
 REFERENCED_EXCEPTIONS = {'pants':'some'}
 
-SYMB_FOR_INDEF_AN = set([chr(139), chr(140), chr(141), chr(161), # I
+SYMB_FOR_INDEF_AN = {chr(139), chr(140), chr(141), chr(161), # I
                     chr(130), chr(144), chr(136), chr(137), chr(138), chr(141), chr(161), # E
                     chr(129), chr(154), chr(150), chr(151), chr(163),  # U
                     chr(145), chr(146), chr(131), chr(132), chr(142), chr(133), chr(134), chr(143), chr(160),  # A
                     chr(147), chr(148), chr(153), chr(149), chr(162)  # O
-                    ])
+                    }
 
 # from http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
 int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])

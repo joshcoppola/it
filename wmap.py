@@ -3,6 +3,7 @@ import time
 import random
 from random import randint as roll
 import time
+from collections import defaultdict
 
 import libtcodpy as libtcod
 from dijkstra import Dijmap
@@ -167,12 +168,9 @@ class Wmap(Map):
 
     def cache_factions_for_dmap(self):
         ''' Run when map is created, so it understands the various factions present '''
-        self.factions_on_map = {}
+        self.factions_on_map = defaultdict(set)
         for obj in self.creatures:
-            if obj.creature.faction in self.factions_on_map:
-                self.factions_on_map[obj.creature.faction].add(obj)
-            else:
-                self.factions_on_map[obj.creature.faction] = set([obj])
+            self.factions_on_map[obj.creature.faction].add(obj)
 
         # Now add a dmap for each
         for faction, member_set in self.factions_on_map.iteritems():

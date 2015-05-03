@@ -12,7 +12,7 @@ import os
 import cProfile as prof
 import pstats
 import copy
-from collections import Counter
+from collections import Counter, defaultdict
 
 import economy
 import physics as phys
@@ -220,7 +220,7 @@ class World(Map):
         self.hideouts = []
         self.factions = []
 
-        self.site_index = {}
+        self.site_index = defaultdict(list)
 
         # Dijmap where cities are the root nodes; set after cities are generated
         self.distance_from_civilization_dmap = None
@@ -250,10 +250,7 @@ class World(Map):
         self.famous_objects.remove(obj)
 
     def add_to_site_index(self, site):
-        if site.type_ not in self.site_index:
-            self.site_index[site.type_] = [site]
-        else:
-            self.site_index[site.type_].append(site)
+        self.site_index[site.type_].append(site)
 
     def generate(self):
         #### Setup actual world ####
@@ -2282,8 +2279,8 @@ class City(Site):
         self.old_territory = [] # formerly owned tiles added here
         self.territory_radius = 1
 
-        self.imports = {}
-        self.exports = {}
+        self.imports = defaultdict(list)
+        self.exports = defaultdict(list)
 
         # Below are set up in prepare_native_economy()
         self.econ = None
@@ -2322,16 +2319,10 @@ class City(Site):
 
     def add_import(self, city, good):
         # Add other city as an importer if it's not already
-        if not city in self.imports:
-            self.imports[city] = []
-            # Add the good that is being imported
         self.imports[city].append(good)
 
     def add_export(self, city, good):
         # Add other city as an exporter if it's not already
-        if not city in self.exports:
-            self.exports[city] = []
-            # Add the good that is being exported
         self.exports[city].append(good)
 
     def remove_import(self, city, good):
@@ -4508,7 +4499,7 @@ def manage_inventory():
         wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done', topleft=(bx, height-5), width=b_width, height=3)
         wpanel.add_button(func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='X', topleft=(width-4, 1), width=3, height=3)
 
-        Y = 0
+        y = 0
         for obj in inventory['clothing']:
             y += 3
             wpanel.add_button(func=g.player.take_off_clothing, args=[obj], text='Take off ' + obj.name, topleft=(bx, by+y), width=b_width, height=3)
@@ -5305,6 +5296,7 @@ class Creature:
 
         self.traits = {}
         self.goals = []
+        self.opinions = {}
 
         # Objects that we own
         self.possessions = set([])
@@ -6107,14 +6099,6 @@ class Creature:
             born = g.WORLD.time_cycle.years_ago(roll(18, 35))
             return self.current_citizenship.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=self.important)
 
-    def add_event(self, date, event):
-        ''' Should add an event to our memory'''
-        (year, month, day) = date
-        if (year, month, day) in self.events:
-            self.events[(year, month, day)].append(event)
-        else:
-            self.events[(year, month, day)] = [event]
-
 
     def die(self, reason):
         figure = self.owner
@@ -6478,6 +6462,26 @@ class DijmapSapient:
     def __init__(self):
         self.astar_refresh_period = 7
         self.ai_initialize()
+
+        self.ai_state = 'idle'  # Should go here - moving temporarily
+        self.current_action = None
+
+        self.astar_refresh_cur = roll(1, 5)
+        #
+        self.target_figure = None
+        self.target_location = None
+
+        self.perceived_enemies = {}
+        ## Create a list of all enemies we have not perceived yet
+        self.unperceived_enemies = []
+        self.perception_info = {'closest_enemy':None, 'closest_enemy_distance':None}
+
+        # An ordered list of behaviors
+        #self.behaviors = []
+
+        self.patrol_route = []  # Should go here - moving temporarily
+        self.current_patrol_index = 0
+        self.follow_distance = 10
 
     def ai_initialize(self):
         self.ai_state = 'idle'  # Should go here - moving temporarily
@@ -7140,7 +7144,7 @@ class TimeCycle(object):
         self.months = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')
 
         ## Dict of events, with keys being the future Y, M, and D, and values being a list of events
-        self.events = {}
+        self.events = defaultdict(list)
 
     def get_future_date(self, days_in_advance):
         (years, months, days_left) = self.days_to_date(days_in_advance)
@@ -7173,10 +7177,7 @@ class TimeCycle(object):
     def add_event(self, date, event):
         ''' Should add an event to the scheduler'''
         (year, month, day) = date
-        if (year, month, day) in self.events:
-            self.events[(year, month, day)].append(event)
-        else:
-            self.events[(year, month, day)] = [event]
+        self.events[(year, month, day)].append(event)
 
     def handle_events(self):
         if (self.current_year, self.current_month, self.current_day) in self.events:

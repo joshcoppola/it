@@ -8,15 +8,9 @@ from collections import defaultdict
 import random
 from random import randint as roll
 import libtcodpy as libtcod
-from helpers import join_list, ct
-
-# Clever solution to making dicts several levels deep as detailed here http://stackoverflow.com/questions/4178249/infinitely-nested-dictionary-in-python
-infinite_defaultdict = lambda: defaultdict(infinite_defaultdict)
+from helpers import join_list, ct, infinite_defaultdict
 
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
-
-#BASE_LAYER_RESISTANCE = 100
-BASE_LAYER_RESISTANCE = 10
 
 
 PROPERTIES = [
@@ -30,14 +24,6 @@ PROPERTIES = [
              'attack_bonus'
              ]
 
-'''
-WEAPON_PROPERTIES = {'sword':{'defense_bonus':5},
-                     'dagger':{'bleed_chance':5},
-                     'mace':{'knock_bonus':5},
-                     'spear':{'attack_chance':5},
-                     'axe':{'pain_chance':5}
-                     }
-'''
 
 WEAPON_PROPERTIES = {'sword':{
                               'high swing': 10,
@@ -329,7 +315,7 @@ class ObjectComponent:
         ###############################################
 
         # Any text written or engraved on the component
-        self.text = {}
+        self.text = defaultdict(list)
         # Any text that carries some written or engraved information on the component
         self.information = infinite_defaultdict()
 
@@ -346,10 +332,7 @@ class ObjectComponent:
         if not method in self.text:
             self.text[method] = {}
 
-        if not self.text[method][language]:
-            self.text[method][languae] = [text]
-        else:
-            self.text[method][language].append(text)
+        self.text[method][language].append(text)
 
     def add_person_location_information(self, language, person, date_written, date_at_loc, location, author):
         ''' Updates knowledge of the last time we learned about the location of the other '''
