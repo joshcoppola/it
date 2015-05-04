@@ -48,6 +48,7 @@ class Tile:
         self.building = None
         self.height = 0
 
+        self.shaded = 0 # Tracks whether a tree or other pbject has cast a shadow here
         #Objects on the current map tile
         self.objects = []
 
@@ -88,9 +89,11 @@ class Tile:
 
 
     def set_shadow(self, amount):
-        shaded_color = libtcod.color_lerp(self.color, libtcod.black, amount)
+        if not self.shaded:
+            self.shaded = 1
+            shaded_color = libtcod.color_lerp(self.color, libtcod.black, amount)
 
-        self.colorize(color=shaded_color)
+            self.colorize(color=shaded_color)
 
 
     def make_road(self, rtype='paved'):
@@ -684,6 +687,32 @@ class Wmap(Map):
         #blit the contents of map_con to the root console
         g.game.interface.map_console.blit()
 
+    def shade_tree(self, x, y, height, radius):
+        ## Experimental shadow code
+
+        #in_circle_shading = (.12, .15, .16, .17, .18, .19, .2, .21)
+        #edge_circle_shading = (.11, .12, .12, .13, .14, .15, .16, .17)
+
+        in_circle_shading = (.17, )
+        edge_circle_shading = (.12, .13, .13, .14)
+
+        sx, sy = x, y
+
+        for i in xrange(height):
+            sx += 1
+            #if self.is_val_xy((sx, sy)):
+            #    self.tiles[sx][sy].set_shadow(amount=.3)
+
+        for xx in xrange(sx-radius, sx+radius+1):
+            for yy in xrange(sy-radius, sy+radius+1):
+                if in_circle(center_x=sx, center_y=sy, radius=radius, x=xx, y=yy) and self.is_val_xy((xx, yy)):
+                    amount = random.choice(in_circle_shading)
+                    self.tiles[xx][yy].set_shadow(amount=amount)
+                elif in_circle(center_x=sx, center_y=sy, radius=radius+1, x=xx, y=yy) and self.is_val_xy((xx, yy)) and roll(0, 1):
+                    amount = random.choice(edge_circle_shading)
+                    self.tiles[xx][yy].set_shadow(amount=amount)
+
+
     def make_small_tree(self, x, y):
         ''' Make a small tree xtrunk '''
         self.tiles[x][y].surface = 'Tree trunk'
@@ -694,21 +723,8 @@ class Wmap(Map):
         self.tiles[x][y].char = random.choice((288, 289))
         self.tiles[x][y].set_char_color(libtcod.darkest_sepia)
 
+        self.shade_tree(x=x, y=y, height=roll(0, 3), radius=roll(5, 10))
 
-        ## Experimental shadow code
-        '''
-        sx, sy = x, y
-        for i in xrange(3):
-            sx += 1
-            if self.is_val_xy((sx, sy)):
-                self.tiles[sx][sy].set_shadow(amount=.5)
-
-        for xx in xrange(sx-4, sx+5):
-            for yy in xrange(sy-4, sy+5):
-                if self.is_val_xy((xx, yy)):
-                    amount = random.choice((0, .05, .1, .15))
-                    self.tiles[xx][yy].set_shadow(amount=amount)
-        '''
 
     def make_small_stump(self, x, y):
         ''' Make a small tree stump '''
@@ -735,6 +751,7 @@ class Wmap(Map):
             self.tiles[xx][yy].blocks_mov = 1
             #self.tiles[xx][yy].blocks_vis = 1
 
+        self.shade_tree(x=x, y=y, height=roll(3, 6), radius=roll(9, 20))
 
     def make_large_stump(self, x, y):
         ''' Make a large tree trunk '''
