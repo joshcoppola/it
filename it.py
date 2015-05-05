@@ -4562,16 +4562,15 @@ def choose_object_to_interact_with(objs, x, y):
     This function handles that. '''
 
     # If there's only one object, either talk to it or attack it (for now)
-    # if len(objs) == 1 and (not g.M.tiles[x][y].interactable and not objs[0].interactable):
-    #
-    #     obj = objs[0]
-    #     if obj.creature and obj.creature and obj.creature.status == 'alive':
-    #         talk_screen(actor=g.player, target=obj)
-    #     else:
-    #         attack_menu(actor=g.player, target=obj)
+    if len(objs) == 1 and (not g.M.tiles[x][y].interactable and not objs[0].interactable):
+        obj = objs[0]
+        if obj.creature and obj.creature and obj.creature.status == 'alive':
+            talk_screen(actor=g.player, target=obj)
+        else:
+            attack_menu(actor=g.player, target=obj)
 
     # Else, a button menu which shows the interactions
-    if 1:
+    else:
 
         (cx, cy) = g.game.camera.map2cam(x, y)
 
