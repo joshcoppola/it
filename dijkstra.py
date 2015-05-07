@@ -10,31 +10,28 @@ class Node:
         self.current_locs = [(x, y)]
         self.current_value = 1
 
-        self.active = 1
-
     def expand(self):
         new_locs = []
         expanded = False
 
-        if self.current_value <= self.owner.dmrange:
-            for ox, oy in self.current_locs:
-                for x, y in ((ox - 1, oy - 1), (ox, oy - 1),  (ox + 1, oy - 1),
-                             (ox - 1, oy),                    (ox + 1, oy),
-                             (ox - 1, oy + 1), (ox, oy + 1),  (ox + 1, oy + 1)):
+        # Check each location's 8 neighbors and update dmap with value
+        for ox, oy in self.current_locs:
+            for x, y in ((ox - 1, oy - 1), (ox, oy - 1),  (ox + 1, oy - 1),
+                         (ox - 1, oy),                    (ox + 1, oy),
+                         (ox - 1, oy + 1), (ox, oy + 1),  (ox + 1, oy + 1)):
 
-                    # Can't use tile_blocks_mov() function because it will set all tiles with objects in them to 0
-                    if self.owner.sourcemap.is_val_xy((x, y)) and (self.owner.dmap[x][y] is None) and (not self.owner.sourcemap.tiles[x][y].blocks_mov): # (not self.owner.sourcemap.tile_blocks_mov(x, y)) :
-                        new_locs.append((x, y))
-                        self.owner.dmap[x][y] = self.current_value
-                        expanded = True
+                # Can't use tile_blocks_mov() function because it will set all tiles with objects in them to 0
+                if self.owner.sourcemap.is_val_xy((x, y)) and (self.owner.dmap[x][y] is None) and (not self.owner.sourcemap.tiles[x][y].blocks_mov): # (not self.owner.sourcemap.tile_blocks_mov(x, y)) :
+                    new_locs.append((x, y))
+                    self.owner.dmap[x][y] = self.current_value
+                    expanded = True
 
         self.current_locs = new_locs
         self.current_value += 1
 
+        # Remove from owner's nodes when this node has hit the maximum dmap range, or did not expand
         if not expanded or self.current_value == self.owner.dmrange:
-            self.active = 0
-
-        return expanded
+            self.owner.nodes.remove(self)
 
 
 class Dijmap:
@@ -42,35 +39,27 @@ class Dijmap:
         self.sourcemap = sourcemap
         ## The represented map that we draw from
         self.dmrange = dmrange
-        #self.recalculate = 0
-        #empty_val = max(dmrange, 0)
+
         self.empty_map = [[None for y in xrange(sourcemap.height)] for x in xrange(sourcemap.width)]
 
+        self.nodes = []
+        self.dmap = None
+
+        # Automatically create a map on initializing
         self.update_map(target_nodes)
 
-    #def tile_is_expandible(self, coords):
-        # ''' When looping through nodes, this function is essentially a way to figure out if the tile has already been expanded to or not '''
-        #return self.dmrange is None or self.dmap[coords[0]][coords[1]] == self.dmrange
-        #if self.dmrange is None:
-        #    return 1
-        #elif self.dmap[coords[0]][coords[1]] == self.dmrange:
-        #    return 1
 
     def update_map(self, target_nodes):
+        # Seed empty map - faster to copy off of empty_map than create a new one
         self.dmap = [row[:] for row in self.empty_map]
 
+        # Clear nodes and then add new ones
         self.nodes = []
         for x, y in target_nodes:
             self.nodes.append(Node(self, x, y))
             self.dmap[x][y] = 0
 
-        marked_status = True
         ## Take the target nodes, and expand each of them until none of them mark a spot
-        while marked_status:
-            marked_status = False
+        while self.nodes:
             for node in self.nodes:
-                if node.active:
-                    status = node.expand()
-                    if status and not marked_status:
-                        marked_status = True
-
+                node.expand()
