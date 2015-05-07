@@ -3,6 +3,19 @@ from collections import namedtuple
 
 
 
+class TestCreature:
+    def __init__(self):
+        self.possessions = set([])
+        self.gold = 10
+        self.profession = None
+
+class TestEntity:
+    def __init__(self):
+        self.creature = TestCreature()
+
+
+
+
 class HaveItem:
     def __init__(self, item, entity):
         self.status = 'have_item'
@@ -16,12 +29,13 @@ class HaveItem:
 
     def set_behaviors_to_accomplish(self):
         self.behaviors_to_accomplish = [BuyItem(self.item, self.entity), StealItem(self.item, self.entity)]
+        return self.behaviors_to_accomplish
 
 
 class HaveMoney:
     def __init__(self, money, entity):
         self.status = 'have_item'
-        self.mnoney = money
+        self.money = money
         self.entity = entity
         # Will be set if this status isn't already completed
         self.behaviors_to_accomplish = []
@@ -31,6 +45,7 @@ class HaveMoney:
 
     def set_behaviors_to_accomplish(self):
         self.behaviors_to_accomplish = [GetMoneyThroughWork(self.money, self.entity), StealMoney(self.money, self.entity)]
+        return self.behaviors_to_accomplish
 
 
 class HaveJob:
@@ -45,6 +60,7 @@ class HaveJob:
 
     def set_behaviors_to_accomplish(self):
         self.behaviors_to_accomplish = [GetJob(self.entity)]
+        return self.behaviors_to_accomplish
 
 
 class AmAvailableToAct:
@@ -60,6 +76,7 @@ class AmAvailableToAct:
 
     def set_behaviors_to_accomplish(self):
         self.behaviors_to_accomplish = []
+        return self.behaviors_to_accomplish
 
 
 
@@ -70,8 +87,8 @@ class GetJob:
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-    def can_complete(self):
-        return all([precondition.is_completed() for precondition in self.preconditions])
+    def get_unmet_conditions(self):
+        return [precondition for precondition in self.preconditions if not precondition.is_completed()]
 
 
 class GetMoneyThroughWork:
@@ -82,11 +99,11 @@ class GetMoneyThroughWork:
 
         self.preconditions = [HaveJob(self.entity)]
 
-    def can_complete(self):
-        return all([precondition.is_completed() for precondition in self.preconditions])
+    def get_unmet_conditions(self):
+        return [precondition for precondition in self.preconditions if not precondition.is_completed()]
 
 
-class GetMoneyThroughWork:
+class StealMoney:
     def __init__(self, money, entity):
         self.behavior = 'steal_money'
         self.money = money
@@ -94,8 +111,8 @@ class GetMoneyThroughWork:
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-    def can_complete(self):
-        return all([precondition.is_completed() for precondition in self.preconditions])
+    def get_unmet_conditions(self):
+        return [precondition for precondition in self.preconditions if not precondition.is_completed()]
 
 
 class BuyItem:
@@ -104,10 +121,10 @@ class BuyItem:
         self.item = item
         self.entity = entity
 
-        self.preconditions = [HaveMoney(self.item)]
+        self.preconditions = [HaveMoney(self.item, self.entity)]
 
-    def can_complete(self):
-        return all([precondition.is_completed() for precondition in self.preconditions])
+    def get_unmet_conditions(self):
+        return [precondition for precondition in self.preconditions if not precondition.is_completed()]
 
 
 class StealItem:
@@ -118,49 +135,18 @@ class StealItem:
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-    def can_complete(self):
-        return all([precondition.is_completed() for precondition in self.preconditions])
+    def get_unmet_conditions(self):
+        return [precondition for precondition in self.preconditions if not precondition.is_completed()]
 
-
-# Which actions set which actions as true
-status_to_behaviors = {
-    'at_location': ['move'],
-    'have_item': ['buy_item', 'steal_item'],
-    'have_money': ['get_money_through_work', 'steal_money'],
-    'have_job': ['get_job'],
-}
-
-behavior_to_preconditions = {
-    'move': ['at_location'],
-    'buy_item': ['have_money', 'at_location'],
-    'get_money_through_work': ['have_job', 'at_location'],
-    'steal_money': ['am_alive', 'at_location'],
-    'steal_item': ['am_alive', 'at_location'],
-    'get_job': ['am_alive', 'at_location']
-}
-
-current_state = {
-    'at_location': 1,
-    'have_item': 0,
-    'have_money': 0,
-    'have_job': 0,
-    'item_nearby': 0,
-    'am_alive': 1
-}
-
-
-def check_preconditions(behavior):
-    # For a given behavior, return the conditions which need to be true in order for the behavior to complete
-    conditions = behavior_to_preconditions[behavior]
-    unmet_conditions = [c for c in conditions if not current_state[c]]
-
-    return unmet_conditions
 
 
 def find_all_paths(goal_state):
 
     all_possible_paths = []
-    tmp_paths = [[behavior] for behavior in status_to_behaviors[goal_state]]
+
+    # Start by finding which behaviors we can take to accomplish the goal
+    goal_state.set_behaviors_to_accomplish()
+    tmp_paths = [[behavior] for behavior in goal_state.behaviors_to_accomplish]
 
     while tmp_paths:
         # The goal is to build an end-to-end path of behaviors
@@ -168,7 +154,7 @@ def find_all_paths(goal_state):
             first_path_iteration = 0
 
             last_behavior = path[-1]
-            unmet_preconditions = check_preconditions(last_behavior)
+            unmet_preconditions = last_behavior.get_unmet_conditions()
 
             # If no unmet preconditions, we've found a complete behavior!
             if not unmet_preconditions:
@@ -179,7 +165,7 @@ def find_all_paths(goal_state):
 
             # Otherwise, go through all the
             for condition in unmet_preconditions:
-                for behavior_option in status_to_behaviors[condition]:
+                for behavior_option in condition.set_behaviors_to_accomplish():
                     if not first_path_iteration:
                         # On first pass through, just append the behavior option
                         tmp_paths[i].append(behavior_option)
@@ -194,9 +180,11 @@ def find_all_paths(goal_state):
     return all_possible_paths
 
 
-all_possible_paths = find_all_paths(goal_state='have_item')
-print '\n\n === Paths === \n\n'
+test_entity = TestEntity()
+
+all_possible_paths = find_all_paths(goal_state=HaveItem(item='cheese', entity=test_entity))
+print '\n === Paths === \n'
 for p in all_possible_paths:
-    print p
+    print [g.behavior for g in p]
 
 
