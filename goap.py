@@ -1,5 +1,6 @@
 from __future__ import division
 from math import ceil
+from random import randint as roll
 
 from helpers import infinite_defaultdict
 
@@ -131,6 +132,11 @@ class ActionBase:
     def get_repeats(self):
         return 1
 
+    def get_possible_locations(self):
+        return [(roll(0, 10), roll(0, 10))]
+
+    def choose_location(self):
+        return roll(0, 10), roll(0, 10)
 
 
 class FindOutWhereItemIsLocated(ActionBase):
@@ -206,7 +212,7 @@ def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
     for behavior_option in goal_state.set_behaviors_to_accomplish():
         unmet_conditions = behavior_option.get_unmet_conditions()
-        current_action_path = action_path + [behavior_option] # Copy of action_path + the new behavior
+        current_action_path = [behavior_option] + action_path # Copy of the new behavior + action_path
 
         # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
         for condition in unmet_conditions:
@@ -219,18 +225,36 @@ def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
     return all_possible_paths
 
 
+def check_movement_required_by_possible_action_paths(entity, all_possible_paths):
+    ''' Check all possible behavior paths for necessary movement, and extend the behavior paths if movement is required '''
+    all_possible_paths_worked = []
+
+    for path in all_possible_paths:
+        path_worked = []
+        current_location = (entity.wx, entity.wy)
+
+        for behavior in path:
+            # If we don't need to move, then we just append the existing behavior
+            if current_location in behavior.get_possible_locations():
+                path_worked.append(behavior)
+
+            else:
+                current_location = behavior.choose_location()
+                path_worked.extend(['move to {0}'.format(current_location), behavior])
+
+        all_possible_paths_worked.append(path_worked)
+
+    return all_possible_paths_worked
+
+
+
+
 test_entity = TestEntity()
 path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity), action_path=[], all_possible_paths=[])
-for p in path_list:
-    print [b.behavior for b in p]
+#for p in path_list:
+#    print [b.behavior for b in p]
 
 
-
-# test_entity = TestEntity()
-#
-# all_possible_paths = find_all_paths(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity))
-# print '\n === Paths === \n'
-# for p in all_possible_paths:
-#     print [g.behavior for g in p]
-
-# print test_entity.creature.knowledge['objects'][GOAL_ITEM]['location']['accuracy']
+all_worked_paths = check_movement_required_by_possible_action_paths(entity=test_entity, all_possible_paths=path_list)
+for p in all_worked_paths:
+    print [b for b in p]
