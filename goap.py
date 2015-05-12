@@ -201,27 +201,26 @@ class StealItem(ActionBase):
 
 
 
-def find_actions(goal_state, action_list):
+def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
     for behavior_option in goal_state.set_behaviors_to_accomplish():
         unmet_conditions = behavior_option.get_unmet_conditions()
-        new_action_list = action_list + [behavior_option]
+        current_action_path = action_path + [behavior_option] # Copy of action_path + the new behavior
+
         # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
-        if unmet_conditions:
-            for condition in unmet_conditions:
-                find_actions(goal_state=condition, action_list=new_action_list)
+        for condition in unmet_conditions:
+            find_actions_leading_to_goal(goal_state=condition, action_path=current_action_path, all_possible_paths=all_possible_paths)
 
         # If all conditions are met, then this behavior can be accomplished, so it gets added to the list
-        elif not unmet_conditions:
-            path_list.append(new_action_list)
+        if not unmet_conditions:
+            all_possible_paths.append(current_action_path)
 
+    return all_possible_paths
 
-path_list = []
-action_list = []
 
 test_entity = TestEntity()
-find_actions(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity), action_list=action_list)
+path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity), action_path=[], all_possible_paths=[])
 for p in path_list:
     print [b.behavior for b in p]
 
