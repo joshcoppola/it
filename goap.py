@@ -31,6 +31,24 @@ class TestEntity:
 
 
 
+
+class AtLocation:
+    def __init__(self, initial_location, target_location, entity):
+        self.status = 'at_location'
+        self.initial_location = initial_location
+        self.target_location = target_location
+        self.entity = entity
+        # Will be set if this status isn't already completed
+        self.behaviors_to_accomplish = []
+
+    def is_completed(self):
+        return (self.entity.wx, self.entity.wy) == self.target_location
+
+    def set_behaviors_to_accomplish(self):
+        self.behaviors_to_accomplish = [MoveToLocation(initial_location=self.initial_location, target_location=self.target_location, entity=self.entity)]
+        return self.behaviors_to_accomplish
+
+
 class HaveItem:
     def __init__(self, item, entity):
         self.status = 'have_item'
@@ -139,37 +157,80 @@ class ActionBase:
         return roll(0, 10), roll(0, 10)
 
 
+class MoveToLocation(ActionBase):
+    ''' Specific behavior component for moving to an area.
+    Will use road paths if moving from city to city '''
+    def __init__(self, initial_location, target_location, entity, travel_verb='travel'):
+        self.behavior = 'move'
+        self.initial_location = initial_location
+        self.target_location = target_location
+        self.entity = entity
+
+        self.travel_verb = travel_verb
+
+    def get_name(self):
+        goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
+        return goal_name
+
+    def initialize_behavior(self):
+        ''' Will be run as soon as this behavior is activated '''
+        target_site = g.WORLD.tiles[self.x][self.y].site
+        current_site = g.WORLD.tiles[self.entity.wx][self.entity.wy].site
+
+        if target_site in g.WORLD.cities and current_site in g.WORLD.cities:
+            self.figure.world_brain.path = current_site.path_to[target_site][:]
+
+        else:
+            # Default - use libtcod's A* to create a path to destination
+            path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.x, dy=self.y)
+            self.figure.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
+
+        #self.name = 'move to {0}.'.format(g.WORLD.tiles[self.x][self.y].get_location_description())
+        #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
+
+    def is_completed(self):
+        return (self.figure.wx, self.figure.wy) == (self.x, self.y)
+
+    def take_behavior_action(self):
+        self.figure.w_move_along_path(path=self.figure.world_brain.path)
+
+
+
 class FindOutWhereItemIsLocated(ActionBase):
-    def __init__(self, item, entity):
+    def __init__(self, item, entity, initial_location):
         self.behavior = 'find_out_where_item_is_located'
         self.item = item
         self.entity = entity
+        self.initial_location = initial_location
 
-        self.preconditions = [AmAvailableToAct(self.entity)]
+        self.preconditions = [AmAvailableToAct(self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
 
 class SearchForItem(ActionBase):
-    def __init__(self, item, entity):
+    def __init__(self, item, entity, initial_location):
         self.behavior = 'search_for_item'
         self.item = item
         self.entity = entity
+        self.initial_location = initial_location
 
-        self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity)]
+        self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
 
 class GetJob(ActionBase):
-    def __init__(self, entity):
+    def __init__(self, entity, initial_location):
         self.behavior = 'get_job'
         self.entity = entity
-        self.preconditions = [AmAvailableToAct(self.entity)]
+        self.initial_location = initial_location
+        self.preconditions = [AmAvailableToAct(AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
 
 class GetMoneyThroughWork(ActionBase):
-    def __init__(self, money, entity):
+    def __init__(self, money, entity, initial_location):
         self.behavior = 'get_money_through_work'
         self.money = money
         self.entity = entity
-        self.preconditions = [HaveJob(self.entity)]
+        self.initial_location = initial_location
+        self.preconditions = [HaveJob(self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
     def get_repeats(self):
         return ceil(self.money / self.entity.profession.monthly_pay)
@@ -186,32 +247,36 @@ class StealMoney(ActionBase):
         self.behavior = 'steal_money'
         self.money = money
         self.entity = entity
-        self.preconditions = [AmAvailableToAct(self.entity)]
+        self.preconditions = [AmAvailableToAct(self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
 
 class BuyItem(ActionBase):
-    def __init__(self, item, entity):
+    def __init__(self, item, entity, initial_location):
         self.behavior = 'buy_item'
         self.item = item
         self.entity = entity
-        self.preconditions = [HaveMoney(self.item, self.entity)]
+        self.initial_location = initial_location
+        self.preconditions = [HaveMoney(self.item, self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
 
 class StealItem(ActionBase):
-    def __init__(self, item, entity):
+    def __init__(self, item, entity, initial_location):
         self.behavior = 'steal_item'
         self.item = item
         self.entity = entity
-        self.preconditions = [KnowWhereItemisLocated(self.item, self.entity), AmAvailableToAct(self.entity)]
+        self.initial_location = initial_location
+        self.preconditions = [KnowWhereItemisLocated(self.item, self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
 
 
 
 
-def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
+def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths, start_location):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
+
     for behavior_option in goal_state.set_behaviors_to_accomplish():
-        unmet_conditions = behavior_option.get_unmet_conditions()
+
+        unmet_conditions = behavior_option.get_unmet_conditions(start_location)
         current_action_path = [behavior_option] + action_path # Copy of the new behavior + action_path
 
         # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
