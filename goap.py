@@ -143,6 +143,9 @@ class AmAvailableToAct:
 
 class ActionBase:
     ''' The base action class, providing some default methods for other actions '''
+    def __init__(self):
+        self.checked_for_movement = 0
+
     def get_unmet_conditions(self):
         return [precondition for precondition in self.preconditions if not precondition.is_completed()]
 
@@ -152,7 +155,7 @@ class ActionBase:
     def get_possible_locations(self):
         return [(roll(0, 10), roll(0, 10))]
 
-    def get_behavior_location(self):
+    def get_behavior_location(self, current_location):
         return roll(0, 10), roll(0, 10)
 
 
@@ -160,6 +163,7 @@ class MoveToLocation(ActionBase):
     ''' Specific behavior component for moving to an area.
     Will use road paths if moving from city to city '''
     def __init__(self, initial_location, target_location, entity, travel_verb='travel'):
+        ActionBase.__init__(self)
         self.behavior = 'move'
         self.initial_location = initial_location
         self.target_location = target_location
@@ -195,17 +199,19 @@ class MoveToLocation(ActionBase):
 
 class FindOutWhereItemIsLocated(ActionBase):
     def __init__(self, item, entity):
+        ActionBase.__init__(self)
         self.behavior = 'find_out_where_item_is_located'
         self.item = item
         self.entity = entity
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-    def get_behavior_location(self):
+    def get_behavior_location(self, current_location):
         return None
 
 class SearchForItem(ActionBase):
     def __init__(self, item, entity):
+        ActionBase.__init__(self)
         self.behavior = 'search_for_item'
         self.item = item
         self.entity = entity
@@ -215,6 +221,7 @@ class SearchForItem(ActionBase):
 
 class GetJob(ActionBase):
     def __init__(self, entity):
+        ActionBase.__init__(self)
         self.behavior = 'get_job'
         self.entity = entity
         self.preconditions = [AmAvailableToAct(self.entity)]
@@ -222,6 +229,7 @@ class GetJob(ActionBase):
 
 class GetMoneyThroughWork(ActionBase):
     def __init__(self, money, entity):
+        ActionBase.__init__(self)
         self.behavior = 'get_money_through_work'
         self.money = money
         self.entity = entity
@@ -233,12 +241,13 @@ class GetMoneyThroughWork(ActionBase):
     # def get_behavior_location(self):
     #     return self.entity.profession.current_work_building.site.x, self.entity.profession.current_work_building.site.y
 
-    def is_at_location(self):
-        return (self.entity.wx, self.entity.wy) == self.get_behavior_location()
+    #def is_at_location(self):
+    #    return (self.entity.wx, self.entity.wy) == self.get_behavior_location()
 
 
 class StealMoney(ActionBase):
     def __init__(self, money, entity):
+        ActionBase.__init__(self)
         self.behavior = 'steal_money'
         self.money = money
         self.entity = entity
@@ -247,6 +256,7 @@ class StealMoney(ActionBase):
 
 class BuyItem(ActionBase):
     def __init__(self, item, entity):
+        ActionBase.__init__(self)
         self.behavior = 'buy_item'
         self.item = item
         self.entity = entity
@@ -255,6 +265,7 @@ class BuyItem(ActionBase):
 
 class StealItem(ActionBase):
     def __init__(self, item, entity):
+        ActionBase.__init__(self)
         self.behavior = 'steal_item'
         self.item = item
         self.entity = entity
@@ -262,8 +273,7 @@ class StealItem(ActionBase):
 
 
 
-
-def get_movement_behavior_subtree(action_path, new_behavior):
+def get_movement_behavior_subtree_old(action_path, new_behavior):
 
     loc1 = new_behavior.get_behavior_location()
     loc2 = action_path[0].get_behavior_location() if action_path else None
@@ -276,7 +286,7 @@ def get_movement_behavior_subtree(action_path, new_behavior):
     return movement_behavior_subtree
 
 
-def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
+def find_actions_leading_to_goal_old(goal_state, action_path, all_possible_paths):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
 
@@ -301,8 +311,83 @@ def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
     return all_possible_paths
 
 
+
+
+
+def get_movement_behavior_subtree(entity, current_location, target_location):
+
+    if current_location and target_location and current_location != target_location:
+        movement_behavior_subtree = find_actions_leading_to_goal(goal_state=AtLocation(initial_location=current_location , target_location=target_location, entity=entity), action_path=[], all_possible_paths=[])
+    else:
+        movement_behavior_subtree = None
+
+    return movement_behavior_subtree
+
+
+def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
+    ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
+    #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
+
+    for behavior_option in goal_state.set_behaviors_to_accomplish():
+        unmet_conditions = behavior_option.get_unmet_conditions()
+        current_action_path = [behavior_option] + action_path # Copy of the new behavior + action_path
+
+        # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
+        for condition in unmet_conditions:
+            find_actions_leading_to_goal(goal_state=condition, action_path=current_action_path, all_possible_paths=all_possible_paths)
+
+        # If all conditions are met, then this behavior can be accomplished, so it gets added to the list
+        if not unmet_conditions:
+            #all_possible_paths.append(current_action_path)
+            print [a.behavior for a in current_action_path]
+            all_paths_worked = adjust_path_for_movement(entity=test_entity, action_path=current_action_path, all_paths_worked=[])
+            for i, p in enumerate(all_paths_worked):
+                print i, [a.behavior for a in p]
+                all_possible_paths.append(p)
+
+    return all_possible_paths
+
+
+def adjust_path_for_movement(entity, action_path, all_paths_worked, r_level=0):
+    ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
+
+    if r_level > 10:
+        return
+
+    current_location = (entity.wx, entity.wy)
+
+    current_action_path = action_path[:]
+    for i, behavior in enumerate(action_path):
+        if (not behavior.checked_for_movement) and behavior.behavior != 'move':
+            target_location = behavior.get_behavior_location(current_location=current_location)
+            behavior.checked_for_movement = 1
+
+            if target_location != current_location:
+                movement_behavior_subtree = get_movement_behavior_subtree(entity=entity, current_location=current_location, target_location=target_location)
+                # print ' --- ', behavior.behavior, movement_behavior_subtree
+                if movement_behavior_subtree:
+                    for subtree in movement_behavior_subtree:
+                        for s_behavior in reversed(subtree):
+                            current_action_path.insert(i, s_behavior)
+
+                        adjust_path_for_movement(entity=entity, action_path=current_action_path, all_paths_worked=all_paths_worked, r_level=r_level+1)
+
+                elif not movement_behavior_subtree:
+                    adjust_path_for_movement(entity=entity, action_path=current_action_path, all_paths_worked=all_paths_worked, r_level=r_level+1)
+
+
+    unchecked_for_movement = [a for a in current_action_path if (a.behavior != 'move' and not a.checked_for_movement)]
+    if not unchecked_for_movement:
+        all_paths_worked.append(current_action_path)
+
+    return all_paths_worked
+
+
+
 test_entity = TestEntity()
 path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity), action_path=[], all_possible_paths=[])
 for p in path_list:
     print [b.behavior for b in p]
 
+#test = adjust_path_for_movement(entity=test_entity, action_path=path_list[0], all_paths_worked=[])
+#print test
