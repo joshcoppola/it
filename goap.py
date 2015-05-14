@@ -125,7 +125,6 @@ class HaveJob:
         self.behaviors_to_accomplish = [GetJob(self.entity)]
         return self.behaviors_to_accomplish
 
-
 class AmAvailableToAct:
     def __init__(self, entity):
         self.status = 'am_available_to_act'
@@ -153,7 +152,7 @@ class ActionBase:
     def get_possible_locations(self):
         return [(roll(0, 10), roll(0, 10))]
 
-    def choose_location(self):
+    def get_behavior_location(self):
         return roll(0, 10), roll(0, 10)
 
 
@@ -168,6 +167,8 @@ class MoveToLocation(ActionBase):
 
         self.travel_verb = travel_verb
 
+        self.preconditions = [AmAvailableToAct(self.entity)]
+
     def get_name(self):
         goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
         return goal_name
@@ -178,15 +179,11 @@ class MoveToLocation(ActionBase):
         current_site = g.WORLD.tiles[self.entity.wx][self.entity.wy].site
 
         if target_site in g.WORLD.cities and current_site in g.WORLD.cities:
-            self.figure.world_brain.path = current_site.path_to[target_site][:]
-
+            self.entity.world_brain.path = current_site.path_to[target_site][:]
         else:
             # Default - use libtcod's A* to create a path to destination
             path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.x, dy=self.y)
-            self.figure.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
-
-        #self.name = 'move to {0}.'.format(g.WORLD.tiles[self.x][self.y].get_location_description())
-        #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
+            self.entity.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
 
     def is_completed(self):
         return (self.figure.wx, self.figure.wy) == (self.x, self.y)
@@ -197,46 +194,44 @@ class MoveToLocation(ActionBase):
 
 
 class FindOutWhereItemIsLocated(ActionBase):
-    def __init__(self, item, entity, initial_location):
+    def __init__(self, item, entity):
         self.behavior = 'find_out_where_item_is_located'
         self.item = item
         self.entity = entity
-        self.initial_location = initial_location
 
-        self.preconditions = [AmAvailableToAct(self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [AmAvailableToAct(self.entity)]
 
+    def get_behavior_location(self):
+        return None
 
 class SearchForItem(ActionBase):
-    def __init__(self, item, entity, initial_location):
+    def __init__(self, item, entity):
         self.behavior = 'search_for_item'
         self.item = item
         self.entity = entity
-        self.initial_location = initial_location
 
-        self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity)]
 
 
 class GetJob(ActionBase):
-    def __init__(self, entity, initial_location):
+    def __init__(self, entity):
         self.behavior = 'get_job'
         self.entity = entity
-        self.initial_location = initial_location
-        self.preconditions = [AmAvailableToAct(AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [AmAvailableToAct(self.entity)]
 
 
 class GetMoneyThroughWork(ActionBase):
-    def __init__(self, money, entity, initial_location):
+    def __init__(self, money, entity):
         self.behavior = 'get_money_through_work'
         self.money = money
         self.entity = entity
-        self.initial_location = initial_location
-        self.preconditions = [HaveJob(self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [HaveJob(self.entity)]
 
     def get_repeats(self):
         return ceil(self.money / self.entity.profession.monthly_pay)
 
-    def get_behavior_location(self):
-        return self.entity.profession.current_work_building.site.x, self.entity.profession.current_work_building.site.y
+    # def get_behavior_location(self):
+    #     return self.entity.profession.current_work_building.site.x, self.entity.profession.current_work_building.site.y
 
     def is_at_location(self):
         return (self.entity.wx, self.entity.wy) == self.get_behavior_location()
@@ -247,79 +242,67 @@ class StealMoney(ActionBase):
         self.behavior = 'steal_money'
         self.money = money
         self.entity = entity
-        self.preconditions = [AmAvailableToAct(self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [AmAvailableToAct(self.entity)]
 
 
 class BuyItem(ActionBase):
-    def __init__(self, item, entity, initial_location):
+    def __init__(self, item, entity):
         self.behavior = 'buy_item'
         self.item = item
         self.entity = entity
-        self.initial_location = initial_location
-        self.preconditions = [HaveMoney(self.item, self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [HaveMoney(self.item, self.entity)]
 
 
 class StealItem(ActionBase):
-    def __init__(self, item, entity, initial_location):
+    def __init__(self, item, entity):
         self.behavior = 'steal_item'
         self.item = item
         self.entity = entity
-        self.initial_location = initial_location
-        self.preconditions = [KnowWhereItemisLocated(self.item, self.entity), AtLocation(initial_location=self.initial_location, target_location=self.get_behavior_location())]
+        self.preconditions = [KnowWhereItemisLocated(self.item, self.entity)]
 
 
 
 
-def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths, start_location):
+def get_movement_behavior_subtree(action_path, new_behavior):
+
+    loc1 = new_behavior.get_behavior_location()
+    loc2 = action_path[0].get_behavior_location() if action_path else None
+
+    if loc1 and loc2 and loc1 != loc2 and new_behavior.behavior != 'move':
+        movement_behavior_subtree = find_actions_leading_to_goal(goal_state=AtLocation(initial_location=loc1, target_location=loc2, entity=action_path[0].entity), action_path=[], all_possible_paths=[])
+    else:
+        movement_behavior_subtree = [[]]
+
+    return movement_behavior_subtree
+
+
+def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
 
     for behavior_option in goal_state.set_behaviors_to_accomplish():
+        ## CHECK IF MOVEMENT IS NEEDED
+        movement_behavior_subtree = get_movement_behavior_subtree(action_path=action_path, new_behavior=behavior_option)
+        unmet_conditions = behavior_option.get_unmet_conditions()
 
-        unmet_conditions = behavior_option.get_unmet_conditions(start_location)
-        current_action_path = [behavior_option] + action_path # Copy of the new behavior + action_path
+        for subtree in movement_behavior_subtree:
+            current_action_path = [behavior_option] + subtree + action_path # Copy of the new behavior + action_path
 
-        # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
-        for condition in unmet_conditions:
-            find_actions_leading_to_goal(goal_state=condition, action_path=current_action_path, all_possible_paths=all_possible_paths)
+            # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
+            for condition in unmet_conditions:
+                find_actions_leading_to_goal(goal_state=condition, action_path=current_action_path, all_possible_paths=all_possible_paths)
 
-        # If all conditions are met, then this behavior can be accomplished, so it gets added to the list
-        if not unmet_conditions:
-            all_possible_paths.append(current_action_path)
+            # If all conditions are met, then this behavior can be accomplished, so it gets added to the list
+            if not unmet_conditions and behavior_option != 'move':
+                movement_behavior_subtree = get_movement_behavior_subtree(action_path=action_path, new_behavior=behavior_option)
+                for new_subtree in movement_behavior_subtree:
+                    all_possible_paths.append(new_subtree + current_action_path)
 
     return all_possible_paths
 
 
-def check_movement_required_by_possible_action_paths(entity, all_possible_paths):
-    ''' Check all possible behavior paths for necessary movement, and extend the behavior paths if movement is required '''
-    all_possible_paths_worked = []
-
-    for path in all_possible_paths:
-        path_worked = []
-        current_location = (entity.wx, entity.wy)
-
-        for behavior in path:
-            # If we don't need to move, then we just append the existing behavior
-            if current_location in behavior.get_possible_locations():
-                path_worked.append(behavior)
-
-            else:
-                current_location = behavior.choose_location()
-                path_worked.extend(['move to {0}'.format(current_location), behavior])
-
-        all_possible_paths_worked.append(path_worked)
-
-    return all_possible_paths_worked
-
-
-
-
 test_entity = TestEntity()
 path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity), action_path=[], all_possible_paths=[])
-#for p in path_list:
-#    print [b.behavior for b in p]
+for p in path_list:
+    print [b.behavior for b in p]
 
-
-all_worked_paths = check_movement_required_by_possible_action_paths(entity=test_entity, all_possible_paths=path_list)
-for p in all_worked_paths:
-    print [b for b in p]
