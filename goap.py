@@ -319,7 +319,7 @@ def get_movement_behavior_subtree(entity, current_location, target_location):
     if current_location and target_location and current_location != target_location:
         movement_behavior_subtree = find_actions_leading_to_goal(goal_state=AtLocation(initial_location=current_location , target_location=target_location, entity=entity), action_path=[], all_possible_paths=[])
     else:
-        movement_behavior_subtree = None
+        movement_behavior_subtree = []
 
     return movement_behavior_subtree
 
@@ -339,49 +339,88 @@ def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
         # If all conditions are met, then this behavior can be accomplished, so it gets added to the list
         if not unmet_conditions:
             #all_possible_paths.append(current_action_path)
-            print [a.behavior for a in current_action_path]
-            all_paths_worked = adjust_path_for_movement(entity=test_entity, action_path=current_action_path, all_paths_worked=[])
+            #print [a.behavior for a in current_action_path]
+            all_paths_worked = adjust_path_for_movement(entity=test_entity, initial_location=(goal_state.entity.wx, goal_state.entity.wy), action_path=current_action_path, all_paths_worked=[])
             for i, p in enumerate(all_paths_worked):
-                print i, [a.behavior for a in p]
+                #print i, [a.behavior for a in p]
                 all_possible_paths.append(p)
 
     return all_possible_paths
 
 
-def adjust_path_for_movement(entity, action_path, all_paths_worked, r_level=0):
+def adjust_path_for_movement(entity, initial_location, action_path, all_paths_worked, r_level=0):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
 
     if r_level > 10:
+        print "MAXIMUM RECURSION!"
         return
 
-    current_location = (entity.wx, entity.wy)
+    current_location = initial_location
 
     current_action_path = action_path[:]
+    need_to_recurse = 0
     for i, behavior in enumerate(action_path):
         if (not behavior.checked_for_movement) and behavior.behavior != 'move':
             target_location = behavior.get_behavior_location(current_location=current_location)
             behavior.checked_for_movement = 1
 
-            if target_location != current_location:
+            if target_location and target_location != current_location:
                 movement_behavior_subtree = get_movement_behavior_subtree(entity=entity, current_location=current_location, target_location=target_location)
-                # print ' --- ', behavior.behavior, movement_behavior_subtree
-                if movement_behavior_subtree:
-                    for subtree in movement_behavior_subtree:
-                        for s_behavior in reversed(subtree):
-                            current_action_path.insert(i, s_behavior)
+                # print 'movement to', behavior.behavior, 'from', action_path[i-1].behavior if i > 0 else 'beginning', 'is', movement_behavior_subtree
+                for subtree in movement_behavior_subtree:
+                    current_action_path_including_movement = current_action_path[:]
+                    for s_behavior in reversed(subtree):
+                        current_action_path_including_movement.insert(i, s_behavior)
 
-                        adjust_path_for_movement(entity=entity, action_path=current_action_path, all_paths_worked=all_paths_worked, r_level=r_level+1)
+                    need_to_recurse = 1
+                    adjust_path_for_movement(entity=entity, initial_location=initial_location, action_path=current_action_path_including_movement, all_paths_worked=all_paths_worked, r_level=r_level+1)
 
-                elif not movement_behavior_subtree:
-                    adjust_path_for_movement(entity=entity, action_path=current_action_path, all_paths_worked=all_paths_worked, r_level=r_level+1)
+            behavior.checked_for_movement = 0
 
-
-    unchecked_for_movement = [a for a in current_action_path if (a.behavior != 'move' and not a.checked_for_movement)]
-    if not unchecked_for_movement:
+    #unchecked_for_movement = [a for a in current_action_path if (a.behavior != 'move' and not a.checked_for_movement)]
+    #if not unchecked_for_movement:
+    if not need_to_recurse:
+        #print len(current_action_path)
         all_paths_worked.append(current_action_path)
 
     return all_paths_worked
 
+
+# def adjust_path_for_movement(entity, initial_location, action_path, all_paths_worked, r_level=0):
+#     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
+#
+#     if r_level > 10:
+#         print "MAXIMUM RECURSION!"
+#         return
+#
+#     current_location = initial_location
+#
+#     current_action_path = action_path[:]
+#     need_to_recurse = 0
+#     for i, behavior in enumerate(action_path):
+#         prev_behavior_location = action_path[i-1].get_behavior_location(current_location=current_location) if i > 0 else 1
+#
+#         target_location = behavior.get_behavior_location(current_location=current_location)
+#
+#         if target_location and target_location != current_location and prev_behavior_location:
+#             movement_behavior_subtree = get_movement_behavior_subtree(entity=entity, current_location=current_location, target_location=target_location)
+#             # print 'movement to', behavior.behavior, 'from', action_path[i-1].behavior if i > 0 else 'beginning', 'is', movement_behavior_subtree
+#             for subtree in movement_behavior_subtree:
+#                 current_action_path_including_movement = current_action_path[:]
+#                 for s_behavior in reversed(subtree):
+#                     current_action_path_including_movement.insert(i, s_behavior)
+#
+#                 need_to_recurse = 1
+#                 adjust_path_for_movement(entity=entity, initial_location=initial_location, action_path=current_action_path_including_movement, all_paths_worked=all_paths_worked, r_level=r_level+1)
+#
+#
+#     #unchecked_for_movement = [a for a in current_action_path if (a.behavior != 'move' and not a.checked_for_movement)]
+#     #if not unchecked_for_movement:
+#     if not need_to_recurse:
+#         #print len(current_action_path)
+#         all_paths_worked.append(current_action_path)
+#
+#     return all_paths_worked
 
 
 test_entity = TestEntity()
