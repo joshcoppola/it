@@ -174,7 +174,7 @@ class MoveToLocation(ActionBase):
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0}
 
         cost = roll(1, 10)
         self.costs['distance'] = cost
@@ -220,7 +220,7 @@ class FindOutWhereItemIsLocated(ActionBase):
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
 
     def get_behavior_location(self, current_location):
         return None
@@ -234,7 +234,7 @@ class SearchForItem(ActionBase):
 
         self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity)]
 
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 50}
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':0, 'legality':0}
 
 class GetJob(ActionBase):
     def __init__(self, entity):
@@ -243,7 +243,7 @@ class GetJob(ActionBase):
         self.entity = entity
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0}
 
 class GetMoneyThroughWork(ActionBase):
     def __init__(self, money, entity):
@@ -253,7 +253,7 @@ class GetMoneyThroughWork(ActionBase):
         self.entity = entity
         self.preconditions = [HaveJob(self.entity)]
 
-        self.costs = {'money':0, 'time':10, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+        self.costs = {'money':0, 'time':10, 'distance':0, 'morality':0, 'legality':0}
 
     def get_repeats(self):
         return ceil(self.money / self.entity.profession.monthly_pay)
@@ -273,7 +273,7 @@ class StealMoney(ActionBase):
         self.entity = entity
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10, 'success_chance': 50}
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10}
 
 
 class BuyItem(ActionBase):
@@ -284,7 +284,7 @@ class BuyItem(ActionBase):
         self.entity = entity
         self.preconditions = [HaveMoney(self.item, self.entity)]
 
-        self.costs = {'money':50, 'time':.1, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+        self.costs = {'money':50, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
 
 class StealItem(ActionBase):
     def __init__(self, item, entity):
@@ -294,7 +294,7 @@ class StealItem(ActionBase):
         self.entity = entity
         self.preconditions = [KnowWhereItemisLocated(self.item, self.entity)]
 
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10, 'success_chance': 50}
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10}
 
 
 def get_movement_behavior_subtree_old(action_path, new_behavior):
