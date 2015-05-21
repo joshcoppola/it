@@ -1,9 +1,10 @@
 from __future__ import division
 from math import ceil
 from random import randint as roll
+from collections import defaultdict
 
 from helpers import infinite_defaultdict
-
+from traits import TRAIT_INFO
 
 GOAL_ITEM = 'cheese'
 
@@ -173,6 +174,12 @@ class MoveToLocation(ActionBase):
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
+        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+
+        cost = roll(1, 10)
+        self.costs['distance'] = cost
+        self.costs['distance'] = cost
+
     def get_name(self):
         goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
         return goal_name
@@ -183,11 +190,18 @@ class MoveToLocation(ActionBase):
         current_site = g.WORLD.tiles[self.entity.wx][self.entity.wy].site
 
         if target_site in g.WORLD.cities and current_site in g.WORLD.cities:
-            self.entity.world_brain.path = current_site.path_to[target_site][:]
+            full_path = current_site.path_to[target_site][:]
         else:
             # Default - use libtcod's A* to create a path to destination
             path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.x, dy=self.y)
-            self.entity.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
+            full_path = libtcod_path_to_list(path_map=g.WORLD.path_map)
+
+        # Add path to brain
+        self.entity.world_brain.path = full_path
+        # Update the cost of this behavior
+        self.costs['time'] += len(full_path)
+        self.costs['distance'] += len(full_path)
+
 
     def is_completed(self):
         return (self.figure.wx, self.figure.wy) == (self.x, self.y)
@@ -206,6 +220,8 @@ class FindOutWhereItemIsLocated(ActionBase):
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
+
     def get_behavior_location(self, current_location):
         return None
 
@@ -218,6 +234,7 @@ class SearchForItem(ActionBase):
 
         self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity)]
 
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 50}
 
 class GetJob(ActionBase):
     def __init__(self, entity):
@@ -226,6 +243,7 @@ class GetJob(ActionBase):
         self.entity = entity
         self.preconditions = [AmAvailableToAct(self.entity)]
 
+        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
 
 class GetMoneyThroughWork(ActionBase):
     def __init__(self, money, entity):
@@ -234,6 +252,8 @@ class GetMoneyThroughWork(ActionBase):
         self.money = money
         self.entity = entity
         self.preconditions = [HaveJob(self.entity)]
+
+        self.costs = {'money':0, 'time':10, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
 
     def get_repeats(self):
         return ceil(self.money / self.entity.profession.monthly_pay)
@@ -253,6 +273,8 @@ class StealMoney(ActionBase):
         self.entity = entity
         self.preconditions = [AmAvailableToAct(self.entity)]
 
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10, 'success_chance': 50}
+
 
 class BuyItem(ActionBase):
     def __init__(self, item, entity):
@@ -262,6 +284,7 @@ class BuyItem(ActionBase):
         self.entity = entity
         self.preconditions = [HaveMoney(self.item, self.entity)]
 
+        self.costs = {'money':50, 'time':.1, 'distance':0, 'morality':0, 'legality':0, 'success_chance': 0}
 
 class StealItem(ActionBase):
     def __init__(self, item, entity):
@@ -271,6 +294,7 @@ class StealItem(ActionBase):
         self.entity = entity
         self.preconditions = [KnowWhereItemisLocated(self.item, self.entity)]
 
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10, 'success_chance': 50}
 
 
 def get_movement_behavior_subtree_old(action_path, new_behavior):
@@ -373,6 +397,22 @@ def check_paths_for_movement(entity, behavior_lists):
     return all_behavior_lists_worked
 
 
+def get_behavior_list_costs(behavior_lists):
+
+    all_behaviors_costed = []
+
+    for behavior_list in behavior_lists:
+        total_costs = defaultdict(int)
+
+        for behavior in behavior_list:
+            for aspect, cost in behavior.costs.iteritems():
+                total_costs[aspect] += cost
+
+        all_behaviors_costed.append((behavior_list, total_costs))
+
+    return all_behaviors_costed
+
+
 # def adjust_path_for_movement(entity, initial_location, action_path, all_paths_worked, r_level=0):
 #     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
 #     if r_level > 10:
@@ -417,3 +457,9 @@ path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, ent
 behavior_list_including_movement = check_paths_for_movement(entity=test_entity, behavior_lists=path_list)
 for list_ in behavior_list_including_movement:
     print [b.behavior for b in list_]
+
+behavior_lists_costed = get_behavior_list_costs(behavior_lists=behavior_list_including_movement)
+for behavior_list, cost in behavior_lists_costed:
+    print [b.behavior for b in behavior_list]
+    print cost
+    print ''
