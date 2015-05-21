@@ -2,60 +2,83 @@ traits:
     greedy:
         opposed_traits: [charitable]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 5, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': .8}
     charitable:
         opposed_traits: [greedy]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
     devout:
         opposed_traits: [unbeliever]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 2}
     unbeliever:
         opposed_traits: [devout]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': .5}
     vengeful:
         opposed_traits: [mild-mannered]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': .5}
     mild-mannered:
         opposed_traits: [vengeful]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 2}
     lazy:
         opposed_traits: [hardworking, ambitious]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 5, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 2, 'morality': .8}
     hardworking:
         opposed_traits: [lazy]
         skill_modifiers: []
+        behavior_modifiers: {'distance': .2, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': .5, 'morality': 1}
     moral:
         opposed_traits: [dishonest, amoral]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 5, 'time': 1, 'morality': 5}
     amoral:
         opposed_traits: [moral, honest]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': .2, 'time': 1, 'morality': .2}
+    honest:
+        opposed_traits: [dishonest, amoral]
+        skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 2, 'time': 1, 'morality': 2}
     dishonest:
         opposed_traits: [honest, moral]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': .5, 'time': 1, 'morality': .5}
     ambitious:
         opposed_traits: [lazy]
         skill_modifiers: []
+        behavior_modifiers: {'distance': .1, 'money': 1, 'success_chance': 1, 'legality': .5, 'time': 2, 'morality': .5}
     adventurous:
         opposed_traits: [lazy]
         skill_modifiers: []
+        behavior_modifiers: {'distance': .1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
     brave:
         opposed_traits: [cowardly]
         skill_modifiers: []
+        behavior_modifiers: {'distance': .5, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
     cowardly:
         opposed_traits: [brave]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1.5, 'time': 1, 'morality': .5}
     fiscally liberal:
         opposed_traits: [fiscally conservative]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': .5, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
     fiscally conservative:
         opposed_traits: [fiscally liberal]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 2, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
     socially liberal:
         opposed_traits: [socially conservative]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
     socially conservative:
         opposed_traits: [socially liberal]
         skill_modifiers: []
+        behavior_modifiers: {'distance': 1, 'money': 1, 'success_chance': 1, 'legality': 1, 'time': 1, 'morality': 1}
         
         
         
