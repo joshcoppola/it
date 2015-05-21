@@ -16,7 +16,7 @@ from collections import Counter, defaultdict
 
 import economy
 import physics as phys
-from traits import *
+from traits import TRAITS, TRAIT_INFO, CULTURE_TRAIT_INFO, EXPERIENCE_PER_SKILL_LEVEL, MAX_SKILL_LEVEL
 from dijkstra import Dijmap
 import gen_languages as lang
 import gen_creatures
