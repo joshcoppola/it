@@ -29,7 +29,7 @@ import config as g
 from wmap import *
 from map_base import *
 import history as hist
-
+import goap
 
 
 
@@ -6757,6 +6757,43 @@ class BasicWorldBrain:
         self.next_tick = 0
         self.goals = []
 
+
+    def find_cheapest_behavior_path(self, behavior_paths_costed):
+
+        figure = self.owner
+        current_lowest_cost, current_lowest_behavior_path = 100000, None
+        all_costs = []
+        for behavior_path, behavior_base_costs in behavior_paths_costed:
+            # Each behavior path gets a running cost total
+            total_cost = 0
+            for cost_aspect, base_cost in behavior_base_costs.iteritems():
+                # Go through each trait and see what that trait adds to the total cost
+                cost_multiplier = 1
+                for trait, trait_intensity in figure.creature.traits.iteritems():
+                    cost_multiplier *= TRAIT_INFO[trait]['behavior_modifiers'][cost_aspect]
+                    #trait_cost_multiplier = TRAIT_INFO[trait]['behavior_modifiers'][cost_aspect]
+                    #total_cost += (base_cost * trait_cost_multiplier)
+                total_cost += (base_cost * cost_multiplier)
+
+            if total_cost < current_lowest_cost:
+                current_lowest_cost = total_cost
+                current_lowest_behavior_path = behavior_path
+
+            all_costs.append((behavior_path, total_cost))
+
+        return current_lowest_behavior_path, current_lowest_cost, all_costs
+
+
+    def set_goal(self, goal_state, reason, priority=1):
+
+        behavior_paths_costed = goap.get_costed_behavior_paths(goal_state=goal_state, entity=self.owner)
+
+        best_path, best_cost, all_costs = self.find_cheapest_behavior_path(behavior_paths_costed=behavior_paths_costed)
+
+        for path, cost in all_costs:
+            print [b.behavior for b in path], cost
+
+        return best_path
 
     def add_goal(self, priority, goal_type, reason, **kwargs):
         ' Terribly written general handler for any goal type \

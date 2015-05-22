@@ -6,6 +6,7 @@ from collections import defaultdict
 from helpers import infinite_defaultdict
 from traits import TRAIT_INFO
 
+
 GOAL_ITEM = 'cheese'
 
 
@@ -15,6 +16,8 @@ class TestCreature:
         self.possessions = set([])
         self.gold = 10
         self.profession = None
+
+        self.traits = {}
 
         self.knowledge = infinite_defaultdict()
         self.knowledge['objects'][GOAL_ITEM]['location']['accuracy'] = 2
@@ -28,6 +31,9 @@ class TestEntity:
 
         self.wx = 10
         self.wy = 10
+
+        self.world_brain = BasicWorldBrain()
+        self.world_brain.owner = self
 
 
 
@@ -178,7 +184,7 @@ class MoveToLocation(ActionBase):
 
         cost = roll(1, 10)
         self.costs['distance'] = cost
-        self.costs['distance'] = cost
+        self.costs['time'] = cost
 
     def get_name(self):
         goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
@@ -273,7 +279,7 @@ class StealMoney(ActionBase):
         self.entity = entity
         self.preconditions = [AmAvailableToAct(self.entity)]
 
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10}
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':50, 'legality':50}
 
 
 class BuyItem(ActionBase):
@@ -294,7 +300,7 @@ class StealItem(ActionBase):
         self.entity = entity
         self.preconditions = [KnowWhereItemisLocated(self.item, self.entity)]
 
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':10, 'legality':10}
+        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':50, 'legality':50}
 
 
 def get_movement_behavior_subtree_old(action_path, new_behavior):
@@ -447,19 +453,52 @@ def get_behavior_list_costs(behavior_lists):
 #
 #     return all_paths_worked
 
+def get_costed_behavior_paths(goal_state, entity):
+    # Find possible actions that can be taken to get there
+    all_possible_behavior_paths = find_actions_leading_to_goal(goal_state=goal_state, action_path=[], all_possible_paths=[])
+    # Account for movement (eventually, account for movement subtrees?)
+    behavior_list_including_movement = check_paths_for_movement(entity=entity, behavior_lists=all_possible_behavior_paths)
+    # With movement now factored in, get costs
+    behavior_lists_costed = get_behavior_list_costs(behavior_lists=behavior_list_including_movement)
+
+    return behavior_lists_costed
 
 
-test_entity = TestEntity()
-path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity), action_path=[], all_possible_paths=[])
-#for p in path_list:
-#    print [b.behavior for b in p]
+if __name__ == '__main__':
+    from it import BasicWorldBrain
+    # No traits
+    test_entity_normal = TestEntity()
+    # Honest trait
+    test_entity_moral = TestEntity()
+    test_entity_moral.creature.traits['honest'] = 2
+    # Disonest Trait
+    test_entity_amoral = TestEntity()
+    test_entity_amoral.creature.traits['dishonest'] = 2
 
-behavior_list_including_movement = check_paths_for_movement(entity=test_entity, behavior_lists=path_list)
-for list_ in behavior_list_including_movement:
-    print [b.behavior for b in list_]
+    best_path = test_entity_normal.world_brain.set_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_normal), reason='because')
+    #print [b.behavior for b in best_path]
 
-behavior_lists_costed = get_behavior_list_costs(behavior_lists=behavior_list_including_movement)
-for behavior_list, cost in behavior_lists_costed:
-    print [b.behavior for b in behavior_list]
-    print cost
     print ''
+
+    best_path = test_entity_amoral.world_brain.set_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_amoral), reason='because')
+    #print [b.behavior for b in best_path]
+#
+# path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_normal), action_path=[], all_possible_paths=[])
+# #for p in path_list:
+# #    print [b.behavior for b in p]
+#
+# behavior_list_including_movement = check_paths_for_movement(entity=test_entity_normal, behavior_lists=path_list)
+# for list_ in behavior_list_including_movement:
+#     print [b.behavior for b in list_]
+#
+# behavior_lists_costed = get_behavior_list_costs(behavior_lists=behavior_list_including_movement)
+# for behavior_list, cost in behavior_lists_costed:
+#     print [b.behavior for b in behavior_list]
+#     print cost
+#     print ''
+#
+# cheapest = test_entity_normal.world_brain.find_cheapest_behavior_path(behavior_paths_costed=behavior_lists_costed)
+# print [b.behavior for b in cheapest]
+#
+# cheapest = test_entity_amoral.world_brain.find_cheapest_behavior_path(behavior_paths_costed=behavior_lists_costed)
+# print [b.behavior for b in cheapest]
