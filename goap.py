@@ -2,10 +2,13 @@ from __future__ import division
 from math import ceil
 from random import randint as roll
 from collections import defaultdict
+from time import time
+import libtcodpy as libtcod
+
 
 from helpers import infinite_defaultdict
 from traits import TRAIT_INFO
-
+import config as g
 
 GOAL_ITEM = 'cheese'
 
@@ -46,14 +49,23 @@ class AtLocation:
         self.target_location = target_location
         self.entity = entity
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = []
+        self.behaviors_to_accomplish = [MoveToLocation(initial_location=self.initial_location, target_location=self.target_location, entity=self.entity)]
 
     def is_completed(self):
         return (self.entity.wx, self.entity.wy) == self.target_location
 
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = [MoveToLocation(initial_location=self.initial_location, target_location=self.target_location, entity=self.entity)]
-        return self.behaviors_to_accomplish
+
+class GoodsAreUnloaded:
+    def __init__(self, target_city, goods, entity):
+        self.target_city = target_city
+        self.goods = goods
+        self.entity = entity
+
+        self.behaviors_to_accomplish = [UnloadGoodsBehavior(target_city=target_city, entity=entity)]
+
+    def is_completed(self):
+            return self.entity in self.target_city.caravans
+
 
 
 class HaveItem:
@@ -62,14 +74,10 @@ class HaveItem:
         self.item = item
         self.entity = entity
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = []
+        self.behaviors_to_accomplish = [BuyItem(self.item, self.entity), StealItem(self.item, self.entity)]
 
     def is_completed(self):
         return self.item in self.entity.creature.possessions
-
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = [BuyItem(self.item, self.entity), StealItem(self.item, self.entity)]
-        return self.behaviors_to_accomplish
 
 
 class KnowWhereItemisLocated:
@@ -77,14 +85,10 @@ class KnowWhereItemisLocated:
         self.status = 'know_where_item_is_located'
         self.item = item
         self.entity = entity
-        self.behaviors_to_accomplish = []
+        self.behaviors_to_accomplish = [FindOutWhereItemIsLocated(self.item, self.entity)]
 
     def is_completed(self):
         return self.entity.creature.knowledge['objects'][self.item]['location']['accuracy'] == 1
-
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = [FindOutWhereItemIsLocated(self.item, self.entity)]
-        return self.behaviors_to_accomplish
 
 
 class HaveRoughIdeaOfLocation:
@@ -97,10 +101,6 @@ class HaveRoughIdeaOfLocation:
     def is_completed(self):
         return self.entity.creature.knowledge['objects'][self.item]['location']['accuracy'] <= 2
 
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = []
-        return self.behaviors_to_accomplish
-
 
 class HaveMoney:
     def __init__(self, money, entity):
@@ -108,14 +108,10 @@ class HaveMoney:
         self.money = money
         self.entity = entity
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = []
+        self.behaviors_to_accomplish = [GetMoneyThroughWork(self.money, self.entity), StealMoney(self.money, self.entity)]
 
     def is_completed(self):
         return self.entity.creature.gold >= self.money
-
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = [GetMoneyThroughWork(self.money, self.entity), StealMoney(self.money, self.entity)]
-        return self.behaviors_to_accomplish
 
 
 class HaveJob:
@@ -123,14 +119,11 @@ class HaveJob:
         self.status = 'have_job'
         self.entity = entity
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = []
+        self.behaviors_to_accomplish = [GetJob(self.entity)]
 
     def is_completed(self):
         return self.entity.creature.profession
 
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = [GetJob(self.entity)]
-        return self.behaviors_to_accomplish
 
 class AmAvailableToAct:
     def __init__(self, entity):
@@ -141,10 +134,6 @@ class AmAvailableToAct:
 
     def is_completed(self):
         return self.entity.creature.is_available_to_act()
-
-    def set_behaviors_to_accomplish(self):
-        self.behaviors_to_accomplish = []
-        return self.behaviors_to_accomplish
 
 
 
@@ -159,61 +148,8 @@ class ActionBase:
     def get_repeats(self):
         return 1
 
-    def get_possible_locations(self):
-        return [(roll(0, 10), roll(0, 10))]
-
     def get_behavior_location(self, current_location):
         return roll(0, 10), roll(0, 10)
-
-
-class MoveToLocation(ActionBase):
-    ''' Specific behavior component for moving to an area.
-    Will use road paths if moving from city to city '''
-    def __init__(self, initial_location, target_location, entity, travel_verb='travel'):
-        ActionBase.__init__(self)
-        self.behavior = 'move'
-        self.initial_location = initial_location
-        self.target_location = target_location
-        self.entity = entity
-
-        self.travel_verb = travel_verb
-
-        self.preconditions = [AmAvailableToAct(self.entity)]
-
-        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0}
-
-        cost = roll(1, 10)
-        self.costs['distance'] = cost
-        self.costs['time'] = cost
-
-    def get_name(self):
-        goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description())
-        return goal_name
-
-    def initialize_behavior(self):
-        ''' Will be run as soon as this behavior is activated '''
-        target_site = g.WORLD.tiles[self.x][self.y].site
-        current_site = g.WORLD.tiles[self.entity.wx][self.entity.wy].site
-
-        if target_site in g.WORLD.cities and current_site in g.WORLD.cities:
-            full_path = current_site.path_to[target_site][:]
-        else:
-            # Default - use libtcod's A* to create a path to destination
-            path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.x, dy=self.y)
-            full_path = libtcod_path_to_list(path_map=g.WORLD.path_map)
-
-        # Add path to brain
-        self.entity.world_brain.path = full_path
-        # Update the cost of this behavior
-        self.costs['time'] += len(full_path)
-        self.costs['distance'] += len(full_path)
-
-
-    def is_completed(self):
-        return (self.figure.wx, self.figure.wy) == (self.x, self.y)
-
-    def take_behavior_action(self):
-        self.figure.w_move_along_path(path=self.figure.world_brain.path)
 
 
 
@@ -259,7 +195,7 @@ class GetMoneyThroughWork(ActionBase):
         self.entity = entity
         self.preconditions = [HaveJob(self.entity)]
 
-        self.costs = {'money':0, 'time':10, 'distance':0, 'morality':0, 'legality':0}
+        self.costs = {'money':-1, 'time':1, 'distance':0, 'morality':0, 'legality':0}
 
     def get_repeats(self):
         return ceil(self.money / self.entity.profession.monthly_pay)
@@ -303,6 +239,222 @@ class StealItem(ActionBase):
         self.costs = {'money':0, 'time':1, 'distance':0, 'morality':50, 'legality':50}
 
 
+
+class MoveToLocation(ActionBase):
+    ''' Specific behavior component for moving to an area.
+    Will use road paths if moving from city to city '''
+    def __init__(self, initial_location, target_location, entity, travel_verb='travel'):
+        ActionBase.__init__(self)
+        self.behavior = 'move'
+        self.initial_location = initial_location
+        self.target_location = target_location
+        self.entity = entity
+
+        self.travel_verb = travel_verb
+
+        self.preconditions = [AmAvailableToAct(self.entity)]
+
+        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0}
+
+        if g.WORLD: # This would otherwise stop this module running as __main__, leaving this in for testing purposes
+            target_site = g.WORLD.tiles[self.target_location[0]][self.target_location[1]].site
+            current_site = g.WORLD.tiles[self.entity.wx][self.entity.wy].site
+
+            if target_site in g.WORLD.cities and current_site in g.WORLD.cities:
+                full_path = current_site.path_to[target_site][:]
+            else:
+                # Default - use libtcod's A* to create a path to destination
+                path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.x, dy=self.y)
+                full_path = libtcod_path_to_list(path_map=g.WORLD.path_map)
+
+            # Add path to brain
+            self.entity.world_brain.path = full_path
+            # Update the cost of this behavior
+            self.costs['time'] += len(full_path)
+            self.costs['distance'] += len(full_path)
+
+        else:
+            # Stuff to give this movement a random cost
+            cost = roll(1, 10)
+            self.costs['distance'] = cost
+            self.costs['time'] = cost
+
+
+    def get_name(self):
+        goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
+        return goal_name
+
+    def is_completed(self):
+        return (self.entity.wx, self.entity.wy) == self.target_location
+
+    def take_behavior_action(self):
+        self.entity.w_move_along_path(path=self.entity.world_brain.path)
+
+
+
+class UnloadGoodsBehavior(ActionBase):
+    def __init__(self, target_city, entity):
+        self.behavior = 'unload goods'
+        self.target_city = target_city
+        self.entity = entity
+
+        self.preconditions = [AmAvailableToAct(self.entity)]
+
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
+
+    def get_name(self):
+        goal_name = 'Unload goods in {0}'.format(self.target_city.name)
+        return goal_name
+
+    def is_completed(self):
+        return self.entity in self.target_city.caravans
+
+    def get_behavior_location(self, current_location):
+        return self.target_city.x, self.target_city.y
+
+    def take_behavior_action(self):
+        if self.entity not in self.target_city.caravans:
+            self.target_city.receive_caravan(self.entity)
+        else:
+            g.game.add_message('{0} tried to unload caravan goods and was already in {1}.caravans'.format(self.entity.fulltitle(), self.target_city.name), libtcod.red)
+
+
+# class WaitBehavior:
+#     ''' Used anytime a figure wants to wait somewhere and do some activity '''
+#     def __init__(self, figure, location, num_days, travel_verb, activity_verb):
+#         self.goal = None # will be set when added to a Goal
+#         self.figure = figure
+#         self.location= location
+#         self.num_days = num_days
+#         self.num_days_left = num_days
+#         self.travel_verb = travel_verb
+#         self.activity_verb = activity_verb
+#
+#         self.is_active = 0
+#
+#     def get_name(self):
+#         if (self.figure.wx, self.figure.wy) != self.location:
+#             goal_name = '{0} to {1} to {2} for {3} days'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.activity_verb, self.num_days)
+#         else:
+#             goal_name = '{0} in {1} for {2} days'.format(self.activity_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.num_days)
+#
+#         return goal_name
+#
+#     def initialize_behavior(self):
+#         # If we're not in the location, travel there
+#         if (self.figure.wx, self.figure.wy) != self.location:
+#             self.goal.behavior_list.insert(0, MovLocBehavior(location=self.location, figure=self.figure, travel_verb=self.travel_verb))
+#             self.goal.behavior_list[0].initialize_behavior()
+#
+#             #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
+#
+#             event = hist.TravelStart(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
+#                                      to_location=self.location, figures=self.figure.creature.commanded_figures + [self.figure], populations=self.figure.creature.commanded_populations)
+#             g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
+#         else:
+#             self.is_active = 1
+#
+#     def is_completed(self):
+#         ''' Add event when we reach destination'''
+#         if self.num_days_left == 0:
+#             event = hist.TravelEnd(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
+#                                    figures=self.figure.creature.commanded_figures  + [self.figure], populations=self.figure.creature.commanded_populations)
+#             g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
+#             return 1
+#
+#         else:
+#             return 0
+#
+#     def take_behavior_action(self):
+#         self.num_days_left -= 1
+
+
+class KillTargBehavior:
+    ''' Behavior for moving to something that's not a city (a historical figure, perhaps)'''
+    def __init__(self, target, figure):
+        self.target = target
+        # The object
+        self.figure = figure
+
+        self.is_active = 0
+        self.has_attempted_kill = 0
+
+    def initialize_behavior(self):
+        self.is_active= 1
+
+    def get_name(self):
+        goal_name = 'Kill {0}'.format(self.target.fulltitle())
+        return goal_name
+
+    def is_completed(self):
+        # return self.target.creature.status == 'dead'
+        return self.has_attempted_kill
+
+    def take_behavior_action(self):
+
+        battle = combat.WorldBattle(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
+                                    faction1_named=[self.figure], faction1_populations=[], faction2_named=[self.target], faction2_populations=[])
+        g.game.add_message(battle.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
+
+        self.has_attempted_kill = 1
+
+        #if roll(0, 1):
+        #    self.target.creature.die()
+
+#
+# class CaptureTargBehavior:
+#     ''' Behavior for capturing a target '''
+#     def __init__(self, target, figure):
+#         self.target = target
+#         # The object
+#         self.figure = figure
+#
+#         self.is_active = 0
+#
+#     def initialize_behavior(self):
+#         self.is_active= 1
+#
+#     def is_completed(self):
+#         return self.target in self.figure.creature.captives
+#
+#     def take_behavior_action(self):
+#         pass
+#
+#
+# class ImprisonTargBehavior:
+#     ''' Behavior for moving a captive from an ary into a building '''
+#     def __init__(self, target, figure, building):
+#         self.target = target
+#         # The object
+#         self.figure = figure
+#         self.building = building
+#
+#         self.is_active = 0
+#
+#     def initialize_behavior(self):
+#         self.is_active= 1
+#
+#     def is_completed(self):
+#         if self.target in self.building.captives:
+#             g.game.add_message('WOOT', libtcod.dark_chartreuse)
+#
+#         return self.target in self.building.captives
+#
+#     def take_behavior_action(self):
+#         pass
+#         #self.figure.creature.army.transfer_captive_to_building(figure=self.target, target_building=self.building)
+
+
+
+
+
+
+
+
+
+
+
+
 def get_movement_behavior_subtree_old(action_path, new_behavior):
 
     loc1 = new_behavior.get_behavior_location()
@@ -320,7 +472,7 @@ def find_actions_leading_to_goal_old(goal_state, action_path, all_possible_paths
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
 
-    for behavior_option in goal_state.set_behaviors_to_accomplish():
+    for behavior_option in goal_state.behaviors_to_accomplish:
         ## CHECK IF MOVEMENT IS NEEDED
         movement_behavior_subtree = get_movement_behavior_subtree(action_path=action_path, new_behavior=behavior_option)
         unmet_conditions = behavior_option.get_unmet_conditions()
@@ -358,7 +510,7 @@ def find_actions_leading_to_goal(goal_state, action_path, all_possible_paths):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
     #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
 
-    for behavior_option in goal_state.set_behaviors_to_accomplish():
+    for behavior_option in goal_state.behaviors_to_accomplish:
         unmet_conditions = behavior_option.get_unmet_conditions()
         current_action_path = [behavior_option] + action_path # Copy of the new behavior + action_path
 
@@ -466,6 +618,7 @@ def get_costed_behavior_paths(goal_state, entity):
 
 if __name__ == '__main__':
     from it import BasicWorldBrain
+    g.init()
     # No traits
     test_entity_normal = TestEntity()
     # Honest trait
@@ -475,12 +628,18 @@ if __name__ == '__main__':
     test_entity_amoral = TestEntity()
     test_entity_amoral.creature.traits['dishonest'] = 2
 
+    begin = time()
     best_path = test_entity_normal.world_brain.set_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_normal), reason='because')
+    print 'done in {0}'.format(time() - begin)
     #print [b.behavior for b in best_path]
 
     print ''
 
+    begin = time()
     best_path = test_entity_amoral.world_brain.set_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_amoral), reason='because')
+    print 'done in {0}'.format(time() - begin)
+
+    best_path = test_entity_moral.world_brain.set_goal(goal_state=GoodsAreUnloaded(target_city='debug', goods='lol', entity=test_entity_moral), reason='because')
     #print [b.behavior for b in best_path]
 #
 # path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_normal), action_path=[], all_possible_paths=[])
