@@ -2473,7 +2473,8 @@ class City(Site):
             caravan_leader.world_brain.next_tick = g.WORLD.time_cycle.next_day()
             # Tell the ai where to go
             #caravan_leader.world_brain.set_destination(origin=self, destination=destination)
-            caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
+            # caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
+            caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreUnloaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
 
         self.departing_merchants = []
 
@@ -6755,8 +6756,9 @@ class BasicWorldBrain:
         self.destination = None
         self.path = None
         self.next_tick = 0
-        self.goals = []
+        #self.goals = []
 
+        self.current_goal_path = []
 
     def find_cheapest_behavior_path(self, behavior_paths_costed):
 
@@ -6790,102 +6792,112 @@ class BasicWorldBrain:
 
         best_path, best_cost, all_costs = self.find_cheapest_behavior_path(behavior_paths_costed=behavior_paths_costed)
 
-        for path, cost in all_costs:
-            print [b.behavior for b in path], cost
+        #for path, cost in all_costs:
+        #    print [b.behavior for b in path], cost
+
+        # Add to current goal list
+        self.current_goal_path = best_path
 
         return best_path
 
-    def add_goal(self, priority, goal_type, reason, **kwargs):
-        ' Terribly written general handler for any goal type \
-        messy implementation with **kwargs for now...'
+    # def add_goal(self, priority, goal_type, reason, **kwargs):
+    #     ' Terribly written general handler for any goal type \
+    #     messy implementation with **kwargs for now...'
+    #
+    #     # To be phased out at some point
+    #     if goal_type == 'wait':
+    #         # Name the location
+    #         behavior_list = []
+    #         #target = kwargs['target']
+    #         #location = g.WORLD.tiles[target[0]][target[1]].get_location_description()
+    #         #if (self.owner.wx, self.owner.wy) != target or len(self.goals): # Problematic that this is calculated when the goal is added rather than when fired.
+    #         #    goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
+    #         #    behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
+    #         #else:
+    #         #    goal_name = '{0} at {1} for {2} days'.format(kwargs['activity_verb'], location, kwargs['num_days'])
+    #         #wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity_verb'])
+    #         wait = WaitBehavior(figure=self.owner, location=kwargs['location'], num_days=kwargs['num_days'], travel_verb=kwargs['travel_verb'], activity_verb=kwargs['activity_verb'])
+    #         behavior_list.append(wait)
+    #
+    #     elif goal_type == 'travel':
+    #         #goal_name = 'travel to {0}'.format(g.WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
+    #         goto_site = MovLocBehavior(location=kwargs['location'], figure=self.owner, travel_verb='travel')
+    #         behavior_list = [goto_site]
+    #     # also phased out
+    #     elif goal_type == 'travel to person':
+    #         target_figure = kwargs['target']
+    #         #goal_name = 'travel to ' + target_figure.fulltitle()
+    #         goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
+    #         behavior_list = [goto_target]
+    #
+    #     elif goal_type == 'kill person':
+    #         target_figure = kwargs['target']
+    #         #goal_name = 'kill ' + target_figure.fulltitle()
+    #         goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
+    #         kill_target = KillTargBehavior(target=target_figure, figure=self.owner)
+    #
+    #         behavior_list = [goto_target, kill_target]
+    #
+    #     elif goal_type == 'capture person':
+    #         target_figure = kwargs['target']
+    #         target_prison_bldg = kwargs['target_prison_bldg']
+    #         target_prison_site = target_prison_bldg.site
+    #         #goal_name = 'capture ' + target_figure.fulltitle()
+    #         goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
+    #         capture_target = CaptureTargBehavior(target=target_figure, figure=self.owner)
+    #         #for after capture
+    #         goto_target_location = MovLocBehavior(location=(target_prison_site.x, target_prison_site.y), figure=self.owner)
+    #         imprison_target = ImprisonTargBehavior(target=target_figure, figure=self.owner, building=target_prison_bldg)
+    #
+    #         behavior_list = [goto_target, capture_target, goto_target_location, imprison_target]
+    #
+    #     elif goal_type == 'move_trade_goods_to_city':
+    #         target_city = kwargs['target_city']
+    #         #goal_name = 'move goods to to {0}'.format(target_city.name)
+    #         goto_site = MovLocBehavior(location=(target_city.x, target_city.y), figure=self.owner)
+    #         unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
+    #         behavior_list = [goto_site, unload_goods]
+    #
+    #     elif goal_type == 'bandit_wander':
+    #
+    #         behavior_list = [WanderBehavior(figure=self.owner)]
+    #
+    #     ## Tell the world what you're doing
+    #     #if goal_type != 'move_trade_goods_to_city':
+    #     #    g.game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .5))
+    #
+    #     # Add the goal to the list. Automatically add a goal to return home after the goal is complete
+    #     if len(self.goals) >= 2 and self.goals[-1].reason == 'I like to be home when I can.':
+    #         self.goals.insert(-1, Goal(behavior_list=behavior_list, priority=priority, reason=reason))
+    #     else:
+    #         self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason=reason))
+    #
+    #     # Auto return home
+    #     if self.goals[-1].reason != 'I like to be home when I can.' and self.owner.creature.current_citizenship:
+    #         home_city = self.owner.creature.current_citizenship
+    #         return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return home')
+    #         behavior_list = [return_from_site]
+    #
+    #         self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
+    #
+    # def handle_goal_behavior(self):
+    #     ''' Key function which takes each goal a step at a time
+    #     and performs the behavior one by one '''
+    #     current_goal = self.goals[0]
+    #     current_goal.take_goal_action()
+    #
+    #     if current_goal.is_completed():
+    #         self.goals.remove(current_goal)
+    #
+    #         #if len(self.goals) == 0:
+    #         #    g.WORLD.travelers.remove(self.owner)
 
-        # To be phased out at some point
-        if goal_type == 'wait':
-            # Name the location
-            behavior_list = []
-            #target = kwargs['target']
-            #location = g.WORLD.tiles[target[0]][target[1]].get_location_description()
-            #if (self.owner.wx, self.owner.wy) != target or len(self.goals): # Problematic that this is calculated when the goal is added rather than when fired.
-            #    goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
-            #    behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
-            #else:
-            #    goal_name = '{0} at {1} for {2} days'.format(kwargs['activity_verb'], location, kwargs['num_days'])
-            #wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity_verb'])
-            wait = WaitBehavior(figure=self.owner, location=kwargs['location'], num_days=kwargs['num_days'], travel_verb=kwargs['travel_verb'], activity_verb=kwargs['activity_verb'])
-            behavior_list.append(wait)
-
-        elif goal_type == 'travel':
-            #goal_name = 'travel to {0}'.format(g.WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
-            goto_site = MovLocBehavior(location=kwargs['location'], figure=self.owner, travel_verb='travel')
-            behavior_list = [goto_site]
-        # also phased out
-        elif goal_type == 'travel to person':
-            target_figure = kwargs['target']
-            #goal_name = 'travel to ' + target_figure.fulltitle()
-            goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
-            behavior_list = [goto_target]
-
-        elif goal_type == 'kill person':
-            target_figure = kwargs['target']
-            #goal_name = 'kill ' + target_figure.fulltitle()
-            goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
-            kill_target = KillTargBehavior(target=target_figure, figure=self.owner)
-
-            behavior_list = [goto_target, kill_target]
-
-        elif goal_type == 'capture person':
-            target_figure = kwargs['target']
-            target_prison_bldg = kwargs['target_prison_bldg']
-            target_prison_site = target_prison_bldg.site
-            #goal_name = 'capture ' + target_figure.fulltitle()
-            goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
-            capture_target = CaptureTargBehavior(target=target_figure, figure=self.owner)
-            #for after capture
-            goto_target_location = MovLocBehavior(location=(target_prison_site.x, target_prison_site.y), figure=self.owner)
-            imprison_target = ImprisonTargBehavior(target=target_figure, figure=self.owner, building=target_prison_bldg)
-
-            behavior_list = [goto_target, capture_target, goto_target_location, imprison_target]
-
-        elif goal_type == 'move_trade_goods_to_city':
-            target_city = kwargs['target_city']
-            #goal_name = 'move goods to to {0}'.format(target_city.name)
-            goto_site = MovLocBehavior(location=(target_city.x, target_city.y), figure=self.owner)
-            unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
-            behavior_list = [goto_site, unload_goods]
-
-        elif goal_type == 'bandit_wander':
-
-            behavior_list = [WanderBehavior(figure=self.owner)]
-
-        ## Tell the world what you're doing
-        #if goal_type != 'move_trade_goods_to_city':
-        #    g.game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .5))
-
-        # Add the goal to the list. Automatically add a goal to return home after the goal is complete
-        if len(self.goals) >= 2 and self.goals[-1].reason == 'I like to be home when I can.':
-            self.goals.insert(-1, Goal(behavior_list=behavior_list, priority=priority, reason=reason))
-        else:
-            self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason=reason))
-
-        # Auto return home
-        if self.goals[-1].reason != 'I like to be home when I can.' and self.owner.creature.current_citizenship:
-            home_city = self.owner.creature.current_citizenship
-            return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return home')
-            behavior_list = [return_from_site]
-
-            self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
-
-    def handle_goal_behavior(self):
-        ''' Key function which takes each goal a step at a time
-        and performs the behavior one by one '''
-        current_goal = self.goals[0]
-        current_goal.take_goal_action()
+    def take_goal_behavior(self):
+        current_goal = self.current_goal_path[0]
+        current_goal.take_behavior_action()
 
         if current_goal.is_completed():
-            self.goals.remove(current_goal)
-
-            #if len(self.goals) == 0:
-            #    g.WORLD.travelers.remove(self.owner)
+            self.current_goal_path.remove(current_goal)
 
 
     def monthly_life_check(self):
@@ -6905,74 +6917,74 @@ class BasicWorldBrain:
                     creature.have_child()
 
             ####### Specal case - bards #######
-            if self.owner.creature.profession and self.owner.creature.profession.name == 'Bard':
-                target_city = random.choice([city for city in g.WORLD.cities if (city.x, city.y) != (self.owner.wx, self.owner.wy)])
-                reason = 'travel from city to city to make my living!'
-                # print '{0} is moving to {1}'.format(self.owner.fullname(), target_city.name)
-                # creature.change_citizenship(new_city=target_city, new_house=None)
-                self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
-
-            ####### GOALS #######
-            elif not creature.economy_agent \
-                    and self.owner.creature.sex == 1 \
-                    and age >= 18 \
-                    and not creature.is_commander() \
-                    and not creature.is_captive() \
-                    and roll(1, 50) == 1:
-
-                moving = self.check_for_move_city()
-
-                if not moving:
-                    moving = self.check_for_adventure()
-
-                if not moving:
-                    self.check_for_liesure_travel()
-
-        ## Lesser intelligent creatures
-        elif self.owner.creature.intelligence_level == 2:
-
-            # Start by making sure we have shelter
-            # if not self.owner.creature.house:
-            #     nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
-            #     dist = 10000
-            #     target = None
-            #     for chunk in nearby_chunks:
-            #         for shelter in chunk.caves:
-            #             if self.owner.w_distance(shelter.x, shelter.y) < dist:
-            #                 dist = self.owner.w_distance(shelter.x, shelter.y)
-            #                 target = shelter
-            #
-            #     if target:
-            #         self.add_goal(priority=1, goal_type='travel', reason='I need shelter', location=(target.x, target.y), travel_verb='travel')
-            #
-            #         # TODO - need to update house with a building in the site
-
-            if roll(1, 100) < 5:
-
-                #self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
-
-                nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
-
-                dist = 10000
-                target = None
-                for chunk in nearby_chunks:
-                    for entity in chunk.entities:
-                        if entity != self.owner and self.owner.w_distance_to(entity) < dist:
-                            dist = self.owner.w_distance_to(entity)
-                            target = entity
-
-                if target:
-                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(target.wx, target.wy), travel_verb='travel', activity_verb='pillage', num_days=2)
-                    self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
-
-                '''
-                city = g.WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
-                if city:
-                    self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
-
-                    self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
-                    #self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
-                '''
+        #     if self.owner.creature.profession and self.owner.creature.profession.name == 'Bard':
+        #         target_city = random.choice([city for city in g.WORLD.cities if (city.x, city.y) != (self.owner.wx, self.owner.wy)])
+        #         reason = 'travel from city to city to make my living!'
+        #         # print '{0} is moving to {1}'.format(self.owner.fullname(), target_city.name)
+        #         # creature.change_citizenship(new_city=target_city, new_house=None)
+        #         self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
+        #
+        #     ####### GOALS #######
+        #     elif not creature.economy_agent \
+        #             and self.owner.creature.sex == 1 \
+        #             and age >= 18 \
+        #             and not creature.is_commander() \
+        #             and not creature.is_captive() \
+        #             and roll(1, 50) == 1:
+        #
+        #         moving = self.check_for_move_city()
+        #
+        #         if not moving:
+        #             moving = self.check_for_adventure()
+        #
+        #         if not moving:
+        #             self.check_for_liesure_travel()
+        #
+        # ## Lesser intelligent creatures
+        # elif self.owner.creature.intelligence_level == 2:
+        #
+        #     # Start by making sure we have shelter
+        #     # if not self.owner.creature.house:
+        #     #     nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
+        #     #     dist = 10000
+        #     #     target = None
+        #     #     for chunk in nearby_chunks:
+        #     #         for shelter in chunk.caves:
+        #     #             if self.owner.w_distance(shelter.x, shelter.y) < dist:
+        #     #                 dist = self.owner.w_distance(shelter.x, shelter.y)
+        #     #                 target = shelter
+        #     #
+        #     #     if target:
+        #     #         self.add_goal(priority=1, goal_type='travel', reason='I need shelter', location=(target.x, target.y), travel_verb='travel')
+        #     #
+        #     #         # TODO - need to update house with a building in the site
+        #
+        #     if roll(1, 100) < 5:
+        #
+        #         #self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
+        #
+        #         nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
+        #
+        #         dist = 10000
+        #         target = None
+        #         for chunk in nearby_chunks:
+        #             for entity in chunk.entities:
+        #                 if entity != self.owner and self.owner.w_distance_to(entity) < dist:
+        #                     dist = self.owner.w_distance_to(entity)
+        #                     target = entity
+        #
+        #         if target:
+        #             self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(target.wx, target.wy), travel_verb='travel', activity_verb='pillage', num_days=2)
+        #             self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
+        #
+        #         '''
+        #         city = g.WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
+        #         if city:
+        #             self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
+        #
+        #             self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
+        #             #self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
+        #         '''
 
     def pick_spouse(self):
         # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
@@ -7011,72 +7023,72 @@ class BasicWorldBrain:
                 #g.game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.creature.current_citizenship.name, creature.current_citizenship.name ), libtcod.dark_red)
                 spouse.creature.change_citizenship(new_city=self.owner.creature.current_citizenship, new_house=self.owner.creature.house)
             # Make sure the spouse meets them
-            if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
-                spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
+            # if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
+            #     spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
 
             return spouse
 
     def check_for_adventure(self):
         do_adventure = 0
-        targets = [e for e in g.WORLD.all_figures if e.creature.type_ in g.WORLD.brutish_races ]
-        if roll(1, 10) == 1 and targets != []:
-            target = random.choice(targets)
-
-            self.add_goal(priority=1, goal_type='kill person', reason='I lust for blood', target=target)
-            g.game.add_message(new_msg="{0} is going on mission to kill {1} at {2}, {3}".format(self.owner.fullname(), target.fullname(), target.wx, target.wy), color=libtcod.red)
-            do_adventure = 1
-
-        elif targets == []:
-            g.game.add_message('{0} checked for adventure but found no targets'.format(self.owner.fullname()))
+        # targets = [e for e in g.WORLD.all_figures if e.creature.type_ in g.WORLD.brutish_races ]
+        # if roll(1, 10) == 1 and targets != []:
+        #     target = random.choice(targets)
+        #
+        #     self.add_goal(priority=1, goal_type='kill person', reason='I lust for blood', target=target)
+        #     g.game.add_message(new_msg="{0} is going on mission to kill {1} at {2}, {3}".format(self.owner.fullname(), target.fullname(), target.wx, target.wy), color=libtcod.red)
+        #     do_adventure = 1
+        #
+        # elif targets == []:
+        #     g.game.add_message('{0} checked for adventure but found no targets'.format(self.owner.fullname()))
 
         return do_adventure
 
 
     def check_for_move_city(self):
-        creature = self.owner.creature
-        if creature.profession is None and roll(1, 1000) >= 950:
-            target_city = random.choice([city for city in g.WORLD.cities if city != creature.current_citizenship])
-            reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
-
-            creature.change_citizenship(new_city=target_city, new_house=None)
-            self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
-            # Return whether the goal was fired or not
-            return 1
+        # creature = self.owner.creature
+        # if creature.profession is None and roll(1, 1000) >= 950:
+        #     target_city = random.choice([city for city in g.WORLD.cities if city != creature.current_citizenship])
+        #     reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
+        #
+        #     creature.change_citizenship(new_city=target_city, new_house=None)
+        #     self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
+        #     # Return whether the goal was fired or not
+        #     return 1
         return 0
 
 
     def check_for_liesure_travel(self):
-        creature = self.owner.creature
-        if (creature.profession is None or creature.profession == 'Adventurer') and roll(1, 1000) >= 500:
-
-            # More interesting alternative - visiting a holy site
-            if roll(0, 1) and len(creature.culture.pantheon.holy_sites):
-                holy_site = random.choice(creature.culture.pantheon.holy_sites)
-                target_x, target_y = holy_site.x, holy_site.y
-                travel_verb = 'go on a pilgrimmage to'
-                activity = 'meditate'
-                reason = 'wanted to visit this holy site.'
-            # Otherwise, pick a random spot to travel to
-            else:
-                found_spot = False
-                while not found_spot:
-                    xdist = roll(5, 15) * random.choice((-1, 1))
-                    ydist = roll(5, 15) * random.choice((-1, 1))
-                    # If we can path there, it's OK
-                    if g.WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
-                        found_spot = True
-                # Pick a reason
-                travel_verb = 'travel'
-                activity = random.choice(('explore', 'hunt'))
-                reasons = {'explore':['wanted to explore', 'wanted to see more of the world'],
-                           'hunt':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world', 'love the thrill of the chase']}
-                reason = random.choice(reasons[activity])
-                target_x, target_y = (self.owner.wx + xdist, self.owner.wy + ydist)
-
-            num_days = roll(3, 8)
-            #self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
-            self.add_goal(priority=1, goal_type='wait', reason=reason, location=(target_x, target_y), num_days=num_days, activity_verb=activity, travel_verb=travel_verb)
-            return 1
+        # creature = self.owner.creature
+        # if (creature.profession is None or creature.profession == 'Adventurer') and roll(1, 1000) >= 500:
+        #
+        #     # More interesting alternative - visiting a holy site
+        #     if roll(0, 1) and len(creature.culture.pantheon.holy_sites):
+        #         holy_site = random.choice(creature.culture.pantheon.holy_sites)
+        #         target_x, target_y = holy_site.x, holy_site.y
+        #         travel_verb = 'go on a pilgrimmage to'
+        #         activity = 'meditate'
+        #         reason = 'wanted to visit this holy site.'
+        #     # Otherwise, pick a random spot to travel to
+        #     else:
+        #         found_spot = False
+        #         while not found_spot:
+        #             xdist = roll(5, 15) * random.choice((-1, 1))
+        #             ydist = roll(5, 15) * random.choice((-1, 1))
+        #             # If we can path there, it's OK
+        #             if g.WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
+        #                 found_spot = True
+        #         # Pick a reason
+        #         travel_verb = 'travel'
+        #         activity = random.choice(('explore', 'hunt'))
+        #         reasons = {'explore':['wanted to explore', 'wanted to see more of the world'],
+        #                    'hunt':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world', 'love the thrill of the chase']}
+        #         reason = random.choice(reasons[activity])
+        #         target_x, target_y = (self.owner.wx + xdist, self.owner.wy + ydist)
+        #
+        #     num_days = roll(3, 8)
+        #     #self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
+        #     self.add_goal(priority=1, goal_type='wait', reason=reason, location=(target_x, target_y), num_days=num_days, activity_verb=activity, travel_verb=travel_verb)
+        #     return 1
 
         return 0
 
@@ -7090,8 +7102,10 @@ class BasicWorldBrain:
         if self.owner.creature.is_available_to_act():
 
             ## Here will be the check for immediate threats and / or re-evaluation of goals
-            if self.goals:
-                self.handle_goal_behavior()
+            # if self.goals:
+            #     self.handle_goal_behavior()
+            if self.current_goal_path:
+                self.take_goal_behavior()
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:

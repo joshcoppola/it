@@ -294,6 +294,7 @@ class MoveToLocation(ActionBase):
 
 class UnloadGoodsBehavior(ActionBase):
     def __init__(self, target_city, entity):
+        ActionBase.__init__(self)
         self.behavior = 'unload goods'
         self.target_city = target_city
         self.entity = entity
@@ -443,54 +444,6 @@ class KillTargBehavior:
 #     def take_behavior_action(self):
 #         pass
 #         #self.figure.creature.army.transfer_captive_to_building(figure=self.target, target_building=self.building)
-
-
-
-
-
-
-
-
-
-
-
-
-def get_movement_behavior_subtree_old(action_path, new_behavior):
-
-    loc1 = new_behavior.get_behavior_location()
-    loc2 = action_path[0].get_behavior_location() if action_path else None
-
-    if loc1 and loc2 and loc1 != loc2 and new_behavior.behavior != 'move':
-        movement_behavior_subtree = find_actions_leading_to_goal(goal_state=AtLocation(initial_location=loc1, target_location=loc2, entity=action_path[0].entity), action_path=[], all_possible_paths=[])
-    else:
-        movement_behavior_subtree = [[]]
-
-    return movement_behavior_subtree
-
-
-def find_actions_leading_to_goal_old(goal_state, action_path, all_possible_paths):
-    ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal '''
-    #print ' --- ', r_level, goal_state.status, [a.behavior for a in action_list], ' --- '
-
-    for behavior_option in goal_state.behaviors_to_accomplish:
-        ## CHECK IF MOVEMENT IS NEEDED
-        movement_behavior_subtree = get_movement_behavior_subtree(action_path=action_path, new_behavior=behavior_option)
-        unmet_conditions = behavior_option.get_unmet_conditions()
-
-        for subtree in movement_behavior_subtree:
-            current_action_path = [behavior_option] + subtree + action_path # Copy of the new behavior + action_path
-
-            # If there are conditions that need to be met, then we find the actions that can be taken to complete each of them
-            for condition in unmet_conditions:
-                find_actions_leading_to_goal(goal_state=condition, action_path=current_action_path, all_possible_paths=all_possible_paths)
-
-            # If all conditions are met, then this behavior can be accomplished, so it gets added to the list
-            if not unmet_conditions and behavior_option != 'move':
-                movement_behavior_subtree = get_movement_behavior_subtree(action_path=action_path, new_behavior=behavior_option)
-                for new_subtree in movement_behavior_subtree:
-                    all_possible_paths.append(new_subtree + current_action_path)
-
-    return all_possible_paths
 
 
 
