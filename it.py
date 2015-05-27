@@ -2467,6 +2467,8 @@ class City(Site):
             # Remove from city's list of caravans
             if caravan_leader in self.caravans:
                 self.caravans.remove(caravan_leader)
+            if caravan_leader in destination.caravans:
+                destination.caravans.remove(caravan_leader)
             # Add back to civ, world, and region armies
             #g.WORLD.travelers.append(caravan_leader)
             # g.WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
@@ -2474,7 +2476,10 @@ class City(Site):
             # Tell the ai where to go
             #caravan_leader.world_brain.set_destination(origin=self, destination=destination)
             # caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
-            caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreUnloaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
+            if destination.econ == caravan_leader.creature.economy_agent.sell_economy:
+                caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreUnloaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
+            elif destination.econ == caravan_leader.creature.economy_agent.buy_economy:
+                caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreLoaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
 
         self.departing_merchants = []
 

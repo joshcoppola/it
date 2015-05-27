@@ -66,6 +66,18 @@ class GoodsAreUnloaded:
     def is_completed(self):
             return self.entity in self.target_city.caravans
 
+class GoodsAreLoaded:
+    def __init__(self, target_city, goods, entity):
+        self.target_city = target_city
+        self.goods = goods
+        self.entity = entity
+
+        self.behaviors_to_accomplish = [LoadGoodsBehavior(target_city=target_city, entity=entity)]
+
+    def is_completed(self):
+            return self.entity in self.target_city.caravans
+
+
 
 
 class HaveItem:
@@ -319,6 +331,33 @@ class UnloadGoodsBehavior(ActionBase):
         else:
             g.game.add_message('{0} tried to unload caravan goods and was already in {1}.caravans'.format(self.entity.fulltitle(), self.target_city.name), libtcod.red)
 
+
+class LoadGoodsBehavior(ActionBase):
+    def __init__(self, target_city, entity):
+        ActionBase.__init__(self)
+        self.behavior = 'load goods'
+        self.target_city = target_city
+        self.entity = entity
+
+        self.preconditions = [AmAvailableToAct(self.entity)]
+
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
+
+    def get_name(self):
+        goal_name = 'Load goods in {0}'.format(self.target_city.name)
+        return goal_name
+
+    def is_completed(self):
+        return self.entity in self.target_city.caravans
+
+    def get_behavior_location(self, current_location):
+        return self.target_city.x, self.target_city.y
+
+    def take_behavior_action(self):
+        if self.entity not in self.target_city.caravans:
+            self.target_city.receive_caravan(self.entity)
+        else:
+            g.game.add_message('{0} tried to pick up caravan goods and was already in {1} caravans'.format(self.entity.fulltitle(), self.target_city.name), libtcod.red)
 
 # class WaitBehavior:
 #     ''' Used anytime a figure wants to wait somewhere and do some activity '''
