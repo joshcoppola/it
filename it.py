@@ -2449,10 +2449,10 @@ class City(Site):
 
         ## Now add the caravan to a list
         #caravan_goods = Counter(merchant.buy_inventory)
-        sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':20}}}
-        g.WORLD.create_population(char='M', name=self.name + ' caravan', faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=self.x, wy=self.y, commander=human)
+        sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':roll(10, 20)}}}
+        g.WORLD.create_population(char='M', name='{0} caravan'.format(self.name), faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=location.x, wy=location.y, commander=human)
 
-        self.caravans.append(human)
+        #location.caravans.append(human)
 
     def dispatch_caravans(self):
         market = self.get_building('Market')
@@ -2467,15 +2467,9 @@ class City(Site):
             # Remove from city's list of caravans
             if caravan_leader in self.caravans:
                 self.caravans.remove(caravan_leader)
-            if caravan_leader in destination.caravans:
-                destination.caravans.remove(caravan_leader)
-            # Add back to civ, world, and region armies
-            #g.WORLD.travelers.append(caravan_leader)
-            # g.WORLD.tiles[self.x][self.y].entities.append(caravan_leader)
-            caravan_leader.world_brain.next_tick = g.WORLD.time_cycle.next_day()
+
+            # caravan_leader.world_brain.next_tick = g.WORLD.time_cycle.next_day()
             # Tell the ai where to go
-            #caravan_leader.world_brain.set_destination(origin=self, destination=destination)
-            # caravan_leader.world_brain.add_goal(priority=1, goal_type='move_trade_goods_to_city', reason='I need to make a living you know', target_city=destination)
             if destination.econ == caravan_leader.creature.economy_agent.sell_economy:
                 caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreUnloaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
             elif destination.econ == caravan_leader.creature.economy_agent.buy_economy:
