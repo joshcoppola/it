@@ -2991,7 +2991,6 @@ class Faction:
         # Controls whether we're hostile by default (e.g. bandit gangs)
         self.defaultly_hostile = defaultly_hostile
 
-        self.faction_leader = None
         self.headquarters = None
 
         g.WORLD.factions.append(self)
@@ -3064,11 +3063,8 @@ class Faction:
         self.members.remove(figure)
 
     def set_leader(self, leader):
-        if self.leader:
-            self.leader.creature.unset_as_faction_leader(self)
         # Now install new leader
         self.leader = leader
-        self.leader.creature.set_as_faction_leader(self)
         # Keep track of when leader became leader
         self.leader_change_year = g.WORLD.time_cycle.current_year
 
@@ -5263,8 +5259,6 @@ class Creature:
         self.captives = []
 
         self.faction = None
-        # Sort of ugly, but a creature needs to know if they are a faction leader
-        self.is_faction_leader = 0
 
         #self.army = None
         self.commander = None
@@ -5687,12 +5681,6 @@ class Creature:
     #def remove_enemy_faction(self, faction):
     #    self.enemy_factions.remove(faction)
 
-    def set_as_faction_leader(self, faction):
-        self.is_faction_leader = faction
-
-    def unset_as_faction_leader(self, faction):
-        self.is_faction_leader = None
-
 
     def is_commander(self):
         return len(self.commanded_figures) or len(self.commanded_populations)
@@ -6112,8 +6100,8 @@ class Creature:
 
 
             # The faction lead passes on, if we lead a faction
-            if self.is_faction_leader:
-                self.is_faction_leader.standard_succession()
+            if self.faction and figure == self.faction.leader:
+                self.faction.standard_succession()
             # Only check profession if we didn't have a title, so profession associated with title doesn't get weird
             elif self.profession:
                 # Find who will take over all our stuff
