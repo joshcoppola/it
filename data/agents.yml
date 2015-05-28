@@ -65,20 +65,59 @@ producers:
         consumed: [woods]
         essential: []
         preferred: [clothing]
+
+    copper weapons:
+        name: Copper Weaponsmith
+        finished_good: copper weapons
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    bronze weapons:
+        name: Bronze Weaponsmith
+        finished_good: bronze weapons
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    iron weapons:
+        name: Iron Weaponsmith
+        finished_good: iron tools
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+
+    copper armor:
+        name: Copper Armorer
+        finished_good: copper armor
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    bronze armor:
+        name: Bronze Weaponsmith
+        finished_good: bronze armor
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+    iron armor:
+        name: Iron Armorer
+        finished_good: iron armor
+        consumed: [woods]
+        essential: []
+        preferred: [clothing]
+
     #silt pottery: name: Silt Potter finished_good: silt pottery consumed: [], essential: [], preferred: [clothing] },
-    clay pottery: 
+    clay pottery:
         name: Clay Potter
         finished_good: clay pottery
         consumed: []
         essential: []
         preferred: [clothing]
-    wood furniture: 
+    wood furniture:
         name: Wood Carpenter
         finished_good: wood furniture
         consumed: []
         essential: [tools]
         preferred: [clothing, pottery]
-    flax clothing: 
+    flax clothing:
         name: Flax Clothier
         finished_good: flax clothing
         consumed: []

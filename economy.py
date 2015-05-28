@@ -49,19 +49,19 @@ def setup_resources():
     global STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN, AGENT_INFO
 
     CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':8, 'clays':4, 'ores':8, 'woods':10}
-    CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8}
+    CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8, 'armor':2, 'weapons':2}
 
     RESOURCES = []
     GOODS = []
     ##
-    RESOURCE_TYPES = {}
-    STRATEGIC_TYPES = {}
+    RESOURCE_TYPES = defaultdict(list)
+    STRATEGIC_TYPES = defaultdict(list)
     ##
-    COMMODITY_TYPES = {}
+    COMMODITY_TYPES = defaultdict(list)
     COMMODITY_TOKENS = {}
     ##
-    GOOD_TYPES = {}
-    GOODS_BY_RESOURCE_TOKEN = {}
+    GOOD_TYPES = defaultdict(list)
+    GOODS_BY_RESOURCE_TOKEN = defaultdict(list)
 
     # Load the yaml file containing resource info
     with open(os.path.join(YAML_DIRECTORY, 'resources.yml')) as r:
@@ -80,34 +80,22 @@ def setup_resources():
             finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['input_units'], out_amt=resource_info[rname]['reactions'][reaction_type]['output_units'])
             GOODS.append(finished_good)
 
-
     ## Key = category, value = list of resources
     for resource in RESOURCES:
         COMMODITY_TOKENS[resource.name] = resource
 
-        if not resource.category in RESOURCE_TYPES: RESOURCE_TYPES[resource.category] = [resource]
-        else:                                  		RESOURCE_TYPES[resource.category].append(resource)
-
-        if not resource.category in COMMODITY_TYPES: COMMODITY_TYPES[resource.category] = [resource]
-        else:												COMMODITY_TYPES[resource.category].append(resource)
+        RESOURCE_TYPES[resource.category].append(resource)
+        COMMODITY_TYPES[resource.category].append(resource)
 
         if resource.resource_class == 'strategic':
-            if not resource.resource_class in STRATEGIC_TYPES: STRATEGIC_TYPES[resource.category] = [resource]
-            else:													  STRATEGIC_TYPES[resource.category].append(resource)
-
+            STRATEGIC_TYPES[resource.category].append(resource)
 
     ## Key = category, value = list of resources
     for good in GOODS:
         COMMODITY_TOKENS[good.name] = good
-
-        if not good.category in GOOD_TYPES: GOOD_TYPES[good.category] = [good]
-        else:                          		GOOD_TYPES[good.category].append(good)
-
-        if not good.category in COMMODITY_TYPES: COMMODITY_TYPES[good.category] = [good]
-        else:											COMMODITY_TYPES[good.category].append(good)
-
-        if not good.category in GOODS_BY_RESOURCE_TOKEN: GOODS_BY_RESOURCE_TOKEN[good.material.name] = [good]
-        else:													GOODS_BY_RESOURCE_TOKEN[good.material.name].append(good)
+        GOOD_TYPES[good.category].append(good)
+        COMMODITY_TYPES[good.category].append(good)
+        GOODS_BY_RESOURCE_TOKEN[good.material.name].append(good)
 
 
 def economy_test_run():
@@ -879,7 +867,7 @@ class Merchant(object):
         self.sells = 0
 
         self.gold = 10000
-        self.INVENTORY_SIZE = 40
+        self.inventory_size = 20
         self.buy_inventory = defaultdict(int)
         self.buy_inventory['food'] += 2
         self.buy_inventory[traded_item] += 2
@@ -1027,7 +1015,7 @@ class Merchant(object):
         if bid_price > self.gold:
             bid_price = self.gold
 
-        if token_to_bid == self.traded_item: quantity = self.INVENTORY_SIZE - (sum(self.buy_inventory.values()) + 1)
+        if token_to_bid == self.traded_item: quantity = self.inventory_size - (sum(self.buy_inventory.values()) + 1)
         else: 								 quantity = roll(1, 2)
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         #print self.name, 'bidding for', quantity, token_to_bid
@@ -1403,7 +1391,7 @@ class Economy:
             merchant.last_turn = []
             #if merchant.current_location == self:
             if merchant.gold < 0:
-                all_agents_of_this_type_in_this_economy = [a for a in merchant.buy_economy.buy_merchants if a.name == self.name]
+                all_agents_of_this_type_in_this_economy = [a for a in merchant.buy_economy.buy_merchants if a.name == merchant.name]
                 if len(all_agents_of_this_type_in_this_economy) > 1:
                     merchant.bankrupt()
                 else:

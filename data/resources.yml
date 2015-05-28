@@ -8,6 +8,12 @@ copper:
         tools:
             input_units: 1
             output_units: 2
+        weapons:
+            input_units: 1
+            output_units: 1
+        armor:
+            input_units: 1
+            output_units: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -31,6 +37,12 @@ bronze:
         tools:
             input_units: 1
             output_units: 2
+        weapons:
+            input_units: 1
+            output_units: 1
+        armor:
+            input_units: 1
+            output_units: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -52,6 +64,12 @@ iron:
     break_chance: 75
     reactions:
         tools:
+            input_units: 1
+            output_units: 1
+        weapons:
+            input_units: 1
+            output_units: 1
+        armor:
             input_units: 1
             output_units: 1
     app_amount: 2000

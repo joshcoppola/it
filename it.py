@@ -2375,6 +2375,7 @@ class City(Site):
                     ## Add merchants to the other city, who sell stuff in this city
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
+
                     ## Add extra resource gatherers in the other city
                     city.econ.add_resource_gatherer(item)
                     city.econ.add_resource_gatherer(item)
@@ -2385,23 +2386,22 @@ class City(Site):
                     good_tokens_this_resource_can_produce = economy.list_goods_from_strategic([item])
                     for good in good_tokens_this_resource_can_produce:
                         self.econ.add_good_producer(good)
-                        self.econ.add_good_producer(good)
+                        # self.econ.add_good_producer(good)
 
                         # Other city too!
                         city.econ.add_good_producer(good)
-                        city.econ.add_good_producer(good)
-                        city.econ.add_good_producer(good)
-                        city.econ.add_good_producer(good)
+                        # city.econ.add_good_producer(good)
+                        # city.econ.add_good_producer(good)
+                        # city.econ.add_good_producer(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
-                    if item in economy.GOODS_BY_RESOURCE_TOKEN:
-                        for good_class in economy.GOODS_BY_RESOURCE_TOKEN[item]:
-                            city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                            city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                            #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                            #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                            self.add_import(city, good_class.name)
-                            city.add_export(self, good_class.name)
+                    for good_class in economy.GOODS_BY_RESOURCE_TOKEN[item]:
+                        city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                        # city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                        #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                        #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                        self.add_import(city, good_class.name)
+                        city.add_export(self, good_class.name)
 
 
     def build_road_to(self, x, y, color=libtcod.darkest_sepia):
