@@ -2482,9 +2482,10 @@ class City(Site):
 
         # Unload the goods
         if self.econ == caravan_leader.creature.economy_agent.sell_economy:
-            for i in xrange(caravan_leader.creature.economy_agent.travel_inventory.count(caravan_leader.creature.economy_agent.traded_item)):
-                caravan_leader.creature.economy_agent.travel_inventory.remove(caravan_leader.creature.economy_agent.traded_item)
-                caravan_leader.creature.economy_agent.sell_inventory.append(caravan_leader.creature.economy_agent.traded_item)
+            amount_to_unload = caravan_leader.creature.economy_agent.travel_inventory[caravan_leader.creature.economy_agent.traded_item]
+
+            caravan_leader.creature.economy_agent.travel_inventory[caravan_leader.creature.economy_agent.traded_item] -= amount_to_unload
+            caravan_leader.creature.economy_agent.sell_inventory[caravan_leader.creature.economy_agent.traded_item] += amount_to_unload
 
         # Add workers to the market
         for figure in caravan_leader.creature.commanded_figures + [caravan_leader]:

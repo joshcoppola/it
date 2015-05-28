@@ -4,6 +4,7 @@ import random
 #import pstats
 import os
 import yaml
+from collections import defaultdict
 
 try:
     import matplotlib.pyplot as plt
@@ -217,7 +218,7 @@ class Agent(object):
             self.future_bids[token] = [bid_price, bid_quantity]
 
         # Straight from food bidding code, except subtract one because we'll be consuming it next turn
-        if self.need_food and self.inventory.count('food') < FOOD_BID_THRESHHOLD - 1:
+        if self.need_food and self.inventory['food'] < FOOD_BID_THRESHHOLD - 1:
             token = random.choice(self.economy.available_types['foods'])
             bid_price, bid_quantity = self.eval_bid(token)
 
@@ -244,14 +245,14 @@ class Agent(object):
 
     def change_sell_quant(self, item_to_change, amt):
         ''' Change quantity of a future sell offer '''
-        self.future_sells[item_to_change][1] = min( max(self.future_sells[item_to_change][1] + amt, 1), self.inventory.count(item_to_change) )
+        self.future_sells[item_to_change][1] = min( max(self.future_sells[item_to_change][1] + amt, 1), self.inventory[item_to_change] )
     ###########################################
 
     def take_bought_item(self, item):
-        self.inventory.append(item)
+        self.inventory[item] += 1
 
     def remove_sold_item(self, item):
-        self.inventory.remove(item)
+        self.inventory[item] -= 1
 
     def pay_taxes(self):
         # Pay taxes. If the economy has an owner, pay the taxes to that treasury
@@ -278,7 +279,7 @@ class Agent(object):
     def has_token(self, type_of_item):
         # Test whether or not we have a token of an item
         for token_of_item in COMMODITY_TYPES[type_of_item]:
-            if token_of_item.name in self.inventory:
+            if self.inventory[token_of_item.name]:
                 return True
         return False
 
@@ -319,7 +320,7 @@ class Agent(object):
         sell_price = max(roll(est_price - uncertainty, est_price + uncertainty), min_sale_price)
 
         #self.last_turn.append('Prod: ' + str(production_cost) + '; min: ' + str(min_sale_price))
-        quantity_to_sell = self.inventory.count(sell_item)
+        quantity_to_sell = self.inventory[sell_item]
         #print self.name, 'selling', quantity_to_sell, sell_item
 
         return sell_price, quantity_to_sell
@@ -399,10 +400,12 @@ class ResourceGatherer(Agent):
         self.attached_to = None
 
         self.gold = 1000
-        self.inventory = ['food', 'iron tools']
+        self.inventory = defaultdict(int)
+        self.inventory['food'] += 1
+        self.inventory['iron tools'] += 1
+        self.inventory[resource] == gather_amount
+
         self.inventory_size = 20
-        for i in xrange(gather_amount):
-            self.inventory.append(resource)
 
         self.sell_item = self.resource
         self.prod_adj_amt = self.gather_amount
@@ -419,13 +422,13 @@ class ResourceGatherer(Agent):
             for token_of_item in COMMODITY_TYPES['foods']:
                 self.perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
             for i in xrange(roll(0, 1)):
-                self.inventory.append(token_of_item.name)
+                self.inventory[token_of_item.name] += 1
         ##################################################################################
 
     def take_turn(self):
         self.last_turn = []
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
-        if self.gold <= 0 and :
+        if self.gold <= 0 :
             self.economy.resource_gatherers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -454,8 +457,8 @@ class ResourceGatherer(Agent):
 
         else:
             for token_of_item in self.economy.available_types['foods']:
-                if token_of_item in self.inventory:
-                    self.inventory.remove(token_of_item)
+                if self.inventory[token_of_item]:
+                    self.inventory[token_of_item] -= 1
                     self.turns_since_food = 0
                     break
             # We didn't have anything in inventory...
@@ -496,7 +499,7 @@ class ResourceGatherer(Agent):
 
 
             ## Bid on food if we have less than a certain stockpile
-            if self.need_food and self.inventory.count('food') < FOOD_BID_THRESHHOLD:
+            if self.need_food and self.inventory['food'] < FOOD_BID_THRESHHOLD:
                 token_to_bid = random.choice(self.economy.available_types['foods'])
                 bid_price, bid_quantity = self.eval_bid(token_to_bid)
                 self.place_bid(token_to_bid=token_to_bid, bid_price=bid_price, bid_quantity=bid_quantity)
@@ -528,13 +531,13 @@ class ResourceGatherer(Agent):
 
     def gather_resources(self, required_items=True):
         # Gather resources, consume items, and account for breaking stuff
-        amount = max(self.inventory_size - len(self.inventory), 0)
+        amount = max(self.inventory_size - sum(self.inventory.values()), 0)
         consume_and_update = False
 
         if amount > 0 and required_items:
             # Add the resource to our own inventory. The government takes half our production for now
             for i in xrange(min(int(self.gather_amount/2), amount)):
-                self.inventory.append(self.resource)
+                self.inventory[self.resource] += 1
             ## Add it to the warehouse, and track how much we have contributed to it this turn
             if self.economy.owner:
                 self.economy.owner.warehouses[self.resource].add(self.resource, int(self.gather_amount/2))
@@ -544,7 +547,7 @@ class ResourceGatherer(Agent):
             consume_and_update = True
 
         elif amount > 0 and not required_items:
-            self.inventory.append(self.resource)
+            self.inventory[self.resource] += 1
             self.last_turn.append('Only gathered 1 ' + str(self.resource) + ' due to not having required items')
             consume_and_update = True
 
@@ -552,14 +555,14 @@ class ResourceGatherer(Agent):
             # Consume any consumables (food is seperate), and then check for other things breaking
             for type_of_item in self.consumed:
                 for token_of_item in self.economy.available_types[type_of_item]:
-                    if token_of_item in self.inventory:
-                        self.inventory.remove(token_of_item)
+                    if self.inventory[token_of_item]:
+                        self.inventory[token_of_item] -= 1
                         break
 
             for type_of_item in self.preferred + self.essential:
                 for token_of_item in self.economy.available_types[type_of_item]:
-                    if token_of_item in self.inventory and roll(1, 1000) <= COMMODITY_TOKENS[token_of_item].break_chance:
-                        self.inventory.remove(token_of_item)
+                    if self.inventory[token_of_item] and roll(1, 1000) <= COMMODITY_TOKENS[token_of_item].break_chance:
+                        self.inventory[token_of_item] -= 1
                         break
         #else:
         #	print self.name, '- inventory too large to gather resources:', self.inventory
@@ -575,18 +578,18 @@ class ResourceGatherer(Agent):
         # These items are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
         for type_of_item in self.essential + self.preferred:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if token_of_item in self.inventory:
+                if self.inventory[token_of_item]:
                     production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
 
         for type_of_item in self.consumed:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if token_of_item in self.inventory:
+                if self.inventory[token_of_item]:
                     production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
 
         for token_of_item in self.economy.available_types['foods']:
-            if token_of_item in self.inventory:
+            if self.inventory[token_of_item]:
                 production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                 break
         # Take into account the taxes we pay
@@ -638,7 +641,11 @@ class GoodProducer(Agent):
         self.attached_to = None
 
         self.gold = 1000
-        self.inventory = ['food', 'food', 'food', self.input, self.input, finished_good.name, finished_good.name]
+        self.inventory = defaultdict(int)
+        self.inventory['food'] += 3
+        self.inventory[self.input] += 2
+        self.inventory[finished_good.name] += 2
+
         self.inventory_size = 20
 
         self.perceived_values = {finished_good.name:Value(START_VAL, START_UNCERT), self.input:Value(START_VAL, START_UNCERT)}
@@ -648,8 +655,7 @@ class GoodProducer(Agent):
             for token_of_item in COMMODITY_TYPES['foods']:
                 self.perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
 
-            for i in xrange(1):
-                self.inventory.append(token_of_item.name)
+            self.inventory[token_of_item.name] += 1
 
     #########################################################
 
@@ -681,7 +687,7 @@ class GoodProducer(Agent):
     def consume_food(self):
         '''Eat and bid on foods'''
         for token_of_item in self.economy.available_types['foods']:
-            if token_of_item in self.inventory:
+            if self.inventory[token_of_item]:
                 '''
                 ## Only consume food every ~5 turns
                 if roll(1, 5) == 1:
@@ -693,7 +699,7 @@ class GoodProducer(Agent):
                     break
                 '''
                 # Replace above code: these guys eat every round now
-                self.inventory.remove(token_of_item)
+                self.inventory[token_of_item] -= 1
                 self.turns_since_food = 0
                 break
 
@@ -718,11 +724,11 @@ class GoodProducer(Agent):
     def check_production_ability(self):
         # Check whether we have the right input item, and the other necessary items
         has_required_input = False
-        if self.inventory.count(self.input) >= self.in_amt:
+        if self.inventory[self.input] >= self.in_amt:
             has_required_input = True
 
         critical_items, other_items = self.check_for_needed_items()
-        if critical_items == [] and has_required_input and (self.inventory_size - len(self.inventory) > 0):
+        if critical_items == [] and has_required_input and (self.inventory_size - sum(self.inventory.values()) > 0):
             self.produce_items()
         #elif not (self.inventory_size - len(self.inventory) > 0):
             #print '{0} stopped producing goods due to too much inventory'.format(self.name)
@@ -740,7 +746,7 @@ class GoodProducer(Agent):
 
 
             ## Bid on food if we have less than a certain stockpile
-            if self.need_food and self.inventory.count('food') < FOOD_BID_THRESHHOLD:
+            if self.need_food and self.inventory['food'] < FOOD_BID_THRESHHOLD:
                 token_to_bid = random.choice(self.economy.available_types['foods'])
                 bid_price, bid_quantity = self.eval_bid(token_to_bid)
                 self.place_bid(token_to_bid=token_to_bid, bid_price=bid_price, bid_quantity=bid_quantity)
@@ -768,29 +774,27 @@ class GoodProducer(Agent):
                 tokens_to_bid.append(token_of_item)
 
 
-        if self.inventory.count(self.input) <= self.in_amt*2:
+        if self.inventory[self.input] <= self.in_amt*2:
             tokens_to_bid.append(self.input)
 
         return tokens_to_bid
 
     def produce_items(self):
         # Gather resources, consume items, and account for breaking stuff
-        for i in xrange(self.in_amt):
-            self.inventory.remove(self.input)
+        self.inventory[self.input] -= self.in_amt
 
-        for i in xrange(self.out_amt):
-            self.inventory.append(self.output)
+        self.inventory[self.output] += self.out_amt
 
         for type_of_item in self.consumed:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if token_of_item in self.inventory:
-                    self.inventory.remove(token_of_item)
+                if self.inventory[token_of_item]:
+                    self.inventory[token_of_item] -= 1
                     break
 
         for type_of_item in self.essential + self.preferred:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if token_of_item in self.inventory and roll(1, 1000) <= COMMODITY_TOKENS[token_of_item].break_chance:
-                    self.inventory.remove(token_of_item)
+                if self.inventory[token_of_item] and roll(1, 1000) <= COMMODITY_TOKENS[token_of_item].break_chance:
+                    self.inventory[token_of_item] -= 1
                     break
 
         self.last_turn.append('Produced ' + str(self.out_amt) + ' ' + self.output)
@@ -810,18 +814,18 @@ class GoodProducer(Agent):
         # Find the item's cost * (break chance/1000) to find avg cost
         for type_of_item in self.essential + self.preferred:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if token_of_item in self.inventory:
+                if self.inventory[token_of_item]:
                     production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
 
         for type_of_item in self.consumed:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if token_of_item in self.inventory:
+                if self.inventory[token_of_item]:
                     production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
 
         for token_of_item in self.economy.available_types['foods']:
-            if token_of_item in self.inventory:
+            if self.inventory[token_of_item]:
                 production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                 break
 
@@ -861,9 +865,16 @@ class Merchant(object):
 
         self.gold = 10000
         self.INVENTORY_SIZE = 40
-        self.buy_inventory = ['food', 'food', traded_item, traded_item]
-        self.sell_inventory = [traded_item, traded_item, traded_item, traded_item, traded_item, traded_item]
-        self.travel_inventory = [traded_item]
+        self.buy_inventory = defaultdict(int)
+        self.buy_inventory['food'] += 2
+        self.buy_inventory[traded_item] += 2
+
+        self.sell_inventory = defaultdict(int)
+        self.sell_inventory[traded_item] += 6
+
+
+        self.travel_inventory = defaultdict(int)
+        self.travel_inventory[traded_item] += 1
 
         self.last_turn = []
 
@@ -912,19 +923,19 @@ class Merchant(object):
             self.attached_to.creature.net_money += amount
 
     def take_bought_item(self, item):
-        self.buy_inventory.append(item)
+        self.buy_inventory[item] += 1
 
     def remove_sold_item(self, item):
-        self.sell_inventory.remove(item)
+        self.sell_inventory[item] -= 1
 
     def consume_food(self):
         '''Eat and bid on foods'''
         for token_of_item in self.buy_economy.available_types['foods']:
-            if token_of_item in self.buy_inventory:
+            if self.buy_inventory[token_of_item]:
                 ## Only consume food every ~5 turns
                 self.turns_since_food = 0
                 if roll(1, 5) == 1:
-                    self.buy_inventory.remove(token_of_item)
+                    self.buy_inventory[token_of_item] -= 1
                 break
 
         else:
@@ -935,7 +946,7 @@ class Merchant(object):
                 self.starve()
 
         ## Bid on food if we have less than a certain stockpile
-        if self.buy_inventory.count('food') < FOOD_BID_THRESHHOLD:
+        if self.buy_inventory['food'] < FOOD_BID_THRESHHOLD:
             self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['foods']))
 
     def starve(self):
@@ -954,12 +965,12 @@ class Merchant(object):
         destination = None
         ## if it's part of the game, add to a list of departing merchants so they can create a caravan
         if self.time_here >= 2 and self.current_location.owner:
-            if self.current_location == self.buy_economy and self.buy_inventory.count(self.traded_item) >= 2:
+            if self.current_location == self.buy_economy and self.buy_inventory[self.traded_item] >= 2:
                 destination = self.sell_economy.owner
 
-                for i in xrange(self.buy_inventory.count(self.traded_item)):
-                    self.buy_inventory.remove(self.traded_item)
-                    self.travel_inventory.append(self.traded_item)
+                for i in xrange(self.buy_inventory[self.traded_item]):
+                    self.buy_inventory[self.traded_item] -= 1
+                    self.travel_inventory[self.traded_item] += 1
 
             elif self.current_location == self.sell_economy:
                 destination = self.buy_economy.owner
@@ -984,7 +995,7 @@ class Merchant(object):
     def has_token(self, type_of_item):
         # Test whether or not we have a token of an item
         for token_of_item in COMMODITY_TYPES[type_of_item]:
-            if token_of_item.name in self.buy_inventory:
+            if self.buy_inventory[token_of_item.name]:
                 return True
         return False
 
@@ -1001,7 +1012,7 @@ class Merchant(object):
         if bid_price > self.gold:
             bid_price = self.gold
 
-        if token_to_bid == self.traded_item: quantity = self.INVENTORY_SIZE - (len(self.buy_inventory) + 1)
+        if token_to_bid == self.traded_item: quantity = self.INVENTORY_SIZE - (sum(self.buy_inventory.values()) + 1)
         else: 								 quantity = roll(1, 2)
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         #print self.name, 'bidding for', quantity, token_to_bid
@@ -1021,7 +1032,7 @@ class Merchant(object):
         # won't go below what they paid for it
         sell_price = max(roll(est_price - uncertainty, est_price + uncertainty), min_sale_price)
 
-        quantity_to_sell = self.sell_inventory.count(sell_item)
+        quantity_to_sell = self.sell_inventory[sell_item]
         #print self.name, 'selling', quantity_to_sell, sell_item
         if quantity_to_sell > 0:
             #print self.name, 'selling', quantity_to_sell, sell_item, 'for', sell_price, 'at', self.current_location.owner.name
@@ -1082,7 +1093,7 @@ class Merchant(object):
 
     def eval_need(self):
         # bid for food if we have < 5 units:
-        if self.buy_inventory.count('food') <= 5:
+        if self.buy_inventory['food'] <= 5:
             self.place_bid(economy=self.buy_economy, token_to_bid='food')
 
         critical_items, other_items = self.check_for_needed_items()
@@ -1111,7 +1122,7 @@ class Merchant(object):
         # These items are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
         for type_of_item in self.consumed + self.essential + self.preferred:
             for token_of_item in COMMODITY_TYPES[type_of_item]:
-                if token_of_item in self.buy_inventory:
+                if self.buy_inventory[token_of_item]:
                     production_cost += int(round(self.buy_economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
         # Take into account the taxes we pay
@@ -1172,7 +1183,7 @@ class AuctionHouse:
     def update_mean_price(self):
         # update the mean price for this commodity by averaging over the last HIST_WINDOW_SIZE items
         recent_prices = filter(lambda price: price is not None, self.price_history[-HIST_WINDOW_SIZE:])
-        if len(recent_prices) > 0:
+        if recent_prices:
             self.mean_price = int(round(sum(recent_prices)/len(recent_prices)))
 
     def get_last_valid_price(self):
