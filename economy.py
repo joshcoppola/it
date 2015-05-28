@@ -375,8 +375,9 @@ class Agent(object):
 
 
 class ResourceGatherer(Agent):
-    def __init__(self, name, economy, resource, gather_amount, consumed, essential, preferred):
+    def __init__(self, name, id_, economy, resource, gather_amount, consumed, essential, preferred):
         self.name = name
+        self.id_ = id_
         self.economy = economy
         self.resource = resource
         self.gather_amount = gather_amount
@@ -428,7 +429,9 @@ class ResourceGatherer(Agent):
     def take_turn(self):
         self.last_turn = []
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
-        if self.gold <= 0 :
+        all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
+
+        if self.gold <= 0 and len(all_agents_of_this_type_in_this_economy) > 1:
             self.economy.resource_gatherers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -441,6 +444,10 @@ class ResourceGatherer(Agent):
             else:
                 self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
             return None
+
+        elif self.gold <= 0 and len(all_agents_of_this_type_in_this_economy) == 1:
+            # Government bailout
+            self.gold += 500
 
         self.consume_food()
         self.check_production_ability() # <- will gather resources
@@ -609,8 +616,9 @@ class ResourceGatherer(Agent):
 
 
 class GoodProducer(Agent):
-    def __init__(self, name, economy, finished_good, consumed, essential, preferred):
+    def __init__(self, name, id_, economy, finished_good, consumed, essential, preferred):
         self.name = name
+        self.id_ = id_
         self.economy = economy
         self.finished_good = finished_good
         self.consumed = consumed
@@ -662,7 +670,9 @@ class GoodProducer(Agent):
     def take_turn(self):
         self.last_turn = []
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
-        if self.gold < 0:
+        all_agents_of_this_type_in_this_economy = [a for a in self.economy.good_producers if a.name == self.name]
+
+        if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
             self.economy.good_producers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -675,6 +685,10 @@ class GoodProducer(Agent):
             else:
                 self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
             return
+
+        elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
+            # Government bailout
+            self.gold += 500
 
         self.consume_food()
         self.check_production_ability() # <- will gather resources
@@ -830,7 +844,7 @@ class GoodProducer(Agent):
                 break
 
         # Take into account the taxes we pay
-        production_cost += (self.economy.local_taxes)
+        production_cost += self.economy.local_taxes
 
         return production_cost
 
@@ -841,13 +855,14 @@ class GoodProducer(Agent):
             min_sale_price = int(round((production_cost/self.in_amt)*PROFIT_MARGIN))
 
             #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
-            self.perceived_values[type_of_item].center = self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
+            self.perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
             self.perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
 
 
 class Merchant(object):
-    def __init__(self, name, buy_economy, sell_economy, traded_item, consumed, essential, preferred, attached_to=None):
+    def __init__(self, name, id_, buy_economy, sell_economy, traded_item, consumed, essential, preferred, attached_to=None):
         self.name = name
+        self.id_ = id_
         self.buy_economy = buy_economy
         self.sell_economy = sell_economy
         self.traded_item = traded_item
@@ -1017,10 +1032,10 @@ class Merchant(object):
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         #print self.name, 'bidding for', quantity, token_to_bid
         if quantity > 0:
-            self.last_turn.append('Bid on ' + str(quantity) + ' ' + token_to_bid + ' for ' + str(bid_price))
+            self.last_turn.append('Bid on {0} {1} for {2}'.format(quantity, token_to_bid, bid_price))
             economy.auctions[token_to_bid].bids.append(Offer(owner=self, commodity=token_to_bid, price=bid_price, quantity=quantity))
         else:
-            self.last_turn.append('Tried to bid on ' + token_to_bid + ' but quantity not > 0')
+            self.last_turn.append('Tried to bid on {0} but quantity not > 0'.format(token_to_bid))
 
     def create_sell(self, economy, sell_item):
         # Determines how many items to sell, and at what cost
@@ -1036,10 +1051,10 @@ class Merchant(object):
         #print self.name, 'selling', quantity_to_sell, sell_item
         if quantity_to_sell > 0:
             #print self.name, 'selling', quantity_to_sell, sell_item, 'for', sell_price, 'at', self.current_location.owner.name
-            self.last_turn.append('Offered to sell ' + str(quantity_to_sell) + ' ' + sell_item + ' for ' + str(sell_price))
+            self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity_to_sell, sell_item, sell_price))
             economy.auctions[sell_item].sells.append( Offer(owner=self, commodity=sell_item, price=sell_price, quantity=quantity_to_sell) )
         else:
-            self.last_turn.append('Tried to sell ' + sell_item + ' but inventory was empty')
+            self.last_turn.append('Tried to sell {0} but inventory was empty'.format(sell_item))
 
     def eval_trade_accepted(self, economy, type_of_item, price):
         # Then, adjust our belief in the price
@@ -1126,7 +1141,7 @@ class Merchant(object):
                     production_cost += int(round(self.buy_economy.auctions[token_of_item].mean_price * (COMMODITY_TOKENS[token_of_item].break_chance/1000)))
                     break
         # Take into account the taxes we pay
-        production_cost += (self.buy_economy.local_taxes)
+        production_cost += self.buy_economy.local_taxes
         return production_cost
 
 
@@ -1137,10 +1152,10 @@ class Merchant(object):
             min_sale_price = int(round(production_cost*PROFIT_MARGIN))
             if economy == self.buy_economy:
                 #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
-                self.buy_perceived_values[type_of_item].center = self.buy_perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
+                self.buy_perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
                 self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
             elif economy == self.sell_economy:
-                self.sell_perceived_values[type_of_item].center = self.sell_perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
+                self.sell_perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
                 self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
 
 
@@ -1273,8 +1288,7 @@ class Economy:
 
     def add_resource_gatherer(self, resource):
         info = AGENT_INFO['gatherers'][resource]
-        name = '{0} {1}'.format(info['name'], self.agent_num)
-        gatherer = ResourceGatherer(name=name, economy=self, resource=resource, gather_amount=COMMODITY_TOKENS[resource].gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+        gatherer = ResourceGatherer(name=info['name'], id_=self.agent_num, economy=self, resource=resource, gather_amount=COMMODITY_TOKENS[resource].gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
         self.resource_gatherers.append(gatherer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(resource)
@@ -1283,8 +1297,7 @@ class Economy:
 
     def add_good_producer(self, good):
         info = AGENT_INFO['producers'][good]
-        name = '{0} {1}'.format(info['name'], self.agent_num)
-        producer = GoodProducer(name=name, economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+        producer = GoodProducer(name=info['name'], id_=self.agent_num, economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
         self.good_producers.append(producer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(good)
@@ -1293,8 +1306,8 @@ class Economy:
 
     def add_merchant(self, sell_economy, traded_item, attached_to=None):
         info = AGENT_INFO['merchants']['merchant']
-        name = '{0} merchant {1}'.format(traded_item, self.agent_num)
-        merchant = Merchant(name=name, buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
+        name = '{0} merchant'.format(traded_item)
+        merchant = Merchant(name=name, id_=self.agent_num, buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
 
         self.buy_merchants.append(merchant)
         sell_economy.sell_merchants.append(merchant)
@@ -1390,7 +1403,12 @@ class Economy:
             merchant.last_turn = []
             #if merchant.current_location == self:
             if merchant.gold < 0:
-                merchant.bankrupt()
+                all_agents_of_this_type_in_this_economy = [a for a in merchant.buy_economy.buy_merchants if a.name == self.name]
+                if len(all_agents_of_this_type_in_this_economy) > 1:
+                    merchant.bankrupt()
+                else:
+                    # Government bailout
+                    merchant.gold += 1500
                 break
             merchant.consume_food()
             merchant.eval_need()
