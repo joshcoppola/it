@@ -201,6 +201,13 @@ class FinishedGood(object):
 
 
 class Agent(object):
+
+
+    def adjust_gold(self, amount):
+        self.gold += amount
+        if self.attached_to:
+            self.attached_to.creature.net_money += amount
+
     def player_auto_manage(self):
         tokens_to_bid = self.eval_need()
 
@@ -418,7 +425,7 @@ class ResourceGatherer(Agent):
     def take_turn(self):
         self.last_turn = []
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
-        if self.gold <= 0:
+        if self.gold <= 0 and :
             self.economy.resource_gatherers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -899,6 +906,10 @@ class Merchant(object):
         self.attached_to = figure
         self.attached_to.creature.economy_agent = self
 
+    def adjust_gold(self, amount):
+        self.gold += amount
+        if self.attached_to:
+            self.attached_to.creature.net_money += amount
 
     def take_bought_item(self, item):
         self.buy_inventory.append(item)
@@ -1445,8 +1456,8 @@ class Economy:
                             buyer.owner.take_bought_item(buyer.commodity)
                             seller.owner.remove_sold_item(seller.commodity)
 
-                        buyer.owner.gold -= (price*quantity)
-                        seller.owner.gold += (price*quantity)
+                        buyer.owner.adjust_gold(-price*quantity)
+                        seller.owner.adjust_gold(price*quantity)
 
                         buyer.owner.buys += quantity
                         buyer.owner.last_turn.append('Bought {0} {1} from {2} at {3}'.format(quantity, commodity, seller.owner.name, price))

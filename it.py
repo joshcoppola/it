@@ -5266,6 +5266,7 @@ class Creature:
         self.commanded_figures = []
 
         self.economy_agent = None
+        self.net_money = 0
 
         self.hometown = None # Where we originally were from
         self.current_citizenship = None # The city where our house is currently located
