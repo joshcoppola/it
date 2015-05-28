@@ -395,7 +395,7 @@ class ResourceGatherer(Agent):
 
         self.gold = RESOURCE_GATHERER_STARTING_GOLD
         self.inventory = defaultdict(int)
-        self.inventory['food'] += self.represented_population_number
+        self.inventory['food'] += (self.represented_population_number * roll(1, 3))
         self.inventory['iron tools'] += self.represented_population_number
         self.inventory[resource] += gather_amount
 
@@ -643,7 +643,7 @@ class GoodProducer(Agent):
 
         self.gold = GOOD_PRODUCER_STARTING_GOLD
         self.inventory = defaultdict(int)
-        self.inventory['food'] += 3 * self.represented_population_number
+        self.inventory['food'] += self.represented_population_number * roll(1, 4)
         self.inventory[self.input] += 2 * self.represented_population_number
         self.inventory[finished_good.name] += 2 * self.represented_population_number
 
