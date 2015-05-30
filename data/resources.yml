@@ -181,7 +181,7 @@ flax:
 food:
     category: foods
     resource_class: strategic
-    gather_amount: 8
+    gather_amount: 6
     break_chance: 1
     reactions: {}
     
