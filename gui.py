@@ -1,11 +1,10 @@
-
 from __future__ import division
 from collections import Counter
 
 import libtcodpy as libtcod
 import config as g
 import gen_languages as lang
-from helpers import join_list, looped_increment
+from helpers import join_list, looped_increment, trim
 from traits import *
 
 
@@ -692,13 +691,17 @@ def show_civs(world):
             libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .7)
             libtcod.console_print(0, 4, y, 'Agent name')
             libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, g.PANEL_FRONT, .7))
-            libtcod.console_print(0, 32, y, 'Gold')
-            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
-            libtcod.console_print_ex(0, 42, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Buys')
-            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, g.PANEL_FRONT, .7))
-            libtcod.console_print(0, 46, y, 'Sells')
+            libtcod.console_print(0, 30, y, 'Gold')
+
+            libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.light_yellow, g.PANEL_FRONT, .7))
+            libtcod.console_print(0, 40, y, 'g/i')
+
+            #libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
+            #libtcod.console_print_ex(0, 40, y, libtcod.BKGND_NONE, libtcod.RIGHT, 'Buys')
+            #libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, g.PANEL_FRONT, .7))
+            #libtcod.console_print(0, 46, y, 'Sells')
             libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, .7))
-            libtcod.console_print(0, 50, y, 'Alive')
+            libtcod.console_print(0, 52, y, 'Alive')
 
             libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
@@ -713,13 +716,13 @@ def show_civs(world):
 
 
                 if agent in merchants and agent.current_location == city:
-                    agent_name = agent.name + ' (here)'
+                    agent_name = '{0} {1} (here)'.format(agent.name, agent.id_)
                 elif agent in merchants and agent.current_location is not None:
-                    agent_name = agent.name + ' (' + agent.current_location.owner.name + ')'
+                    agent_name = '{0} {1} ({2})'.format(agent.name, agent.id_, agent.current_location.owner.name)
                 elif agent in merchants and agent.current_location is None:
-                    agent_name = agent.name + ' (traveling)'
+                    agent_name = '{0} {1} (traveling)'.format(agent.name, agent.id_)
                 else:
-                    agent_name = agent.name
+                    agent_name = '{0} {1}'.format(agent.name, agent.id_)
 
                 if agent.attached_to == g.player:
                     agent_name += ' (you)'
@@ -743,13 +746,17 @@ def show_civs(world):
                 libtcod.console_set_default_foreground(0, acolor)
                 libtcod.console_print(0, 4, y, agent_name[:26])
                 libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.yellow, g.PANEL_FRONT, .7))
-                libtcod.console_print(0, 32, y, str(agent.gold))
-                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
-                libtcod.console_print(0, 42, y, str(agent.buys))
-                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, g.PANEL_FRONT, .7))
-                libtcod.console_print(0, 46, y, str(agent.sells))
+                libtcod.console_print(0, 30, y, str(agent.gold))
+
+                libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.light_yellow, g.PANEL_FRONT, .7))
+                libtcod.console_print(0, 40, y, '{0:.2f}'.format(agent.gold / agent.represented_population_number))
+
+                #libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
+                #libtcod.console_print(0, 40, y, str(agent.buys))
+                #libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.cyan, g.PANEL_FRONT, .7))
+                #libtcod.console_print(0, 46, y, str(agent.sells))
                 libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, .7))
-                libtcod.console_print(0, 50, y, str(agent.turns_alive))
+                libtcod.console_print(0, 52, y, str(agent.turns_alive))
 
             # Set color back
             libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
@@ -806,22 +813,49 @@ def show_civs(world):
                     libtcod.console_print(0, 108, y, str(auction.iterations))
                     y += 1
 
+
+            # Prepare agent counts for a summary table
+            agents_condensed = [a.name for a in city.econ.resource_gatherers + city.econ.good_producers]
+            for m in city.econ.sell_merchants:
+                agents_condensed.append('{0} (sell)'.format(m.name))
+            for m in city.econ.buy_merchants:
+                agents_condensed.append('{0} (buy)'.format(m.name))
+
+            agent_counts = Counter(agents_condensed)
+            agent_counts_sorted = [(k, v) for k, v in agent_counts.iteritems()]
+            agent_counts_sorted.sort(key=lambda x: x[1], reverse=True)
+
+
+            secotion_2_y = y + 3
+            y = secotion_2_y
+
+            libtcod.console_print(0, 60, y - 1, '-* {0} agents *-'.format(len(agents_condensed)))
+
+
+            for agent_name, num in agent_counts_sorted:
+                y += 1
+                if y < g.SCREEN_HEIGHT - 5:
+                    libtcod.console_print(0, 60, y, '{0} {1}'.format(num, trim(agent_name, 26)))
+
+
+
             ### Good info ###
-            y += 3
-            libtcod.console_print(0, 60, y - 1, '-* Imports *-')
+            y = secotion_2_y
+
+            libtcod.console_print(0, 90, y - 1, '-* Imports *-')
             for other_city, commodities in city.imports.iteritems():
                 for commodity in commodities:
                     y += 1
                     if y < g.SCREEN_HEIGHT - 5:
-                        libtcod.console_print(0, 60, y, commodity + ' from ' + other_city.name)
+                        libtcod.console_print(0, 90, y, '{0} from {1}'.format(commodity, other_city.name))
 
             y += 3
-            libtcod.console_print(0, 60, y - 1, '-* Exports *-')
+            libtcod.console_print(0, 90, y - 1, '-* Exports *-')
             for other_city, commodities in city.exports.iteritems():
                 for commodity in commodities:
                     y += 1
                     if y < g.SCREEN_HEIGHT - 5:
-                        libtcod.console_print(0, 60, y, commodity + ' to ' + other_city.name)
+                        libtcod.console_print(0, 90, y, '{0} to {1}'.format(commodity, other_city.name))
                         ## End print good info ##
 
 
