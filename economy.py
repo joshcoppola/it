@@ -422,7 +422,8 @@ class ResourceGatherer(Agent):
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
         all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
 
-        if self.gold <= 0 and len(all_agents_of_this_type_in_this_economy) > 1:
+        if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
+            print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)
             self.economy.resource_gatherers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -431,12 +432,17 @@ class ResourceGatherer(Agent):
                 self.attached_to = None
 
             if roll(0, 1):
-                self.economy.add_agent_based_on_token( self.economy.find_most_profitable_agent_token() )
+                token = self.economy.find_most_profitable_agent_token()
+                self.economy.add_agent_based_on_token( token )
+                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
             else:
-                self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
+                token = self.economy.find_most_demanded_commodity()
+                self.economy.add_agent_based_on_token( token )
+                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
             return None
 
-        elif self.gold <= 0 and len(all_agents_of_this_type_in_this_economy) == 1:
+        elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
+            print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)
             # Government bailout
             self.gold += 500
 
@@ -471,12 +477,12 @@ class ResourceGatherer(Agent):
                     self.starve()
         '''
 
-    def starve(self):
-        '''What happens when we run out of food'''
-        print self.name, 'has starved', self.inventory, self.gold, 'gold'
-        self.economy.resource_gatherers.remove(self)
-        if self.economy.owner:
-            self.economy.owner.former_agents.append(self)
+    # def starve(self):
+    #     '''What happens when we run out of food'''
+    #     print self.name, 'has starved', self.inventory, self.gold, 'gold'
+    #     self.economy.resource_gatherers.remove(self)
+    #     if self.economy.owner:
+    #         self.economy.owner.former_agents.append(self)
 
     def check_production_ability(self):
         # Check whether we have the right items to gather resources
@@ -666,6 +672,7 @@ class GoodProducer(Agent):
         all_agents_of_this_type_in_this_economy = [a for a in self.economy.good_producers if a.name == self.name]
 
         if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
+            print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)
             self.economy.good_producers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -674,12 +681,17 @@ class GoodProducer(Agent):
                 self.attached_to = None
 
             if roll(0, 1):
-                self.economy.add_agent_based_on_token( self.economy.find_most_profitable_agent_token() )
+                token = self.economy.find_most_profitable_agent_token()
+                self.economy.add_agent_based_on_token( token )
+                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
             else:
-                self.economy.add_agent_based_on_token( self.economy.find_most_demanded_commodity() )
+                token = self.economy.find_most_demanded_commodity()
+                self.economy.add_agent_based_on_token( token )
+                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
             return
 
         elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
+            print 'bailing out {0} in {1}'.format(self.name, self.economy.owner.name)
             # Government bailout
             self.gold += 500
 
@@ -721,11 +733,11 @@ class GoodProducer(Agent):
 
 
 
-    def starve(self):
-        '''What happens when we run out of food'''
-        print self.name, 'has starved'
-        self.economy.good_producers.remove(self)
-        if self.economy.owner: self.economy.owner.former_agents.append(self)
+    # def starve(self):
+    #     '''What happens when we run out of food'''
+    #     print self.name, 'has starved'
+    #     self.economy.good_producers.remove(self)
+    #     if self.economy.owner: self.economy.owner.former_agents.append(self)
 
 
     def check_production_ability(self):
@@ -946,27 +958,29 @@ class Merchant(object):
                 self.buy_inventory[token_of_item] = max(self.buy_inventory[token_of_item] - self.represented_population_number, 0)
                 break
 
-        else:
-            self.turns_since_food += 1
-            if self.turns_since_food > GRANARY_THRESH * 5:
-                self.buy_economy.starving_agents.append(self)
-            if self.turns_since_food > STARVATION_THRESH * 5:
-                self.starve()
+        # else:
+        #     self.turns_since_food += 1
+        #     if self.turns_since_food > GRANARY_THRESH * 5:
+        #         self.buy_economy.starving_agents.append(self)
+        #     if self.turns_since_food > STARVATION_THRESH * 5:
+        #         self.starve()
 
         ## Bid on food if we have less than a certain stockpile
         if self.buy_inventory['food'] < FOOD_BID_THRESHHOLD * self.represented_population_number:
             self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['foods']))
 
-    def starve(self):
-        '''What happens when we run out of food'''
-        self.buy_economy.buy_merchants.remove(self)
-        self.sell_economy.sell_merchants.remove(self)
-        if self.buy_economy.owner: self.buy_economy.owner.former_agents.append(self)
+    # def starve(self):
+    #     '''What happens when we run out of food'''
+    #     self.buy_economy.buy_merchants.remove(self)
+    #     self.sell_economy.sell_merchants.remove(self)
+    #     if self.buy_economy.owner: self.buy_economy.owner.former_agents.append(self)
 
 
     def bankrupt(self):
-        self.buy_economy.buy_merchants.remove(self)
-        self.sell_economy.sell_merchants.remove(self)
+        print '{0} has gone bankrupt'.format(self.name)
+        #self.buy_economy.buy_merchants.remove(self)
+        #self.sell_economy.sell_merchants.remove(self)
+        self.gold += MERCHANT_STARTING_GOLD
 
     def increment_cycle(self):
         self.time_here += 1
