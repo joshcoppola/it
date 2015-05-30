@@ -27,6 +27,13 @@ SYMB_FOR_INDEF_AN = {chr(139), chr(140), chr(141), chr(161), # I
 # from http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
 int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
 
+vowels = {'a','e','i','o','u','y'}
+def trim(string_, length):
+    if len(string_) >= length:
+        return ''.join([l for l in string_ if l not in vowels])
+
+    return string_
+
 def indef(word):
     if word[0] in SYMB_FOR_INDEF_AN:
         return 'an {0}'.format(word)
