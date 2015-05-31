@@ -1610,30 +1610,35 @@ class Economy:
         plt.grid(True)
         ## Solid lines
         for item in solid:
-            plt.plot(self.auctions[item].price_history, lw=3.0, alpha=.8)
+            plt.plot(self.auctions[item].price_history, lw=1.5, alpha=.8)
         for item in dot:
-            plt.plot(self.auctions[item].price_history, '--', lw=3.0, alpha=.8)
+            plt.plot(self.auctions[item].price_history, '--', lw=1.5, alpha=.8)
+
+        plt.xlim([0, len(self.auctions[item].price_history)])
 
         ######## BIDS ##############
         plt.subplot(312)
         plt.title('Demand (by number of agents requesting item)')
         plt.grid(True)
         for item in solid:
-            plt.plot(self.auctions[item].bid_history, lw=3.0, alpha=.8)
+            plt.plot(self.auctions[item].bid_history, lw=1.5, alpha=.8)
         for item in dot:
-            plt.plot(self.auctions[item].bid_history, '--', lw=3.0, alpha=.8)
+            plt.plot(self.auctions[item].bid_history, '--', lw=1.5, alpha=.8)
+
+        plt.xlim([0, len(self.auctions[item].bid_history)])
 
         ######## SELLS ############
         plt.subplot(313)
         plt.title('Supply (by number of agents creating sell offers)')
         plt.grid(True)
         for item in solid:
-            plt.plot(self.auctions[item].sell_history, lw=3.0, alpha=.8)
+            plt.plot(self.auctions[item].sell_history, lw=1.5, alpha=.8)
         for item in dot:
-            plt.plot(self.auctions[item].sell_history, '--', lw=3.0, alpha=.8)
+            plt.plot(self.auctions[item].sell_history, '--', lw=1.5, alpha=.8)
 
+        plt.xlim([0, len(self.auctions[item].sell_history)])
 
-        plt.subplots_adjust(left=0.03, right=0.97, top=0.97, bottom=0.03)
+        plt.subplots_adjust(left=0.02, right=0.99, top=0.97, bottom=0.02)
         ## Show graph
         plt.subplot(311)
         plt.legend(glegend, loc=2, prop={'size':7})
