@@ -1592,16 +1592,14 @@ class Economy:
             name_for_legend = item
             # Check for imported
             for other_city, commodities in self.owner.imports.iteritems():
-                for commodity in commodities:
-                    if item == commodity:
-                        name_for_legend = '{0} (imported)'.format(item)
-                        break
+                if item in commodities:
+                    name_for_legend = '{0} (imported)'.format(item)
+                    break
             # Check for exported
             for other_city, commodities in self.owner.exports.iteritems():
-                for commodity in commodities:
-                    if item == commodity:
-                        name_for_legend = '{0} (exported)'.format(item)
-                        break
+                if item in commodities:
+                    name_for_legend = '{0} (exported)'.format(item)
+                    break
             glegend.append(name_for_legend)
 
         ######### PRICES ###########
