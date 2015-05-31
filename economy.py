@@ -1607,7 +1607,7 @@ class Economy:
         ######### PRICES ###########
         plt.subplot(311)
         plt.title('Price history')
-        plt.grid(True)
+        #plt.grid(True)
         ## Solid lines
         for item in solid:
             plt.plot(self.auctions[item].price_history, lw=1.5, alpha=.8)
@@ -1619,7 +1619,7 @@ class Economy:
         ######## BIDS ##############
         plt.subplot(312)
         plt.title('Demand (by number of agents requesting item)')
-        plt.grid(True)
+        #plt.grid(True)
         for item in solid:
             plt.plot(self.auctions[item].bid_history, lw=1.5, alpha=.8)
         for item in dot:
@@ -1630,7 +1630,7 @@ class Economy:
         ######## SELLS ############
         plt.subplot(313)
         plt.title('Supply (by number of agents creating sell offers)')
-        plt.grid(True)
+        #plt.grid(True)
         for item in solid:
             plt.plot(self.auctions[item].sell_history, lw=1.5, alpha=.8)
         for item in dot:
