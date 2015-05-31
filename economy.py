@@ -44,8 +44,13 @@ GRANARY_THRESH = 5 # # of turns before we can get free food from the granary
 STARVATION_THRESH = 10 # # of turns before we starve
 ########################### New stuff ###########################
 
-plot_colors = {'food':(0, 1, 0), 'flax':(.5, .5, .4), 'clay':(.8, .5, .4), 'wood':(.2, .2, .1), 'copper':(.9, .5, .1), 'bronze':(.7, .6, .05), 'iron':(.3, .3, .3),
-               'flax clothing':(.2, .2, .1), 'clay pottery':(.6, .3, .2), 'wood furniture':(.1, .1, 0), 'copper tools':(.7, .3, 0), 'bronze tools':(.5, .4, 0), 'iron tools':(.1, .1, .1)}
+plot_colors = {'food':(.3, .8, .3), 'flax':(1, .5, 1), 'clay':(.25, 0, .5), 'wood':(.2, .2, .8),
+               'flax clothing':(1, .2, 1), 'clay pottery':(.3, .1, .6), 'wood furniture':(.1, .1, 1),
+
+               'copper':(.9, .5, .1), 'bronze':(0, .5, .5), 'iron':(.3, .3, .3),
+               'copper tools':(.7, .3, 0), 'bronze tools':(.1, .6, .6), 'iron tools':(.1, .1, .1),
+               'copper weapons':(.9, .5, .2), 'bronze weapons':(.1, .8, .8), 'iron weapons':(.7, .7, .7),
+               'copper armor':(.5, .1, 0), 'bronze armor':(.3, 1, 1), 'iron armor':(0, 0, 0)}
 
 
 def setup_resources():
@@ -1608,9 +1613,9 @@ class Economy:
         #plt.grid(True)
         ## Solid lines
         for item in solid:
-            plt.plot(self.auctions[item].price_history, lw=1.5, alpha=.8)
+            plt.plot(self.auctions[item].price_history, lw=1.5, alpha=.8, c=plot_colors[item])
         for item in dot:
-            plt.plot(self.auctions[item].price_history, '--', lw=1.5, alpha=.8)
+            plt.plot(self.auctions[item].price_history, '--', lw=1.5, alpha=.8, c=plot_colors[item])
 
         plt.xlim([0, len(self.auctions[item].price_history)])
 
@@ -1619,9 +1624,9 @@ class Economy:
         plt.title('Demand (by number of agents requesting item)')
         #plt.grid(True)
         for item in solid:
-            plt.plot(self.auctions[item].bid_history, lw=1.5, alpha=.8)
+            plt.plot(self.auctions[item].bid_history, lw=1.5, alpha=.8, c=plot_colors[item])
         for item in dot:
-            plt.plot(self.auctions[item].bid_history, '--', lw=1.5, alpha=.8)
+            plt.plot(self.auctions[item].bid_history, '--', lw=1.5, alpha=.8, c=plot_colors[item])
 
         plt.xlim([0, len(self.auctions[item].bid_history)])
 
@@ -1630,9 +1635,9 @@ class Economy:
         plt.title('Supply (by number of agents creating sell offers)')
         #plt.grid(True)
         for item in solid:
-            plt.plot(self.auctions[item].sell_history, lw=1.5, alpha=.8)
+            plt.plot(self.auctions[item].sell_history, lw=1.5, alpha=.8, c=plot_colors[item])
         for item in dot:
-            plt.plot(self.auctions[item].sell_history, '--', lw=1.5, alpha=.8)
+            plt.plot(self.auctions[item].sell_history, '--', lw=1.5, alpha=.8, c=plot_colors[item])
 
         plt.xlim([0, len(self.auctions[item].sell_history)])
 
