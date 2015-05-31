@@ -2342,7 +2342,7 @@ class City(Site):
 
     def prepare_native_economy(self):
         # Add economy to city
-        self.econ = economy.Economy(native_resources=self.native_res.keys(), local_taxes=2, owner=self)
+        self.econ = economy.Economy(native_resources=self.native_res.keys(), local_taxes=g.DEFAULT_TAX_AMOUNT, owner=self)
 
         for resource_type, amount in economy.CITY_RESOURCE_SLOTS.iteritems():
             for resource_class in economy.RESOURCE_TYPES[resource_type]:

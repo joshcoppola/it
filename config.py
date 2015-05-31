@@ -39,7 +39,7 @@ MIN_SITE_DIST = 4
 # There can be this much space between cities when starting an economy
 MAX_ECONOMY_DISTANCE = 25
 
-
+DEFAULT_TAX_AMOUNT = 5 # 5 gold / turn of economy simulation
 
 FOV_ALGO = 0  #default FOV algorithm
 FOV_LIGHT_WALLS = 1  #light walls or not
