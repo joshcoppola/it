@@ -158,7 +158,7 @@ wood:
 flax:
     category: cloths
     resource_class: strategic
-    gather_amount: 4
+    gather_amount: 6
     break_chance: 300
     reactions:
         clothing:
