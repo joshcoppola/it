@@ -423,7 +423,7 @@ class ResourceGatherer(Agent):
         all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
 
         if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
-            print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)
+            # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name) ## DEBUG
             self.economy.resource_gatherers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -434,15 +434,15 @@ class ResourceGatherer(Agent):
             if roll(0, 1):
                 token = self.economy.find_most_profitable_agent_token()
                 self.economy.add_agent_based_on_token( token )
-                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
+                # print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
             else:
                 token = self.economy.find_most_demanded_commodity()
                 self.economy.add_agent_based_on_token( token )
-                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
+                #print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
             return None
 
         elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
-            print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)
+            #print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
             # Government bailout
             self.gold += 500
 
@@ -672,7 +672,7 @@ class GoodProducer(Agent):
         all_agents_of_this_type_in_this_economy = [a for a in self.economy.good_producers if a.name == self.name]
 
         if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
-            print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)
+            # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
             self.economy.good_producers.remove(self)
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
@@ -683,15 +683,15 @@ class GoodProducer(Agent):
             if roll(0, 1):
                 token = self.economy.find_most_profitable_agent_token()
                 self.economy.add_agent_based_on_token( token )
-                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
+                #print 'Adding {0} in {1}'.format(token, self.economy.owner.name) ## DEBUG
             else:
                 token = self.economy.find_most_demanded_commodity()
                 self.economy.add_agent_based_on_token( token )
-                print 'Adding {0} in {1}'.format(token, self.economy.owner.name)
+                #print 'Adding {0} in {1}'.format(token, self.economy.owner.name) ## DEBUG
             return
 
         elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
-            print 'bailing out {0} in {1}'.format(self.name, self.economy.owner.name)
+            # print 'bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
             # Government bailout
             self.gold += 500
 
@@ -977,7 +977,7 @@ class Merchant(object):
 
 
     def bankrupt(self):
-        print '{0} has gone bankrupt'.format(self.name)
+        # print '{0} has gone bankrupt'.format(self.name) ## DEBUG
         #self.buy_economy.buy_merchants.remove(self)
         #self.sell_economy.sell_merchants.remove(self)
         self.gold += MERCHANT_STARTING_GOLD
