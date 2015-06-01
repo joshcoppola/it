@@ -1626,15 +1626,35 @@ class CityMap:
             self.usemap.tiles[x][y].building = market
         market.physical_property = self.markets[0]
 
-        min_industry_size = 8
+        min_industry_size = 5
         ## Loop through the list of historical buildings
         for i, building in enumerate(self.city_class.buildings):
-            if building.type_ != 'house':
-                if not building.physical_property:
-                    # Adding a quick hack to make sure buildings, especially taverns, get a reasonable minimum size
-                    phys_building = random.choice([plot for plot in self.industries if plot.get_dimensions()[0] > min_industry_size and plot.get_dimensions()[1] > min_industry_size])
+            if building.type_ != 'house' and not building.physical_property:
+                # Adding a quick hack to make sure buildings, especially taverns, get a reasonable minimum size
+                potential_buildings = [plot for plot in self.industries if plot.get_dimensions()[0] > min_industry_size and plot.get_dimensions()[1] > min_industry_size]
+
+                if potential_buildings:
+                    phys_building = random.choice(potential_buildings)
                     self.industries.remove(phys_building)
                     building.add_physical_property_rect(physical_property_rect=phys_building)
+                    #print 'adding {0}'.format(building.type_)
+
+                    # If the building is linked to an economy agent but doesn't has a generated figure, it does so
+                    if building.linked_economy_agent and (building.linked_economy_agent.attached_to is None):
+                        profession = it.Profession(name=building.linked_economy_agent.name, category='commoner')
+                        building.add_profession(profession=profession)
+
+                        # Create the entity
+                        born = g.WORLD.time_cycle.years_ago(roll(18, 40))
+                        entity = building.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
+
+                        # Set profession of figure and link to economy agent
+                        profession.give_profession_to(figure=entity)
+                        building.linked_economy_agent.update_holder(figure=entity)
+
+                else:
+                    print 'Not enough buildings matching criteria'
+                    break
 
     def make_municipal_bldg(self, x, y, w, h, road_thickness, building_info):
         ''' Municipal buildings are government-owned '''

@@ -6,6 +6,8 @@ import os
 import yaml
 from collections import defaultdict
 
+from it import Profession
+
 try:
     import matplotlib.pyplot as plt
 except:
@@ -651,6 +653,7 @@ class GoodProducer(Agent):
 
         # For the actual person in the world exemplifying this agent
         self.attached_to = None
+        self.linked_economy_building = None
 
         self.gold = GOOD_PRODUCER_STARTING_GOLD
         self.inventory = defaultdict(int)
@@ -679,6 +682,14 @@ class GoodProducer(Agent):
         if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
             # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
             self.economy.good_producers.remove(self)
+
+            # Unset linked economy building from building list, if necessary
+            ## TODO - Ensure that when the building is already generated, and when cities are saved / loaded, that the buildings open up for future use
+            if self.linked_economy_building:
+                self.economy.owner.buildings.remove(self.linked_economy_building)
+                self.linked_economy_building.linked_economy_agent = None
+                self.linked_economy_building = None
+
             if self.economy.owner: self.economy.owner.former_agents.append(self)
 
             if self.attached_to is not None:
@@ -1314,9 +1325,15 @@ class Economy:
         info = AGENT_INFO['producers'][good]
         producer = GoodProducer(name=info['name'], id_=self.agent_num, represented_population_number=20,
                                 economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+
         self.good_producers.append(producer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(good)
+
+        if self.owner:
+            building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name=info['name'], category='commoner')], inhabitants=[], tax_status='commoner')
+            building.linked_economy_agent = producer
+            producer.linked_economy_building = building
 
         self.agent_num += 1
 

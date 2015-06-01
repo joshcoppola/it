@@ -2714,6 +2714,8 @@ class Building:
         self.wx = wx
         self.wy = wy
 
+        self.linked_economy_agent = None
+
         self.professions = []
         self.inhabitants = []
         self.tax_staus = tax_status
