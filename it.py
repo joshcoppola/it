@@ -2287,19 +2287,6 @@ class City(Site):
         self.resource_slots = {}
         self.industry_slots = {}
 
-        self.warehouses = {}
-        self.warehouse_types = {}
-        self.unique_warehouses = []
-        for commodity_type, token_list in economy.COMMODITY_TYPES.iteritems():
-            warehouse = Warehouse(name=commodity_type + ' warehouse', city=self, type_of_commodity=commodity_type,
-                                  total_capacity=500)
-
-            self.unique_warehouses.append(warehouse)
-            # Be able to look up goods by type
-            self.warehouse_types[commodity_type] = warehouse
-            for token in token_list:
-                self.warehouses[token.name] = warehouse
-
         # Add resources to the city, for the purposes of the economy
         for resource, amount in g.WORLD.tiles[self.x][self.y].res.iteritems():
             self.obtain_resource(resource, amount - 10)
@@ -2492,9 +2479,6 @@ class City(Site):
                 figure.creature.economy_agent.current_location = self.econ
                 market.add_worker(figure)
 
-                ## cheap trick for now - add a little of the resource to the city stockpile
-                if figure.creature.economy_agent.traded_item in economy.GOODS_BY_RESOURCE_TOKEN:
-                    self.warehouses[figure.creature.economy_agent.traded_item].add(figure.creature.economy_agent.traded_item, 2)
         #g.WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
         #g.WORLD.travelers.remove(caravan_leader)
         self.caravans.append(caravan_leader)
@@ -2674,28 +2658,6 @@ class City(Site):
                     available_materials.append(material)
 
         return available_materials
-
-
-class Warehouse:
-    def __init__(self, name, city, type_of_commodity, total_capacity):
-        self.name = name
-        self.city = city
-        self.total_capacity = total_capacity
-
-        self.in_history = [0, 0, 0, 0, 0]
-        self.out_history = [0, 0, 0, 0, 0]
-
-        self.stockpile = {}
-        for token in economy.COMMODITY_TYPES[type_of_commodity]:
-            self.stockpile[token.name] = 0
-
-    def add(self, commodity, amount):
-        if sum(self.stockpile.values()) + amount <= self.total_capacity:
-            self.stockpile[commodity] += amount
-
-    def remove(self, commodity, amount):
-        if self.stockpile[commodity] - amount >= 0:
-            self.stockpile[commodity] -= amount
 
 
 

@@ -2,7 +2,7 @@
 copper:
     category: ores
     resource_class: strategic
-    gather_amount: 4
+    gather_amount: 2
     break_chance: 225
     reactions:
         tools:
@@ -31,7 +31,7 @@ copper:
 bronze:
     category: ores
     resource_class: strategic
-    gather_amount: 4
+    gather_amount: 2
     break_chance: 150
     reactions:
         tools:
@@ -60,7 +60,7 @@ bronze:
 iron:
     category: ores
     resource_class: strategic
-    gather_amount: 4
+    gather_amount: 2
     break_chance: 75
     reactions:
         tools:
@@ -89,7 +89,7 @@ iron:
 clay:
     category: clays
     resource_class: strategic
-    gather_amount: 4
+    gather_amount: 2
     break_chance: 300
     reactions:
         pottery:
@@ -135,7 +135,7 @@ clay:
 wood:
     category: woods
     resource_class: strategic
-    gather_amount: 4
+    gather_amount: 2
     break_chance: 300
     reactions:
         furniture:
@@ -158,7 +158,7 @@ wood:
 flax:
     category: cloths
     resource_class: strategic
-    gather_amount: 6
+    gather_amount: 3
     break_chance: 300
     reactions:
         clothing:
@@ -181,7 +181,7 @@ flax:
 food:
     category: foods
     resource_class: strategic
-    gather_amount: 6
+    gather_amount: 3
     break_chance: 1
     reactions: {}
     

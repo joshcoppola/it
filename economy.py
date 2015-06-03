@@ -547,15 +547,10 @@ class ResourceGatherer(Agent):
         consume_and_update = False
 
         if amount > 0 and required_items:
-            # Add the resource to our own inventory. The government takes half our production for now
-            for i in xrange(min(int(self.gather_amount/2), amount)):
-                self.inventory[self.resource] += 1
-            ## Add it to the warehouse, and track how much we have contributed to it this turn
-            if self.economy.owner:
-                self.economy.owner.warehouses[self.resource].add(self.resource, int(self.gather_amount/2))
-                self.economy.auctions[self.resource].warehouse_contribution += int(self.gather_amount/2)
+            # Add the resource to our own inventory.
+            self.inventory[self.resource] += min(self.gather_amount, amount)
 
-            self.last_turn.append('Gathered ' + str(min(self.gather_amount, amount)) + ' ' + str(self.resource))
+            self.last_turn.append('Gathered {0} {1}'.format(min(self.gather_amount, amount), self.resource))
             consume_and_update = True
 
         elif amount > 0 and not required_items:
@@ -1212,7 +1207,6 @@ class AuctionHouse:
 
         self.supply = None
         self.demand = None
-        self.warehouse_contribution = 0
 
     def update_historical_data(self, mean_price, num_bids, num_sells):
         # Updates the history for this auction
@@ -1462,14 +1456,6 @@ class Economy:
             merchant.create_sell(economy=self, sell_item=merchant.traded_item)
             #merchant.turns_alive += 1
 
-        # Starvation modeling - not sure if active 9/21/13
-        #if self.owner:
-        #    for agent in self.starving_agents:
-        #        if self.owner.warehouses['food'] > agent.represented_population_number:
-        #            self.owner.warehouses['food'].remove('food')
-        #            agent.take_bought_item('food', agent.represented_population_number)
-
-
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
             auction.iterations += 1
@@ -1557,12 +1543,6 @@ class Economy:
             auction.update_historical_data(mean_price, num_bids, num_sells)
             # Track mean price for last N turns
             auction.update_mean_price()
-
-            ## Add information about how much stuff we've taken into that warehouse
-            if self.owner:
-                del self.owner.warehouses[commodity].in_history[0]
-                self.owner.warehouses[commodity].in_history.append(auction.warehouse_contribution)
-            auction.warehouse_contribution = 0
 
         ## Merchants evaluate whether or not to move on to the next city
         for merchant in self.buy_merchants + self.sell_merchants:
