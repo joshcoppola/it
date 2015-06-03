@@ -655,10 +655,10 @@ def cache_basic_weapon_types():
         # Flag, which will be set to 0 if the weapon has a component that can't be made out of wood
         weapon_is_basic = 1
         # This returns a dict, formatted {component:['valid', 'component', 'materials']}
-        materials = get_valid_assembly_materials(object_name=weapon_name, object_dict=blueprint_dict)
+        w_materials = get_valid_assembly_materials(object_name=weapon_name, object_dict=blueprint_dict)
         # Now loop through and check whether wood is a valid material
-        for component_name, materials in materials.iteritems():
-            if not 'wood' in materials:
+        for component_name, valid_materials in w_materials.iteritems():
+            if not 'wood' in valid_materials:
                 weapon_is_basic = 0
                 break
 
