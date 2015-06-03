@@ -2304,7 +2304,7 @@ class City(Site):
         for resource, amount in g.WORLD.tiles[self.x][self.y].res.iteritems():
             self.obtain_resource(resource, amount - 10)
 
-        self.increase_radius()
+        self.increase_radius(amount=2)
         ## A package of buildings to start with
         self.setup_initial_buildings()
 
@@ -2499,14 +2499,13 @@ class City(Site):
         #g.WORLD.travelers.remove(caravan_leader)
         self.caravans.append(caravan_leader)
 
-    def increase_radius(self):
+    def increase_radius(self, amount=1):
         # Increase the territory held by the city
-        self.territory_radius += 1
-        for x in range(self.x - self.territory_radius, self.x + self.territory_radius + 1):
-            for y in range(self.y - self.territory_radius, self.y + self.territory_radius + 1):
-                if in_circle(center_x=self.x, center_y=self.y, radius=self.territory_radius, x=x, y=y) and not g.WORLD.tiles[x][y].blocks_mov:
-                    if g.WORLD.tiles[x][y].territory is None:
-                        self.acquire_tile(x, y)
+        self.territory_radius += amount
+        for x in xrange(self.x - self.territory_radius, self.x + self.territory_radius + 1):
+            for y in xrange(self.y - self.territory_radius, self.y + self.territory_radius + 1):
+                if in_circle(center_x=self.x, center_y=self.y, radius=self.territory_radius, x=x, y=y) and not g.WORLD.tiles[x][y].blocks_mov and g.WORLD.tiles[x][y].territory is None:
+                    self.acquire_tile(x, y)
                 # Force-acquire any tile within 2 distance of us
                 elif g.WORLD.tiles[x][y].territory != self and self.distance(x, y) < 2:
                     self.acquire_tile(x, y)

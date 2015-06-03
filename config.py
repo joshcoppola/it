@@ -34,7 +34,7 @@ WATER_HEIGHT = 100
 MOUNTAIN_HEIGHT = 175
 
 # Sites must be this far apart
-MIN_SITE_DIST = 4
+MIN_SITE_DIST = 5
 
 # There can be this much space between cities when starting an economy
 MAX_ECONOMY_DISTANCE = 25
