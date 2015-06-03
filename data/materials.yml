@@ -40,6 +40,12 @@ cloth:
     rigid: 0
     force_diffusion: .1
     slice_resistance: 10
+flax:
+    rgb_color: [210, 128, 25]
+    density: 200
+    rigid: 0
+    force_diffusion: .1
+    slice_resistance: 10
 clay:
     rgb_color: [126, 60, 45]
     density: 1500
