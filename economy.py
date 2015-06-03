@@ -616,12 +616,13 @@ class ResourceGatherer(Agent):
 
 
 class GoodProducer(Agent):
-    def __init__(self, name, id_, represented_population_number, economy, finished_good, consumed, essential, preferred):
+    def __init__(self, name, id_, represented_population_number, economy, finished_good, finished_good_type, consumed, essential, preferred):
         self.name = name
         self.id_ = id_
         self.represented_population_number = represented_population_number
         self.economy = economy
         self.finished_good = finished_good
+        self.finished_good_type = finished_good_type
         self.consumed = consumed
         self.essential = essential
         self.preferred = preferred
@@ -1318,7 +1319,8 @@ class Economy:
     def add_good_producer(self, good):
         info = AGENT_INFO['producers'][good]
         producer = GoodProducer(name=info['name'], id_=self.agent_num, represented_population_number=20,
-                                economy=self, finished_good=COMMODITY_TOKENS[good], consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+                                economy=self, finished_good=COMMODITY_TOKENS[good], finished_good_type=COMMODITY_TOKENS[good].category,
+                                consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
 
         self.good_producers.append(producer)
         # Test if it's in the economy and add it if not
