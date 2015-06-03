@@ -433,6 +433,14 @@ class Wmap(Map):
     def add_object_to_map(self, x, y, obj):
         ''' For adding an existing object to the map '''
 
+        # Make sure to remove it from another spot on the map if need be
+        if obj.x and obj.y and obj in self.tiles[obj.x][obj.y].objects:
+            self.tiles[obj.x][obj.y].objects.remove(obj)
+            # Remove it from the owning map chunk if need be
+            if obj in self.tiles[obj.x][obj.y].chunk.objects:
+                self.tiles[obj.x][obj.y].chunk.objects.remove(obj)
+
+        # Add it to the new spot on the map
         self.tiles[x][y].objects.append(obj)
         self.tiles[x][y].chunk.objects.append(obj)
 
@@ -1640,17 +1648,31 @@ class CityMap:
                     #print 'adding {0}'.format(building.type_)
 
                     # If the building is linked to an economy agent but doesn't has a generated figure, it does so
-                    if building.linked_economy_agent and (building.linked_economy_agent.attached_to is None):
-                        profession = it.Profession(name=building.linked_economy_agent.name, category='commoner')
-                        building.add_profession(profession=profession)
+                    if building.linked_economy_agent:
+                        if building.linked_economy_agent.attached_to is None:
+                            profession = it.Profession(name=building.linked_economy_agent.name, category='commoner')
+                            building.add_profession(profession=profession)
 
-                        # Create the entity
-                        born = g.WORLD.time_cycle.years_ago(roll(18, 40))
-                        entity = building.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
+                            # Create the entity
+                            born = g.WORLD.time_cycle.years_ago(roll(18, 40))
+                            entity = building.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
 
-                        # Set profession of figure and link to economy agent
-                        profession.give_profession_to(figure=entity)
-                        building.linked_economy_agent.update_holder(figure=entity)
+                            # Set profession of figure and link to economy agent
+                            profession.give_profession_to(figure=entity)
+                            building.linked_economy_agent.update_holder(figure=entity)
+
+                        # Additionally, add the building's inventory as objects
+                        sold_good = building.linked_economy_agent.finished_good
+                        amount = building.linked_economy_agent.inventory[sold_good.name]
+
+                        # Placeholder way to show agent's inventory on the map
+                        if amount:
+                            obj = self.usemap.create_and_add_object(name='crate', x=1, y=1)
+                            obj.name = 'Stack of {0} {1}'.format(amount, sold_good.name)
+                            obj.description = 'This is a stack of {0} {1}'.format(amount, sold_good.name)
+
+                            building.place_within(obj)
+
 
                 else:
                     print 'Not enough buildings matching criteria'
