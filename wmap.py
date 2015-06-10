@@ -255,47 +255,20 @@ class Wmap(Map):
             return 0
 
 
-    def create_and_vary_heightmap(self, initial_height, mborder, minr, maxr, minh, maxh, iterations):
-        hm = libtcod.heightmap_new(w=self.width, h=self.height)
-
-        # Set initial heightmap values
-        for x in xrange(self.width):
-            for y in xrange(self.height):
-                # Set the default value
-                libtcod.heightmap_set_value(hm=hm, x=x, y=y, value=initial_height)
-
-
-        #### RANDOM HILLS ####
-        for i in xrange(iterations):
-            x, y = roll(mborder, self.width-1-mborder), roll(mborder, self.height-1-mborder)
-            radius = roll(minr, maxr)
-            height = roll(minh, maxh)
-
-            # Prevent height from going above 190 for now :S
-            if libtcod.heightmap_get_value(hm=hm, x=x, y=y) < (g.MOUNTAIN_HEIGHT - height - 1):
-                libtcod.heightmap_add_hill(hm=hm, x=x, y=y, radius=radius, height=height)
-
-        return hm
-
-
     def create_heightmap_from_surrounding_tiles(self, minh=-8, maxh=8, iterations=50):
-        ## Create initial tiles
-        #self.tiles = [[Tile(blocks_mov=False)
-        #              for y in xrange(self.height)]
-        #             for x in xrange(self.width)]
+        '''  Have the world heights influence the heights on the local map '''
 
-        hht = int(self.height/2)
-        hwd = int(self.width/2)
-
+        ht = int(self.height/2)
+        wd = int(self.width/2)
 
         surrounding_heights = self.world.get_surrounding_heights(coords=(self.wx, self.wy))
         this_tile_height = min(surrounding_heights[4], g.MOUNTAIN_HEIGHT-10)
 
         # Which map tiles to use from surrounding_heights variable
         surrounding_heights_to_map = (
-                                      (0, 0),             (hwd, 0),             (self.width-1, 0),
-                                      (0, hht),           (hwd, hht),           (self.width-1, hht),
-                                      (0, self.height-1), (hwd, self.height-1), (self.width-1, self.height-1)
+                                      (0, 0),             (wd, 0),             (self.width-1, 0),
+                                      (0, ht),            (wd, ht),            (self.width-1, ht),
+                                      (0, self.height-1), (wd, self.height-1), (self.width-1, self.height-1)
                                       )
 
         surrounding_rivers = self.world.get_surrounding_rivers(coords=(self.wx, self.wy))
@@ -314,7 +287,7 @@ class Wmap(Map):
                                             minr=int(self.width/12.5), maxr=int(self.width/3), minh=minh, maxh=maxh, iterations=iterations)
 
 
-        corner_tile_indices = set([0, 2, 6, 8])
+        corner_tile_indices = {0, 2, 6, 8}
         # Surrounding tiles influence map height
         for i, h in enumerate(surrounding_heights):
             x, y = surrounding_heights_to_map[i]
@@ -348,6 +321,28 @@ class Wmap(Map):
             libtcod.heightmap_dig_bezier(hm=hm, px=(r1y, r1oy, r2oy, r2y), py=(r1x, r1ox, r2ox, r2x), startRadius=5, startDepth=0, endRadius=5, endDepth=0)
             #g.game.add_message('height is %i'%libtcod.heightmap_get_value(hm, r1x, r1y), libtcod.red)
         ######################################################################
+
+        return hm
+
+    def create_and_vary_heightmap(self, initial_height, mborder, minr, maxr, minh, maxh, iterations):
+        hm = libtcod.heightmap_new(w=self.width, h=self.height)
+
+        # Set initial heightmap values
+        for x in xrange(self.width):
+            for y in xrange(self.height):
+                # Set the default value
+                libtcod.heightmap_set_value(hm=hm, x=x, y=y, value=initial_height)
+
+
+        #### RANDOM HILLS ####
+        for i in xrange(iterations):
+            x, y = roll(mborder, self.width-1-mborder), roll(mborder, self.height-1-mborder)
+            radius = roll(minr, maxr)
+            height = roll(minh, maxh)
+
+            # Prevent height from going above 190 for now :S
+            if libtcod.heightmap_get_value(hm=hm, x=x, y=y) < (g.MOUNTAIN_HEIGHT - height - 1):
+                libtcod.heightmap_add_hill(hm=hm, x=x, y=y, radius=radius, height=height)
 
         return hm
 
