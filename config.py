@@ -217,7 +217,8 @@ CONVERSATION_QUESTIONS= {
                             'age':'How old are you?,',
                             'city':'From where do you hail?',
                             'goals':'What are your current goals?',
-                            'recruit':'Will you join me on my quest?'}
+                            'recruit':'Will you join me on my quest?',
+                            'trade':'Do you have anything available to trade?'}
 
 
 

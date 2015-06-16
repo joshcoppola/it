@@ -3360,12 +3360,14 @@ class Object:
                     msg = describe_map_contents(site_info)
                     g.game.add_message(msg, g.PANEL_FRONT)
 
-    def set_current_owner(self, figure):
+    def set_current_owner(self, figure, traded=0):
         ''' Sets someone as the owner of an object (must run set_current_holder to make sure they're carrying it)'''
         ## Remove from current owner
         if self.current_owner:
             self.current_owner.creature.possessions.remove(self)
-            self.current_owner.creature.former_possessions.add(self)
+            # Only add to former possessions if not traded
+            if not traded:
+                self.current_owner.creature.former_possessions.add(self)
 
             #g.game.add_message('%s has taken possession of %s from %s' %(figure.fullname(), self.fullname(), self.current_owner.fullname()), libtcod.orange)
         else:
@@ -3382,6 +3384,34 @@ class Object:
         self.current_owner.creature.former_possessions.add(self)
 
         self.current_owner = None
+
+    def make_trade(self, other, my_trade_items, other_trade_items, price):
+        ''' Exchange a set of items with another entity, and money as well '''
+        other.add_items_to_inventory(items=my_trade_items)
+        self.add_items_to_inventory(items=other_trade_items)
+
+        self.creature.net_money -= price
+        other.creature.net_money += price
+
+
+    def add_items_to_inventory(self, items):
+        ''' Adds a list of items into inventory, grasping them or storing them if necessary '''
+        for i, item in enumerate(items):
+            item.set_current_owner(figure=self, traded=1)
+            own_component = [grasper for grasper in self.creature.get_graspers() if not grasper.grasped_item][0]
+            self.pick_up_object(own_component=own_component, obj=item)
+
+            # Store item if necessary
+            if i != len(items) - 1:
+                components_with_storage = self.get_storage_items()
+
+                for component_with_storage in components_with_storage:
+                    stored = component_with_storage.owner.place_inside(own_component=component_with_storage, other_object=item, grasping_component=own_component)
+                    if stored:
+                        break
+                else:
+                    g.game.add_message('{0} could not store {1}'.format(self.fullname(), item.fullname()), libtcod.red)
+
 
 
     def set_current_building(self, building):
@@ -3525,6 +3555,9 @@ class Object:
 
     def pick_up_object(self, own_component, obj):
         ''' Use the specified component to grasp an object '''
+        if obj.being_grasped_by:
+            obj.being_grasped_by.remove_grasp_on_item(obj)
+
         own_component.grasp_item(obj)
 
         obj.set_current_owner(self)
@@ -3549,6 +3582,7 @@ class Object:
 
         if other_object.get_volume() > available_volume:
             g.game.add_message(''.join([other_object.name, ' is too big to fit in the ', own_component.name]))
+            return 0
 
         else:
             other_object.remove_from_map()
@@ -3563,7 +3597,7 @@ class Object:
             g.game.add_message(''.join(['You place the ', other_object.name, ' in the ', own_component.name]))
 
             # This statement helps with menu items
-            return 'success'
+            return 1
 
     def take_out_of_storage(self, other_object, grasping_component):
         other_object.inside.remove_object_from_storage(other_object)
@@ -3584,7 +3618,7 @@ class Object:
     def get_storage_items(self):
         ''' Returns a list of all items on our character which can store something '''
         storage_items = []
-        for component in g.player.components:
+        for component in self.components:
             for attached_obj_comp in component.attachments:
                 # Loop through objs to find components with storage
                 if attached_obj_comp.storage is not None:
@@ -5791,6 +5825,9 @@ class Creature:
                 else:
                     self.say('I don\'t really have any goals at the moment.')
 
+            else:
+                self.say('I am not yet programmed to answer that')
+
         ## Shouldn't break the mold here... but answer_type is different
         if question_type == 'recruit':
             if answer_type == 'yes':
@@ -5826,6 +5863,9 @@ class Creature:
 
         if target not in self.knowledge['entities']:
             return ['name']
+
+        if target.get_inventory()['stored']:
+            valid_questions.append('trade')
 
         if self.knowledge['entities'][target]['stats']['city'] is None:
             valid_questions.append('city')
@@ -5930,6 +5970,9 @@ class Creature:
 
             else:
                 return 'no'
+
+        else:
+            return 'truth'
 
 
     def handle_pending_conversations(self):
@@ -8509,6 +8552,8 @@ class Game:
         wname = random.choice(faction1.weapons)
         weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=phys.materials['iron'], wx=None, wy=None)
         g.player.initial_give_object_to_hold(weapon)
+
+        g.player.make_trade(other=leader, my_trade_items=[g.player.creature.get_current_weapon()], other_trade_items=[leader.creature.get_current_weapon()], price=0)
         #g.WORLD.tiles[1][0].features.append(Feature(type_='river', x=1, y=0))
         #g.WORLD.tiles[1][1].features.append(Feature(type_='river', x=1, y=1))
         #g.WORLD.tiles[1][2].features.append(Feature(type_='river', x=1, y=2))
