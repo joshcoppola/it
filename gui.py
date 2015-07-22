@@ -764,7 +764,7 @@ def show_civs(world):
 
             ## Print good info ##
             y = 12
-            libtcod.console_print(0, 60, y - 2, 'Most demanded last turn: ' + city.econ.find_most_demanded_commodity())
+            libtcod.console_print(0, 60, y - 2, 'Most demanded last turn: ' + city.econ.find_most_demanded_commodity(restrict_based_on_available_resource_slots=0))
 
             libtcod.console_print(0, 60, y, 'Commodity')
             libtcod.console_print(0, 78, y, 'Avg$')
