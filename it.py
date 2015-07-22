@@ -1148,7 +1148,7 @@ class World(Map):
             phys.creature_dict[creature_name] = phys_info
             self.sentient_races.append(creature_name)
 
-            g.game.add_message('{0} added'.format(lang.spec_cap(creature_name)))
+        g.game.add_message('{0} added'.format(join_list([lang.spec_cap(creature_name) for creature_name in self.sentient_races])))
 
 
     def gen_cultures(self):
@@ -1197,7 +1197,7 @@ class World(Map):
         ## Clean up ideal_locs a bit
         self.ideal_locs = filter(lambda (x, y): self.tiles[x][y].culture and not self.tiles[x][y].blocks_mov, self.ideal_locs)
 
-        g.game.add_message('Cultures created in {0} seconds'.format(time.time() - begin))
+        g.game.add_message('Cultures created in {0:.02f} seconds'.format(time.time() - begin))
 
         g.game.render_handler.render_all()
 
