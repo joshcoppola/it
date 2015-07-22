@@ -59,7 +59,7 @@ def setup_resources():
     global RESOURCES, RESOURCE_TYPES, GOODS, GOOD_TYPES, COMMODITY_TYPES, COMMODITY_TOKENS
     global STRATEGIC_TYPES, CITY_RESOURCE_SLOTS, CITY_INDUSTRY_SLOTS, GOODS_BY_RESOURCE_TOKEN, AGENT_INFO
 
-    CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':8, 'clays':4, 'ores':8, 'woods':10}
+    CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
     CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8, 'armor':2, 'weapons':2}
 
     RESOURCES = []
@@ -386,6 +386,7 @@ class ResourceGatherer(Agent):
         self.preferred = preferred
 
         self.turns_since_food = 0
+        self.resource_gathering_region = None
 
         self.need_food = 1
         if 'Food' in self.name:
@@ -424,29 +425,36 @@ class ResourceGatherer(Agent):
                 self.perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
         ##################################################################################
 
+    def bankrupt(self):
+        ''' Remove self from the region where we gather resources, and deal with removing self from the rest of the economic framework '''
+        if self.resource_gathering_region:
+            if self.resource == 'food': resource = 'land'
+            else: resource = self.resource
+
+            self.resource_gathering_region.remove_resource_gatherer_from_region(resource_name=resource, agent=self)
+            #print 'success in removing {0} from {1} !!!!!!!!!!!!!!'.format(self.resource, self.economy.owner.name)
+        else:
+            print '{0} has no resource gathering region in {1}!!!!!!!'.format(self.name, self.economy.owner.name)
+
+        # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name) ## DEBUG
+        self.economy.resource_gatherers.remove(self)
+        if self.economy.owner: self.economy.owner.former_agents.append(self)
+
+        if self.attached_to is not None:
+            self.attached_to.creature.economy_agent = None
+            self.attached_to = None
+
+        self.economy.add_new_agent_to_economy()
+
+
     def take_turn(self):
         self.last_turn = []
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
         all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
 
         if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
-            # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name) ## DEBUG
-            self.economy.resource_gatherers.remove(self)
-            if self.economy.owner: self.economy.owner.former_agents.append(self)
-
-            if self.attached_to is not None:
-                self.attached_to.creature.economy_agent = None
-                self.attached_to = None
-
-            if roll(0, 1):
-                token = self.economy.find_most_profitable_agent_token()
-                self.economy.add_agent_based_on_token( token )
-                # print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
-            else:
-                token = self.economy.find_most_demanded_commodity()
-                self.economy.add_agent_based_on_token( token )
-                #print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
-            return None
+            self.bankrupt()
+            return
 
         elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
             #print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
@@ -670,36 +678,34 @@ class GoodProducer(Agent):
 
     #########################################################
 
+    def bankrupt(self):
+        # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
+        self.economy.good_producers.remove(self)
+
+        # Unset linked economy building from building list, if necessary
+        ## TODO - Ensure that when the building is already generated, and when cities are saved / loaded, that the buildings open up for future use
+        if self.linked_economy_building:
+            self.economy.owner.buildings.remove(self.linked_economy_building)
+            self.linked_economy_building.linked_economy_agent = None
+            self.linked_economy_building = None
+
+        if self.economy.owner:
+            self.economy.owner.former_agents.append(self)
+
+        if self.attached_to is not None:
+            self.attached_to.creature.economy_agent = None
+            self.attached_to = None
+
+            self.economy.add_new_agent_to_economy()
+
+
     def take_turn(self):
         self.last_turn = []
         #print self.name, 'have:', self.inventory, 'selling:', self.gold
         all_agents_of_this_type_in_this_economy = [a for a in self.economy.good_producers if a.name == self.name]
 
         if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
-            # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
-            self.economy.good_producers.remove(self)
-
-            # Unset linked economy building from building list, if necessary
-            ## TODO - Ensure that when the building is already generated, and when cities are saved / loaded, that the buildings open up for future use
-            if self.linked_economy_building:
-                self.economy.owner.buildings.remove(self.linked_economy_building)
-                self.linked_economy_building.linked_economy_agent = None
-                self.linked_economy_building = None
-
-            if self.economy.owner: self.economy.owner.former_agents.append(self)
-
-            if self.attached_to is not None:
-                self.attached_to.creature.economy_agent = None
-                self.attached_to = None
-
-            if roll(0, 1):
-                token = self.economy.find_most_profitable_agent_token()
-                self.economy.add_agent_based_on_token( token )
-                #print 'Adding {0} in {1}'.format(token, self.economy.owner.name) ## DEBUG
-            else:
-                token = self.economy.find_most_demanded_commodity()
-                self.economy.add_agent_based_on_token( token )
-                #print 'Adding {0} in {1}'.format(token, self.economy.owner.name) ## DEBUG
+            self.bankrupt()
             return
 
         elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
@@ -1298,6 +1304,20 @@ class Economy:
             self.available_types[category] = [commodity]
             self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
 
+
+    def add_new_agent_to_economy(self):
+        ''' Flip between adding the most profitable commodity, or the most demanded commodity '''
+
+        if roll(0, 1):
+            token = self.find_most_profitable_agent_token(restrict_based_on_available_resource_slots=1)
+            self.add_agent_based_on_token( token )
+            # print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
+        else:
+            token = self.find_most_demanded_commodity(restrict_based_on_available_resource_slots=1)
+            self.add_agent_based_on_token( token )
+            #print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
+
+
     def add_random_agent(self):
         if roll(0, 1):
             commodity = random.choice(RESOURCES)
@@ -1310,11 +1330,34 @@ class Economy:
         info = AGENT_INFO['gatherers'][resource]
         gatherer = ResourceGatherer(name=info['name'], id_=self.agent_num, represented_population_number=100, economy=self, resource=resource,
                                     gather_amount=COMMODITY_TOKENS[resource].gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+
+        self.agent_num += 1
+
         self.resource_gatherers.append(gatherer)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(resource)
 
-        self.agent_num += 1
+        ## Assign the agent to a physical slot somewhere by the city
+        if resource == 'food':
+            resource = 'land'
+
+        #print '----'
+        for region in self.owner.territory:
+            ## Special case - land!
+            if resource == 'land' and region.has_open_slot('land'):
+                region.add_resource_gatherer_to_region(resource_name=resource, agent=gatherer)
+                return
+
+            ## Main case - loop through all the resources in the rest of the tiles
+            elif resource != 'land':
+                for tile_resource, amount in region.res.iteritems():
+                    if resource == tile_resource and region.has_open_slot(resource):
+                        region.add_resource_gatherer_to_region(resource_name=resource, agent=gatherer)
+                        #print '{0} sucessfully added to {1}'.format(resource, self.owner.name)
+                        return
+
+        print 'ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name)
+
 
     def add_good_producer(self, good):
         info = AGENT_INFO['producers'][good]
@@ -1352,25 +1395,48 @@ class Economy:
     def add_agent_based_on_token(self, token):
         ''' If we only have a token and don't know whether it's a resource or a commodity,
         this function helps us figure out which method to call'''
-        for resource in RESOURCES:
-            if resource.name == token:
-                self.add_resource_gatherer(token)
-                return None
-        for good in GOODS:
-            if good.name == token:
-                self.add_good_producer(token)
-                return None
+        if token in [r.name for r in RESOURCES]:
+            self.add_resource_gatherer(token)
 
-    def find_most_profitable_agent_token(self):
+        elif token in [g.name for g in GOODS]:
+            self.add_good_producer(token)
+
+
+    def get_possible_resource_slots(self, restrict_based_on_available_resource_slots):
+        ''' When dealing with economies attached to cities, we need to know whether, in the city's territory, there are
+        available slots used to work a particular resource. This function returns a list of all available resources in
+        a particular economy '''
+        available_resources = []
+
+        for region in self.owner.territory:
+            ###### SPECIAL CASE - LAND IS NOT A NAMED RESOURCE #######
+            if 'food' not in available_resources:
+                if (not restrict_based_on_available_resource_slots) or (restrict_based_on_available_resource_slots and region.has_open_slot('land')):
+                    available_resources.append('food')
+
+            ##### Normal case - loop through each resource in the region and check whether it's been used yet, and whether there is capacity to add it #####
+            for res, amount in region.res.iteritems():
+                if res not in available_resources and amount:
+                    if (not restrict_based_on_available_resource_slots) or (restrict_based_on_available_resource_slots and region.has_open_slot(resource_name=res)):
+                        available_resources.append(res)
+
+        return available_resources
+
+
+    def find_most_profitable_agent_token(self, restrict_based_on_available_resource_slots):
         ### First build a dict of agents, their gold, and the # of agents
         # key = commodity, value = [gold, #_of_agents]
+        available_resource_slots = self.get_possible_resource_slots(restrict_based_on_available_resource_slots=restrict_based_on_available_resource_slots)
+
         tokens_of_commodity = {}
         for agent in self.resource_gatherers:
-            if agent.resource in tokens_of_commodity:
-                tokens_of_commodity[agent.resource][0] += agent.gold
-                tokens_of_commodity[agent.resource][1] += 1
-            else:
-                tokens_of_commodity[agent.resource] = [agent.gold, 1]
+            if agent.resource in available_resource_slots:
+                if agent.resource in tokens_of_commodity:
+                    tokens_of_commodity[agent.resource][0] += agent.gold
+                    tokens_of_commodity[agent.resource][1] += 1
+                else:
+                    tokens_of_commodity[agent.resource] = [agent.gold, 1]
+
         for agent in self.good_producers:
             if agent.output in tokens_of_commodity:
                 tokens_of_commodity[agent.output][0] += agent.gold
@@ -1388,7 +1454,11 @@ class Economy:
         return best_commodity
 
 
-    def find_most_demanded_commodity(self):
+    def find_most_demanded_commodity(self, restrict_based_on_available_resource_slots):
+
+        available_resource_slots = self.get_possible_resource_slots(restrict_based_on_available_resource_slots=restrict_based_on_available_resource_slots)
+
+
         ### Find the item in highest demand
         greatest_demand_ratio = 0
         # Switched this to string, so that it can display in the city screen
@@ -1398,10 +1468,11 @@ class Economy:
         # Returns a list of valid commodities in this economy that can be used to create agents
         # For instance, copper miners won't be produced in a city with no access to copper
         for commodity in self.get_valid_agent_types():
-            current_ratio = self.auctions[commodity].demand/ max(self.auctions[commodity].supply, 1) # no div/0
-            if current_ratio > greatest_demand_ratio:
-                greatest_demand_ratio = current_ratio
-                best_commodity = commodity
+            if (restrict_based_on_available_resource_slots and commodity in [r.name for r in RESOURCES] and commodity in available_resource_slots) or not restrict_based_on_available_resource_slots:
+                current_ratio = self.auctions[commodity].demand/ max(self.auctions[commodity].supply, 1) # no div/0
+                if current_ratio > greatest_demand_ratio:
+                    greatest_demand_ratio = current_ratio
+                    best_commodity = commodity
 
         return best_commodity
 

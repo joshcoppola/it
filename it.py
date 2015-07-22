@@ -12,7 +12,7 @@ import os
 import cProfile as prof
 import pstats
 import copy
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, namedtuple
 
 import economy
 import physics as phys
@@ -49,10 +49,12 @@ class Region:
         self.char_color = libtcod.black
         self.region_number = None # For figuring out play region
 
+        self.agent_slots = {'land':{'slots':g.MAX_ECONOMY_AGENTS_PER_TILE, 'agents':[]}}
+
         self.blocks_mov = False
         self.blocks_vis = False
 
-        self.res = {}
+        self.res = defaultdict(int)
         self.entities = []
         self.populations = []
         self.objects = []
@@ -80,6 +82,27 @@ class Region:
         self.site = None
         self.territory = None
         self.explored = False
+
+    def add_resource(self, resource_name, amount):
+        self.res[resource_name] += amount
+        self.agent_slots[resource_name] = {'slots':g.MAX_ECONOMY_AGENTS_PER_TILE, 'agents':[]}
+
+    def add_resource_gatherer_to_region(self, resource_name, agent):
+        self.agent_slots[resource_name]['agents'].append(agent)
+        agent.resource_gathering_region = self
+
+    def remove_resource_gatherer_from_region(self, resource_name, agent):
+        self.agent_slots[resource_name]['agents'].remove(agent)
+        agent.resource_gathering_region = None
+
+    def has_open_slot(self, resource_name):
+        ''' Return whether the list of agents working a particular resource is smaller than the limit for the total # of agents that can work it'''
+        return resource_name in self.agent_slots and ( len(self.agent_slots[resource_name]['agents']) < self.agent_slots[resource_name]['slots'] )
+
+    def clear_all_resources(self):
+        self.res = defaultdict(int)
+
+        self.agent_slots = {'land':{'slots':0, 'agents':[]}}
 
     def in_play_region(self):
         return g.WORLD.play_region == self.region_number
@@ -815,17 +838,24 @@ class World(Map):
                 #mthresh = 1.04
                 ## Ocean
                 if self.tiles[x][y].height < g.WATER_HEIGHT:
-                    self.tiles[x][y].region = 'ocean'
                     self.tiles[x][y].blocks_mov = True
+                    self.tiles[x][y].region = 'ocean'
+
+                    self.tiles[x][y].clear_all_resources()
+
                     if self.tiles[x][y].height < 75:
                         self.tiles[x][y].color = libtcod.Color(7, 13, int(round(sc * 2)) + 10)
                     else:
                         self.tiles[x][y].color = libtcod.Color(20, 60, int(round(sc * 2)) + 15)
 
+
                 elif self.tiles[x][y].height > g.MOUNTAIN_HEIGHT:
                     self.tiles[x][y].blocks_mov = True
                     self.tiles[x][y].blocks_vis = True
                     self.tiles[x][y].region = 'mountain'
+
+                    self.tiles[x][y].clear_all_resources()
+
                     #g.WORLD.tiles[x][y].color = libtcod.Color(117+roll(-a,a), 130+roll(-a,a), 104+roll(-a,a))
                     #g.WORLD.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 40+roll(-a,a), 34+roll(-a,a))
                     #g.WORLD.tiles[x][y].color = libtcod.Color(118+roll(-a,a), 90+roll(-a,a), 80+roll(-a,a))
@@ -938,7 +968,7 @@ class World(Map):
                     for biome, chance in resource.app_chances.iteritems():
                         if biome == self.tiles[x][y].region or (biome == 'river' and self.tiles[x][y].has_feature('river')):
                             if roll(1, 1200) < chance:
-                                self.tiles[x][y].res[resource.name] = resource.app_amt
+                                self.tiles[x][y].add_resource(resource.name, resource.app_amt)
 
                                 # Hack in the ideal locs and start locs
                                 if resource.name == 'food':
@@ -1262,6 +1292,7 @@ class World(Map):
             if not 'food' in city.native_res:
                 city.native_res['food'] = 2000
             if not 'flax' in city.native_res:
+                g.WORLD.tiles[city.x][city.y].add_resource('flax', 2000)
                 city.native_res['flax'] = 2000
 
             if g.WORLD.tiles[city.x][city.y].culture.subsistence != 'agricultural':
@@ -1433,10 +1464,10 @@ class World(Map):
                         self.add_shrine(x, y, city)
                         shrine_added = 1
 
-            for (x, y) in city.territory:
+            for region in city.territory:
                 # Add farms around the city
-                if self.is_valid_site(x, y, city) and not len(g.WORLD.tiles[x][y].minor_sites):
-                    self.add_farm(x, y, city)
+                if self.is_valid_site(region.x, region.y, city) and not len(g.WORLD.tiles[region.x][region.y].minor_sites):
+                    self.add_farm(region.x, region.y, city)
 
             ### v original real reason for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
@@ -2291,6 +2322,7 @@ class City(Site):
         for resource, amount in g.WORLD.tiles[self.x][self.y].res.iteritems():
             self.obtain_resource(resource, amount - 10)
 
+        self.acquire_tile(self.x, self.y)
         self.increase_radius(amount=2)
         ## A package of buildings to start with
         self.setup_initial_buildings()
@@ -2363,8 +2395,8 @@ class City(Site):
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     ## Add extra resource gatherers in the other city
-                    city.econ.add_resource_gatherer(item)
-                    city.econ.add_resource_gatherer(item)
+                    #city.econ.add_resource_gatherer(item)
+                    #city.econ.add_resource_gatherer(item)
                     #city.econ.add_resource_gatherer(item)
                     #city.econ.add_resource_gatherer(item)
 
@@ -2507,12 +2539,12 @@ class City(Site):
             # If owned, add to civ/city's memory of territory, and remove from actual territory
             oldcity = g.WORLD.tiles[x][y].territory
 
-            oldcity.old_territory.append((x, y))
-            oldcity.territory.remove((x, y))
+            oldcity.old_territory.append(g.WORLD.tiles[x][y])
+            oldcity.territory.remove(g.WORLD.tiles[x][y])
 
         g.WORLD.tiles[x][y].territory = self
         if (x, y) not in self.territory:
-            self.territory.append((x, y))
+            self.territory.append(g.WORLD.tiles[x][y])
 
         # Add any resources
         for resource, amount in g.WORLD.tiles[x][y].res.iteritems():
@@ -4081,7 +4113,9 @@ class Object:
         else:
             return self.name
 
-    def fullname(self):
+    def fullname(self, use_you=0):
+        if use_you and (g.player == self):
+            return 'you'
         if self.creature and self.creature.firstname and self.creature.epithet: # and self.creature.status != 'dead':
             return '{0} \"{1}\" {2}'.format(self.creature.firstname, self.creature.epithet, self.creature.lastname)
         if self.creature and self.creature.firstname:
@@ -4089,7 +4123,9 @@ class Object:
         else:
             return self.name
 
-    def fulltitle(self):
+    def fulltitle(self, use_you=0):
+        if use_you and (g.player == self):
+            return 'you'
         if self.creature and self.creature.intelligence_level == 3:
             return '{0}, {1} {2}'.format(self.fullname(), lang.spec_cap(self.creature.type_), self.creature.get_profession())
         if self.creature and self.creature.intelligence_level == 2:
@@ -5320,7 +5356,7 @@ class Creature:
 
             # Notify g.player
             if self.owner == g.player:
-                g.game.add_message(new_msg="{0} has increased {1} to {2}".format(self.owner.fulltitle(), skill, self.skills[skill]), color=libtcod.green)
+                g.game.add_message(new_msg="You have increased {0} to {1}".format(skill, self.skills[skill]), color=libtcod.green)
 
     def check_to_perceive(self, other_creature):
 
@@ -6002,7 +6038,7 @@ class Creature:
     def say(self, text_string):
         msg_color = libtcod.color_lerp(self.owner.color, g.PANEL_FRONT, .5)
 
-        g.game.add_message('{0}: {1}'.format(self.owner.fullname(), text_string), msg_color)
+        g.game.add_message('{0}: {1}'.format(self.owner.fullname(use_you=1), text_string), msg_color)
 
     def nonverbal_behavior(self, behavior, msg_color=None):
         ''' Any nonverbal behavior that this creature can undertake '''
@@ -6010,7 +6046,7 @@ class Creature:
             if msg_color is None:
                 msg_color = libtcod.color_lerp(self.owner.color, g.PANEL_FRONT, .5)
 
-            g.game.add_message('%s %s.' % (self.owner.fullname(), behavior), msg_color)
+            g.game.add_message('%s %s.' % (self.owner.fullname(use_you=1), behavior), msg_color)
 
     def verbalize_pain(self, damage, sharpness, pain_ratio):
         ''' The creature will verbalize its pain '''
@@ -7881,6 +7917,13 @@ def get_info_under_mouse():
             # Resources
             for resource, amount in g.WORLD.tiles[x][y].res.iteritems():
                 info.append(('{0} ({1})'.format(resource.capitalize(), amount), color))
+            info.append((' ', color))
+
+            region_slot_info = []
+            for resource_name, slot_info in g.WORLD.tiles[x][y].agent_slots.iteritems():
+                region_slot_info.append('{0} {1}'.format(len(slot_info['agents']), resource_name))
+            joined = join_list(region_slot_info)
+            info.append((joined, color))
             info.append((' ', color))
 
             ## FEATURES
