@@ -5715,6 +5715,8 @@ class Creature:
     #def remove_enemy_faction(self, faction):
     #    self.enemy_factions.remove(faction)
 
+    def threatens_economic_output(self):
+        return len(self.commanded_figures) > 20
 
     def is_commander(self):
         return len(self.commanded_figures) or len(self.commanded_populations)
@@ -7140,6 +7142,11 @@ class BasicWorldBrain:
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
                 self.check_for_battle()
+
+            if self.owner.creature.threatens_economic_output() and g.WORLD.tiles[wx][wy].territory and self.owner.creature.faction.is_hostile_to(g.WORLD.tiles[wx][wy].territory.faction):
+                for resource, info in g.WORLD.tiles[wx][wy].region.agent_slots.iteritems():
+                    for agent in info['agents']:
+                        agent.activity_is_blocked = 1
 
     def check_for_battle(self):
         ## See whether we ended a turn on a tile with an enemy

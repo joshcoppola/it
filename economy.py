@@ -387,6 +387,7 @@ class ResourceGatherer(Agent):
 
         self.turns_since_food = 0
         self.resource_gathering_region = None
+        self.activity_is_blocked = 0
 
         self.need_food = 1
         if 'Food' in self.name:
@@ -449,24 +450,29 @@ class ResourceGatherer(Agent):
 
     def take_turn(self):
         self.last_turn = []
-        #print self.name, 'have:', self.inventory, 'selling:', self.gold
-        all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
 
-        if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
-            self.bankrupt()
-            return
+        if self.gold < 0:
+            # If agent is low on gold, either remove it or give it a government bailout (if it is the last of its kind)
+            all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
 
-        elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
-            #print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
-            # Government bailout
-            self.gold += 500
+            if len(all_agents_of_this_type_in_this_economy) > 1:
+                self.bankrupt()
+                return
+
+            elif len(all_agents_of_this_type_in_this_economy) == 1:
+                #print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
+                # Government bailout
+                self.gold += 500
+
 
         self.consume_food()
-        self.check_production_ability() # <- will gather resources
-        self.handle_bidding()
-        self.pay_taxes()
-        #self.create_sell(sell_item=self.resource, prod_adj_amt=self.gather_amount) # <- will check to make sure we have items to sell...
-        self.handle_sells()
+        if not self.activity_is_blocked:
+            self.check_production_ability() # <- will gather resources
+            self.handle_bidding()
+            self.pay_taxes()
+            self.handle_sells()
+
+        self.activity_is_blocked = 0
         self.turns_alive += 1
 
     def consume_food(self):
