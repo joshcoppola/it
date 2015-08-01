@@ -91,9 +91,18 @@ class Region:
         self.agent_slots[resource_name]['agents'].append(agent)
         agent.resource_gathering_region = self
 
+        # Add farm only to places with resource gatherers
+        if resource_name == 'land' and not self.has_minor_site(type_='farm'):
+            g.WORLD.add_farm(self.x, self.y, city=self.territory)
+
+
     def remove_resource_gatherer_from_region(self, resource_name, agent):
         self.agent_slots[resource_name]['agents'].remove(agent)
         agent.resource_gathering_region = None
+
+        # In future, abandoning the farm
+        #if resource_name == 'land' and self.has_minor_site(type_='farm') and not len(self.agent_slots['land']['agents']):
+        #
 
     def has_open_slot(self, resource_name):
         ''' Return whether the list of agents working a particular resource is smaller than the limit for the total # of agents that can work it'''
@@ -111,6 +120,14 @@ class Region:
         ''' Check if certain feature is in region '''
         for feature in self.features:
             if feature.type_ == type_:
+                return 1
+
+        return 0
+
+    def has_minor_site(self, type_):
+        ''' Check if certain feature is in region '''
+        for site in self.minor_sites:
+            if site.type_ == type_:
                 return 1
 
         return 0
@@ -1464,10 +1481,10 @@ class World(Map):
                         self.add_shrine(x, y, city)
                         shrine_added = 1
 
-            for region in city.territory:
+            #for region in city.territory:
                 # Add farms around the city
-                if self.is_valid_site(region.x, region.y, city) and not len(g.WORLD.tiles[region.x][region.y].minor_sites):
-                    self.add_farm(region.x, region.y, city)
+            #    if self.is_valid_site(region.x, region.y, city) and not len(g.WORLD.tiles[region.x][region.y].minor_sites):
+            #        self.add_farm(region.x, region.y, city)
 
             ### v original real reason for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
