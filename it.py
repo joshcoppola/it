@@ -981,7 +981,7 @@ class World(Map):
 
 
                 #### New code - add resources
-                for resource in economy.RESOURCES:
+                for resource in economy.commodity_manager.resources:
                     for biome, chance in resource.app_chances.iteritems():
                         if biome == self.tiles[x][y].region or (biome == 'river' and self.tiles[x][y].has_feature('river')):
                             if roll(1, 1200) < chance:
@@ -2381,13 +2381,13 @@ class City(Site):
         self.econ = economy.Economy(native_resources=self.native_res.keys(), local_taxes=g.DEFAULT_TAX_AMOUNT, owner=self)
 
         for resource_type, amount in economy.CITY_RESOURCE_SLOTS.iteritems():
-            for resource_class in economy.RESOURCE_TYPES[resource_type]:
+            for resource_class in economy.commodity_manager.get_commodities_of_type(resource_type):
                 if resource_class.name in self.native_res:
                     self.resource_slots[resource_class.name] = amount
 
         good_tokens_we_can_produce = economy.list_goods_from_strategic(self.native_res.keys())
         for good_type, amount in economy.CITY_INDUSTRY_SLOTS.iteritems():
-            for good_class in economy.GOOD_TYPES[good_type]:
+            for good_class in economy.commodity_manager.get_commodities_of_type(good_type):
                 if good_class.name in good_tokens_we_can_produce:
                     self.industry_slots[good_class.name] = amount
 
@@ -2403,11 +2403,15 @@ class City(Site):
                 self.econ.add_good_producer(good)
 
     def setup_imports(self):
+
+
+        goods_by_resource_token = economy.commodity_manager.get_goods_by_resource_token()
+
         for city, import_list in self.imports.iteritems():
 
             for item in import_list:
                 ## It's coming up with good in the import list...
-                if item in economy.GOODS_BY_RESOURCE_TOKEN:
+                if item in goods_by_resource_token:
                     ## Add merchants to the other city, who sell stuff in this city
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
@@ -2430,7 +2434,7 @@ class City(Site):
                         city.econ.add_good_producer(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
-                    for good_class in economy.GOODS_BY_RESOURCE_TOKEN[item]:
+                    for good_class in goods_by_resource_token[item]:
                         city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                         city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                         #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
