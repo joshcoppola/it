@@ -605,7 +605,7 @@ def import_object_yml(file_path):
                                 material_tokens.append(material_token)
 
                         for material_type in layer['material_types']:
-                            for material_token in econ.RESOURCE_TYPES[material_type]:
+                            for material_token in econ.commodity_manager.get_commodities_of_type(material_type):
                                 if material_token not in material_tokens:
                                     material_tokens.append(material_token)
 
@@ -639,7 +639,7 @@ def get_valid_assembly_materials(object_name, object_dict):
 
             # Types are higher up in the hierarchy, such as "ores"
             for rtype in layer['material_types']:
-                for token in econ.RESOURCE_TYPES[rtype]:
+                for token in econ.commodity_manager.get_commodities_of_type(rtype):
                     layer_valid_materials.append(token.name)
 
         component_materials[component_name] = layer_valid_materials
