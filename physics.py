@@ -281,7 +281,7 @@ class MaterialLayer:
 
 ## The component that the object is made out of
 class ObjectComponent:
-    def __init__(self, name, layers, sharp, functions, attachment_info, position=None, wearing_info=None):
+    def __init__(self, name, layers, sharp, tags, attachment_info, position=None, wearing_info=None):
         self.name = name
         # Owner should be overwritten when object initializes
         self.owner = None
@@ -320,9 +320,9 @@ class ObjectComponent:
         self.information = infinite_defaultdict()
 
         self.storage = None
-        ## functions, such as attaching, holding, or grasping
-        self.functions = functions
-        if 'storage' in self.functions:
+        ## tags, such as attaching, holding, or grasping
+        self.tags = tags
+        if 'storage' in self.tags:
             self.storage = []
 
         self.grasped_item = None
@@ -465,7 +465,7 @@ class ObjectComponent:
 
     def get_chances_to_hit_exposed_layers(self):
         ''' Originally was written elsewhere, essentially duplicates the get_coverage_layers() method
-            Should refactor to make flow clearer and not need to use the above function '''
+            Should refactor to make flow clearer and not need to use the above tag '''
         chances_to_hit = []
         running_coverage_amt = 0
         for layer, coverage_amt in self.get_coverage_layers():
@@ -546,7 +546,7 @@ def assemble_components(clist, force_material=None):
 
         ## Now that we have the layers, create the component
         new_component = ObjectComponent(name=component_name, layers=layers, sharp=component['sharp'],
-                                        functions=[function for function in component['functions']], attachment_info=component['attachment_info'],
+                                        tags=[tag for tag in component['tags']], attachment_info=component['attachment_info'],
                                         position=component['position'], wearing_info=component['wearing_info'])
 
         components.append(new_component)

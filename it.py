@@ -3600,7 +3600,7 @@ class Object:
     def initial_give_object_to_hold(self, obj):
         ''' A bit of a hack for now, just to get the object holding a weapon '''
         for component in self.components:
-            if 'grasp' in component.functions and not component.grasped_item:
+            if 'grasp' in component.tags and not component.grasped_item:
                 # Give 'em a sword
                 self.pick_up_object(own_component=component, obj=obj)
                 break
@@ -5438,7 +5438,7 @@ class Creature:
         self.stance = stance
 
     def get_graspers(self):
-        return [component for component in self.owner.components if 'grasp' in component.functions]
+        return [component for component in self.owner.components if 'grasp' in component.tags]
 
     def set_combat_attack(self, target, opening_move, move2):
         self.needs_to_calculate_combat = 1
