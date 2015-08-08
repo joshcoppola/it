@@ -9,7 +9,7 @@ holy relic:
    creature: null
    components:
       - name: relic
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: null

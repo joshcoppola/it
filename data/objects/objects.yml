@@ -9,7 +9,7 @@ door:
    creature: null
    components:
       - name: door
-        functions: [door]
+        tags: [door]
         attacks: []
         position: null
         attaches_to: null
@@ -33,7 +33,7 @@ pottery:
    creature: null
    components:
       - name: pottery
-        functions: [storage]
+        tags: [storage]
         attacks: []
         position: null
         attaches_to: null
@@ -57,7 +57,7 @@ barrel:
    creature: null
    components:
       - name: barrel
-        functions: [storage]
+        tags: [storage]
         attacks: []
         position: null
         attaches_to: null
@@ -81,7 +81,7 @@ crate:
    creature: null
    components:
       - name: crate
-        functions: [storage]
+        tags: [storage]
         attacks: []
         position: null
         attaches_to: null
@@ -105,7 +105,7 @@ book:
    creature: null
    components:
       - name: book
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: null
@@ -129,7 +129,7 @@ map:
    creature: null
    components:
       - name: map
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: null
@@ -153,7 +153,7 @@ shirt:
     creature: null
     components:
       - name: shirt
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: null
@@ -167,7 +167,7 @@ shirt:
             dimensions: [.36, 53, .20, .9]
             layer_thickness: .001
       - name: right sleeve
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: shirt
@@ -181,7 +181,7 @@ shirt:
             dimensions: [.17, .75, .17, .85]
             layer_thickness: .001
       - name: left sleeve
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: shirt
@@ -205,7 +205,7 @@ pants:
     creature: null
     components:
       - name: right pant leg
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: null
@@ -219,7 +219,7 @@ pants:
             dimensions: [.15, .8, .15, .85]
             layer_thickness: .001
       - name: left pant leg
-        functions: []
+        tags: []
         attacks: []
         position: null
         attaches_to: right pant leg
@@ -243,7 +243,7 @@ pack:
     creature: null
     components:
       - name: pack
-        functions: [storage]
+        tags: [storage]
         attacks: []
         position: null
         attaches_to: null

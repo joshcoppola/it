@@ -35,7 +35,7 @@ human:
         attach_strength: null
         sharp: 1
         wearing_info: 0
-        functions: [breathe, pump blood]
+        tags: [breathe, pump blood]
         attacks: []
         position: middle
         layers:
@@ -59,7 +59,7 @@ human:
         attach_strength: 100
         sharp: 1
         wearing_info: 0
-        functions: [think]
+        tags: [think]
         attacks: [bite]
         position: high
         layers:
@@ -78,7 +78,7 @@ human:
         attach_strength: 100
         sharp: 1
         wearing_info: 0
-        functions: [grasp]
+        tags: [grasp]
         attacks: [punch]
         position: middle
         layers:
@@ -97,7 +97,7 @@ human:
         attach_strength: 100
         sharp: 1
         wearing_info: 0
-        functions: [grasp]
+        tags: [grasp]
         attacks: [punch]
         position: middle
         layers:
@@ -116,7 +116,7 @@ human:
         attach_strength: 100
         sharp: 1
         wearing_info: 0
-        functions: [walk]
+        tags: [walk]
         attacks: [kick]
         position: low
         layers:
@@ -135,7 +135,7 @@ human:
         attach_strength: 100
         sharp: 1
         wearing_info: 0
-        functions: [walk]
+        tags: [walk]
         attacks: [kick]
         position: low
         layers:
