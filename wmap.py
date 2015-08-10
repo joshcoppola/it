@@ -439,11 +439,21 @@ class Wmap(Map):
         self.tiles[x][y].objects.append(obj)
         self.tiles[x][y].chunk.objects.append(obj)
 
-        if obj.creature:
+
+        ## If it's a creature and it's not already in the map's list of creatures
+        if obj.creature and not obj in self.creatures:
             self.creatures.append(obj)
             obj.creature.next_tick = self.world.time_cycle.current_tick + 1
-        else:
+        ## DEBUG - If not, log it
+        elif obj in self.creatures:
+            print 'Creature duplication -- {0} was already in map.creatures'.format(obj.fulltitle())
+
+        ## If it's not a creature and it's not already in the map's list of objects
+        if not obj.creature and obj not in self.objects:
             self.objects.append(obj)
+        ## DEBUG - log the object duplication
+        elif not obj.creature and obj in self.objects:
+            print 'Object duplication -- {0} was already in map.objects'.format(obj.fulltitle())
 
         obj.x = x
         obj.y = y
