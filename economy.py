@@ -740,6 +740,18 @@ class GoodProducer(Agent):
 
             self.economy.add_new_agent_to_economy()
 
+    def get_sold_objects(self):
+        ''' Return the names of the objects sold by this agent '''
+        sold_objects = []
+        if self.economy.owner:
+            for obj in self.economy.owner.faction.unique_object_dict:
+                for tag in self.economy.owner.faction.unique_object_dict[obj]['tags']:
+                    if tag in AGENT_INFO['producers'][self.sell_item]['sold_object_tags']:
+                        sold_objects.append(obj)
+                        break
+
+        return sold_objects
+
 
     def take_turn(self):
         self.last_turn = []
