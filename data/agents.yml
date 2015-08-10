@@ -53,18 +53,21 @@ producers:
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [tool]
     bronze tools: 
         name: Bronze Blacksmith
         finished_good: bronze tools
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [tool]
     iron tools: 
         name: Iron Blacksmith
         finished_good: iron tools
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [tool]
 
     copper weapons:
         name: Copper Weaponsmith
@@ -72,18 +75,23 @@ producers:
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [weapon]
+
     bronze weapons:
         name: Bronze Weaponsmith
         finished_good: bronze weapons
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [weapon]
+
     iron weapons:
         name: Iron Weaponsmith
         finished_good: iron tools
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [weapon]
 
     copper armor:
         name: Copper Armorer
@@ -91,18 +99,21 @@ producers:
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [armor]
     bronze armor:
         name: Bronze Weaponsmith
         finished_good: bronze armor
         consumed: [woods]
         essential: []
-        preferred: [clothing]
+        preferred: [clothing, furniture, pottery]
+        sold_object_tags: [armor]
     iron armor:
         name: Iron Armorer
         finished_good: iron armor
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
+        sold_object_tags: [armor]
 
     #silt pottery: name: Silt Potter finished_good: silt pottery consumed: [], essential: [], preferred: [clothing] },
     clay pottery:
@@ -111,18 +122,21 @@ producers:
         consumed: []
         essential: []
         preferred: [clothing, furniture]
+        sold_object_tags: [pot]
     wood furniture:
         name: Wood Carpenter
         finished_good: wood furniture
         consumed: []
         essential: [tools]
         preferred: [clothing, pottery]
+        sold_object_tags: [furniture, crate]
     flax clothing:
         name: Flax Clothier
         finished_good: flax clothing
         consumed: []
         essential: [tools]
         preferred: [furniture, pottery]
+        sold_object_tags: [clothing]
 
 merchants:
     merchant: 
