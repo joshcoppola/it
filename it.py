@@ -281,6 +281,10 @@ class World(Map):
         #### load phys info ####
         phys.main()
 
+        # Out of order for now, to get creation myth on load screen
+        self.gen_mythological_creatures()
+        self.cm = religion.CreationMyth(creator=self.default_mythic_culture.pantheon.gods[0], pantheon=self.default_mythic_culture.pantheon)
+        self.cm.create_myth()
         #self.generate()
 
     def add_famous_object(self, obj):
@@ -296,22 +300,27 @@ class World(Map):
         #### Setup actual world ####
 
         steps = 6
-        g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps, self.cm.story_text)
         self.setup_world()
         ########################### Begin with heightmap ##################################
-        g.game.render_handler.progressbar_screen('Generating World Map', 'generating heightmap', 2, steps)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'generating heightmap', 2, steps, self.cm.story_text)
         self.make_heightmap()
         ## Now, loop through map and check each land tile for its distance to water
-        g.game.render_handler.progressbar_screen('Generating World Map', 'setting moisture', 3, steps)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'setting moisture', 3, steps, self.cm.story_text)
         self.calculate_water_dist()
 
         ##### EXPERIMENTOIAENH ######
         #self.calculate_rainfall()
         ########################## Now, generate rivers ########################
-        g.game.render_handler.progressbar_screen('Generating World Map', 'generating rivers', 4, steps)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'generating rivers', 4, steps, self.cm.story_text)
         self.gen_rivers()
         ################################ Resources ##########################################
-        g.game.render_handler.progressbar_screen('Generating World Map', 'setting resources and biome info', 5, steps)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'setting resources and biome info', 5, steps, self.cm.story_text)
+
+        # Print out creation myth
+        for line in self.cm.story_text:
+            g.game.add_message(line)
+
         self.set_resource_and_biome_info()
 
         ##### End setup actual world #####
@@ -1087,7 +1096,7 @@ class World(Map):
 
 
     def gen_history(self, years):
-        self.gen_mythological_creatures()
+        #self.gen_mythological_creatures()
         self.gen_sentient_races()
         self.gen_cultures()
         self.create_civ_cradle()
@@ -8031,13 +8040,12 @@ class RenderHandler:
 
         libtcod.console_print_ex(0, int(round(g.SCREEN_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, header)
 
-        '''
-        if background_text != None:
+        if background_text:
             y = 10
-            for t in background_text:
-                h = libtcod.console_print_rect(con=con.con, x=5, y=y, w=70, h=10, fmt=t)
+            for line in background_text:
+                h = libtcod.console_print_rect(con=g.game.interface.map_console.con, x=20, y=y, w=g.SCREEN_WIDTH-20, h=30, fmt=line)
                 y += h + 2
-        '''
+
 
         g.game.interface.map_console.render_bar(x=int(round(g.SCREEN_WIDTH / 2)) - 9, y=1, total_width=18, name=current_action, value=min_val,
                    maximum=max_val, bar_color=libtcod.color_lerp(libtcod.dark_yellow, g.PANEL_FRONT, .5),
