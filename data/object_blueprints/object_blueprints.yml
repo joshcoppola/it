@@ -9,7 +9,7 @@ sword:
    creature: null
    components:
       - name: sword
-        tags: [attack]
+        tags: [attack, weapon]
         attacks: []
         position: null
         attaches_to: null
@@ -33,7 +33,7 @@ dagger:
    creature: null
    components:
       - name: dagger
-        tags: [attack]
+        tags: [attack, weapon]
         attacks: []
         position: null
         attaches_to: null
@@ -57,7 +57,7 @@ mace:
    creature: null
    components:
       - name: mace
-        tags: [attack]
+        tags: [attack, weapon]
         attacks: []
         position: null
         attaches_to: null
@@ -81,7 +81,7 @@ spear:
    creature: null
    components:
       - name: spear
-        tags: [attack]
+        tags: [attack, weapon]
         attacks: []
         position: null
         attaches_to: null
@@ -105,7 +105,7 @@ axe:
    creature: null
    components:
       - name: axe
-        tags: [attack]
+        tags: [attack, weapon]
         attacks: []
         position: null
         attaches_to: null

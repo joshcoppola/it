@@ -33,7 +33,7 @@ pottery:
    creature: null
    components:
       - name: pottery
-        tags: [storage]
+        tags: [storage, pot]
         attacks: []
         position: null
         attaches_to: null
