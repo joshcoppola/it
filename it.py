@@ -3018,6 +3018,9 @@ class Faction:
 
         self.weapons = []
 
+        # All objects unique to the faction
+        self.unique_object_dict = {}
+
         self.faction_relations = {}
         # Factions whom we would openly fight
         self.enemy_factions = set([])
@@ -3194,9 +3197,6 @@ class Faction:
                 print self.name, 'was queried for heirs but has no holder'
                 return []
 
-
-
-
     def create_faction_weapons(self):
         ''' Culturally specific weapons '''
 
@@ -3228,6 +3228,9 @@ class Faction:
             self.weapons.append(name)
 
             phys.object_dict[name] = weapon_info_dict
+
+            # Add to our own set of unique items
+            self.unique_object_dict[name] = weapon_info_dict
 
 
 ## The object itself is basically a list of components
@@ -3262,6 +3265,10 @@ class Object:
 
         # If this thing was designed as a weapon, this flag keeps track of it
         self.weapon = weapon
+
+        # All tags associated with components which make up this object
+        self.tags = self.get_tags()
+
         # How important / well-known this object is - also tracks entities' importance level
         self.infamy = 0
 
@@ -3298,6 +3305,15 @@ class Object:
 
 
         self.cached_astar_path = None
+
+    def get_tags(self):
+        ''' Return set of all tags which our components are tagged with '''
+        tags = set([])
+        for component in self.components:
+            for tag in component.tags:
+                tags.add(tag)
+
+        return tags
 
     def set_local_brain(self, brain):
         self.local_brain = brain
