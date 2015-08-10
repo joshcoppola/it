@@ -10,6 +10,8 @@ from random import randint as roll
 import libtcodpy as libtcod
 from helpers import join_list, ct, infinite_defaultdict
 
+import economy as econ
+
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
 
@@ -569,6 +571,7 @@ def import_object_yml(file_path):
 
             object_dict[obj] = objects[obj]
             object_dict[obj]['name'] = obj
+            object_dict[obj]['tags'] = set([])
 
             if object_dict[obj]['color'] != 'use_material':
                 object_dict[obj]['color'] = libtcod.Color(*object_dict[obj]['color'])
@@ -610,6 +613,9 @@ def import_object_yml(file_path):
                                     material_tokens.append(material_token)
 
                 object_dict[obj]['possible_materials'] = material_tokens
+
+                for tag in component['tags']:
+                    object_dict[obj]['tags'].add(tag)
                 #########################################
 
     #for o in object_dict.keys():
