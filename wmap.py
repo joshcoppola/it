@@ -1668,6 +1668,11 @@ class CityMap:
 
                             building.place_within(obj)
 
+                            # Place some dummy example objects for now
+                            for n_obj in building.linked_economy_agent.get_sold_objects():
+                                n_obj = self.usemap.create_and_add_object(name=n_obj, x=1, y=1, force_material=phys.materials[building.linked_economy_agent.finished_good.material.name])
+                                building.place_within(n_obj)
+
 
                 else:
                     print 'Not enough buildings matching criteria'
