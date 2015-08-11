@@ -29,6 +29,7 @@ human:
             agility: 10
             willpower: 10
             movespeed: 1
+    availability: null
     components:
       - name: torso
         attaches_to: null

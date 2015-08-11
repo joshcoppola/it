@@ -7,6 +7,7 @@ door:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: common
    components:
       - name: door
         tags: [door]
@@ -31,6 +32,7 @@ pottery:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: common
    components:
       - name: pottery
         tags: [storage, pot]
@@ -55,9 +57,10 @@ barrel:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: common
    components:
       - name: barrel
-        tags: [storage]
+        tags: [storage, furniture]
         attacks: []
         position: null
         attaches_to: null
@@ -79,9 +82,10 @@ crate:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: common
    components:
       - name: crate
-        tags: [storage]
+        tags: [storage, furniture, crate]
         attacks: []
         position: null
         attaches_to: null
@@ -103,6 +107,7 @@ book:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: common
    components:
       - name: book
         tags: []
@@ -127,6 +132,7 @@ map:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: common
    components:
       - name: map
         tags: []
@@ -151,9 +157,10 @@ shirt:
     weapon_component: null
     wearable: 1
     creature: null
+    availability: common
     components:
       - name: shirt
-        tags: []
+        tags: [clothing]
         attacks: []
         position: null
         attaches_to: null
@@ -167,7 +174,7 @@ shirt:
             dimensions: [.36, 53, .20, .9]
             layer_thickness: .001
       - name: right sleeve
-        tags: []
+        tags: [clothing]
         attacks: []
         position: null
         attaches_to: shirt
@@ -181,7 +188,7 @@ shirt:
             dimensions: [.17, .75, .17, .85]
             layer_thickness: .001
       - name: left sleeve
-        tags: []
+        tags: [clothing]
         attacks: []
         position: null
         attaches_to: shirt
@@ -203,9 +210,10 @@ pants:
     weapon_component: null
     wearable: 1
     creature: null
+    availability: common
     components:
       - name: right pant leg
-        tags: []
+        tags: [clothing]
         attacks: []
         position: null
         attaches_to: null
@@ -219,7 +227,7 @@ pants:
             dimensions: [.15, .8, .15, .85]
             layer_thickness: .001
       - name: left pant leg
-        tags: []
+        tags: [clothing]
         attacks: []
         position: null
         attaches_to: right pant leg
@@ -241,9 +249,10 @@ pack:
     weapon_component: null
     wearable: 1
     creature: null
+    availability: common
     components:
       - name: pack
-        tags: [storage]
+        tags: [storage, clothing]
         attacks: []
         position: null
         attaches_to: null
@@ -256,4 +265,29 @@ pack:
             coverage: 1
             dimensions: [.35, 45, .35, .95]
             layer_thickness: .05
-            
+
+sickle:
+   char: "7"
+   color: use_material
+   blocks_mov: 0
+   blocks_vis: 0
+   description: "This is a %s "
+   weapon_component: null
+   wearable: 0
+   creature: null
+   availability: common
+   components:
+      - name: sickle
+        tags: [tool]
+        attacks: []
+        position: null
+        attaches_to: null
+        attach_strength: null
+        sharp: 1.1
+        wearing_info: 0
+        layers:
+          - material_tokens: []
+            material_types: [ores]
+            coverage: 1
+            dimensions: [.08, .8, .01, .9]
+            layer_thickness: null

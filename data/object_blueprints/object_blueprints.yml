@@ -7,6 +7,7 @@ sword:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: faction_specific
    components:
       - name: sword
         tags: [attack, weapon]
@@ -31,6 +32,7 @@ dagger:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: faction_specific
    components:
       - name: dagger
         tags: [attack, weapon]
@@ -55,6 +57,7 @@ mace:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: faction_specific
    components:
       - name: mace
         tags: [attack, weapon]
@@ -79,6 +82,7 @@ spear:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: faction_specific
    components:
       - name: spear
         tags: [attack, weapon]
@@ -103,6 +107,7 @@ axe:
    weapon_component: null
    wearable: 0
    creature: null
+   availability: faction_specific
    components:
       - name: axe
         tags: [attack, weapon]
