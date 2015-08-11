@@ -1505,7 +1505,7 @@ class World(Map):
             city.setup_imports()
 
         for city in created_cities:
-            city.faction.create_faction_weapons()
+            city.faction.create_faction_objects()
 
         ## Make sure succession gets set up
         for faction in self.factions:
@@ -3206,8 +3206,14 @@ class Faction:
                 print self.name, 'was queried for heirs but has no holder'
                 return []
 
-    def create_faction_weapons(self):
+    def create_faction_objects(self):
         ''' Culturally specific weapons '''
+
+        # Go through all objects in the master dictionary and duplicate the common-pool ones
+        for obj in phys.object_dict:
+            if phys.object_dict[obj]['availability'] == 'common':
+                self.unique_object_dict[obj] = phys.object_dict[obj]
+
 
         weapon_types = phys.blueprint_dict.keys()
         #materials = self.site.get_available_materials()
@@ -8640,8 +8646,8 @@ class Game:
         faction1.set_leader(leader=g.player)
         faction2.set_leader(leader=leader)
         # Weapons for variety
-        faction1.create_faction_weapons()
-        faction2.create_faction_weapons()
+        faction1.create_faction_objects()
+        faction2.create_faction_objects()
 
         # Give weapon to g.player
         wname = random.choice(faction1.weapons)
