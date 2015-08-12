@@ -81,9 +81,9 @@ class GoodsAreLoaded:
 
 
 class HaveItem:
-    def __init__(self, item, entity):
+    def __init__(self, item_name, entity):
         self.status = 'have_item'
-        self.item = item
+        self.item_name = item_name
         self.entity = entity
         # Will be set if this status isn't already completed
         self.behaviors_to_accomplish = [BuyItem(self.item, self.entity), StealItem(self.item, self.entity)]
@@ -621,20 +621,20 @@ if __name__ == '__main__':
     test_entity_amoral.creature.traits['dishonest'] = 2
 
     begin = time()
-    best_path = test_entity_normal.world_brain.set_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_normal), reason='because')
+    best_path = test_entity_normal.world_brain.set_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_normal), reason='because')
     print 'done in {0}'.format(time() - begin)
     #print [b.behavior for b in best_path]
 
     print ''
 
     begin = time()
-    best_path = test_entity_amoral.world_brain.set_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_amoral), reason='because')
+    best_path = test_entity_amoral.world_brain.set_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_amoral), reason='because')
     print 'done in {0}'.format(time() - begin)
 
     best_path = test_entity_moral.world_brain.set_goal(goal_state=GoodsAreUnloaded(target_city='debug', goods='lol', entity=test_entity_moral), reason='because')
     #print [b.behavior for b in best_path]
 #
-# path_list = find_actions_leading_to_goal(goal_state=HaveItem(item=GOAL_ITEM, entity=test_entity_normal), action_path=[], all_possible_paths=[])
+# path_list = find_actions_leading_to_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_normal), action_path=[], all_possible_paths=[])
 # #for p in path_list:
 # #    print [b.behavior for b in p]
 #
