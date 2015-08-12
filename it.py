@@ -1516,6 +1516,8 @@ class World(Map):
 
         for city in created_cities:
             city.faction.create_faction_objects()
+            # Now that imports have been created (last loop) we can start cache-ing the objects available here
+            city.update_object_to_agents_dict()
 
         ## Make sure succession gets set up
         for faction in self.factions:
@@ -2354,6 +2356,11 @@ class City(Site):
         self.resource_slots = {}
         self.industry_slots = {}
 
+
+        # Maps objects (keys) to a list of agents
+        # Eg. 'sword':['Bronze Weaponsmith', 'Copper Weaponsmith']
+        self.object_to_agents_dict = defaultdict(list)
+
         # Add resources to the city, for the purposes of the economy
         for resource, amount in g.WORLD.tiles[self.x][self.y].res.iteritems():
             self.obtain_resource(resource, amount - 10)
@@ -2363,6 +2370,25 @@ class City(Site):
         ## A package of buildings to start with
         self.setup_initial_buildings()
 
+
+    def update_object_to_agents_dict(self):
+        ''' This dict helps us find which objects can be bought at which cities. This will may be somewhat out-of-sync
+            with the actual possibilities, due to new agents being added or old ones being removed. However, it should
+            be close enough to work most of the time, assuming entity AI should takes this into account. '''
+
+        # Reset this attribute
+        self.object_to_agents_dict = defaultdict(list)
+
+        already_checked = []
+        for agent in self.econ.good_producers:
+            if agent.name in already_checked:
+                continue
+
+            # Loop through all objects produced by the agent and add them as keys; append the agent name into the values
+            for object_name in agent.get_sold_objects():
+                self.object_to_agents_dict[object_name].append(agent.name)
+
+            already_checked.append(agent.name)
 
     def connect_to(self, other_city):
         self.connected_to.append(other_city)
@@ -7200,6 +7226,9 @@ class BasicWorldBrain:
             #     self.handle_goal_behavior()
             if self.current_goal_path:
                 self.take_goal_behavior()
+            #else:
+            #    if roll(1, 10) == 1:
+            #        self.set_goal(goal_state=goap.HaveItem(item_name='shirt', entity=self.owner), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
