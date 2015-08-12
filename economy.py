@@ -56,7 +56,7 @@ plot_colors = {'food':(.3, .8, .3), 'flax':(1, .5, 1), 'clay':(.25, 0, .5), 'woo
 
 
 with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
-        AGENT_INFO = yaml.load(a)
+    AGENT_INFO = yaml.load(a)
 
 CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
 CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8, 'armor':2, 'weapons':2}
