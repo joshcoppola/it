@@ -6,9 +6,13 @@ from time import time
 import libtcodpy as libtcod
 
 
-from helpers import infinite_defaultdict
+from helpers import infinite_defaultdict, libtcod_path_to_list
 from traits import TRAIT_INFO
 import config as g
+
+
+import it
+import physics as phys
 
 GOAL_ITEM = 'cheese'
 
@@ -86,10 +90,10 @@ class HaveItem:
         self.item_name = item_name
         self.entity = entity
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = [BuyItem(self.item, self.entity), StealItem(self.item, self.entity)]
+        self.behaviors_to_accomplish = [BuyItem(self.item_name, self.entity)] #, StealItem(self.item, self.entity)]
 
     def is_completed(self):
-        return self.item in self.entity.creature.possessions
+        return self.item_name in self.entity.creature.possessions
 
 
 class KnowWhereItemisLocated:
@@ -123,7 +127,8 @@ class HaveMoney:
         self.behaviors_to_accomplish = [GetMoneyThroughWork(self.money, self.entity), StealMoney(self.money, self.entity)]
 
     def is_completed(self):
-        return self.entity.creature.gold >= self.money
+        return 1
+        #return self.entity.creature.gold >= self.money
 
 
 class HaveJob:
@@ -231,14 +236,35 @@ class StealMoney(ActionBase):
 
 
 class BuyItem(ActionBase):
-    def __init__(self, item, entity):
+    def __init__(self, item_name, entity):
         ActionBase.__init__(self)
         self.behavior = 'buy_item'
-        self.item = item
+        self.item_name = item_name
         self.entity = entity
-        self.preconditions = [HaveMoney(self.item, self.entity)]
+        self.preconditions = [HaveMoney(self.item_name, self.entity)]
 
         self.costs = {'money':50, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
+
+    def get_behavior_location(self, current_location):
+        ''' Find what cities sell the item we want, and then which of those cities is closest '''
+        possible_cities = [city for city in g.WORLD.cities if self.item_name in city.object_to_agents_dict]
+
+        closest_city, closest_dist = g.WORLD.get_closest_city(x=current_location[0], y=current_location[1], valid_cities=possible_cities)
+
+        self.costs['distance'] += closest_dist
+        self.costs['time'] += closest_dist
+
+        return closest_city.x, closest_city.y
+
+    def take_behavior_action(self):
+        # TODO - needs to actually exchange goods with an agent!
+        # Temporariliy just popping one into existence
+        obj = it.assemble_object(object_blueprint=phys.object_dict[self.item_name], force_material=None, wx=self.entity.wx, wy=self.entity.wy)
+        self.entity.initial_give_object_to_hold(obj)
+        #print '{0} just bought a {1}'.format(self.entity.fulltitle(), self.item_name)
+
+    def is_completed(self):
+        return 1
 
 class StealItem(ActionBase):
     def __init__(self, item, entity):
@@ -276,7 +302,7 @@ class MoveToLocation(ActionBase):
                 full_path = current_site.path_to[target_site][:]
             else:
                 # Default - use libtcod's A* to create a path to destination
-                path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.x, dy=self.y)
+                path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.target_location[0], dy=self.target_location[1])
                 full_path = libtcod_path_to_list(path_map=g.WORLD.path_map)
 
             # Add path to brain
