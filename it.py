@@ -456,11 +456,20 @@ class World(Map):
 
         return river_dirs
 
-    def get_closest_city(self, x, y, max_range=1000):
+    def get_closest_city(self, x, y, max_range=1000, valid_cities='all_cities_in_world'):
+        ''' Find closest city from a given location. Optionally pass in a list of cities to restrict search by '''
+        cities = self.cities if valid_cities == 'all_cities_in_world' else valid_cities
+
+        # Attepmt to shave some time from the expensive astar algo below by checking if the current tile is a valid city,
+        # and cut the function short by returning that site if so
+        if self.tiles[x][y].site and self.tiles[x][y].site in cities:
+            return self.tiles[x][y].site, 0
+
+        # Normal case - loop through all cities and track distance / closest distance until we find the minimum
         closest_city = None
         closest_dist = max_range + 1  #start with (slightly more than) maximum range
 
-        for city in self.cities:
+        for city in cities:
             dist = self.get_astar_distance_to(x, y, city.x, city.y)
             if  dist < closest_dist: #it's closer, so remember it
                 closest_city = city
@@ -468,6 +477,7 @@ class World(Map):
         return closest_city, closest_dist
 
     def find_nearby_resources(self, x, y, distance):
+        # TODO - this code is pretty gnarly :-/
         # Make a list of nearby resources at particular world coords
         nearby_resources = []
         nearby_resource_locations = []
