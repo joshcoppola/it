@@ -1,10 +1,10 @@
 from __future__ import division
 from math import ceil
+import random
 from random import randint as roll
 from collections import defaultdict
 from time import time
 import libtcodpy as libtcod
-
 
 from helpers import infinite_defaultdict, libtcod_path_to_list
 from traits import TRAIT_INFO
@@ -243,6 +243,9 @@ class BuyItem(ActionBase):
         self.entity = entity
         self.preconditions = [HaveMoney(self.item_name, self.entity)]
 
+        # Set in get_behavior_location()
+        self.site = None
+
         self.costs = {'money':50, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
 
     def get_behavior_location(self, current_location):
@@ -254,13 +257,16 @@ class BuyItem(ActionBase):
         self.costs['distance'] += closest_dist
         self.costs['time'] += closest_dist
 
+        self.site = closest_city
+
         return closest_city.x, closest_city.y
 
     def take_behavior_action(self):
-        # TODO - needs to actually exchange goods with an agent!
-        # Temporariliy just popping one into existence
-        obj = it.assemble_object(object_blueprint=phys.object_dict[self.item_name], force_material=None, wx=self.entity.wx, wy=self.entity.wy)
-        self.entity.initial_give_object_to_hold(obj)
+
+        target_agent = random.choice([agent for agent in self.site.econ.good_producers if self.item_name in agent.get_sold_objects()])
+        self.entity.creature.buy_object(obj=self.item_name, sell_agent=target_agent, price=target_agent.perceived_values[target_agent.finished_good.name].center, material=None, create_object=1)
+
+        print target_agent.name, 'just sold', self.item_name, 'to', self.entity.fulltitle(), 'for', target_agent.perceived_values[target_agent.finished_good.name].center
         #print '{0} just bought a {1}'.format(self.entity.fulltitle(), self.item_name)
 
     def is_completed(self):
