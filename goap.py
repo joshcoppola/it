@@ -10,10 +10,6 @@ from helpers import infinite_defaultdict, libtcod_path_to_list
 from traits import TRAIT_INFO
 import config as g
 
-
-import it
-import physics as phys
-
 GOAL_ITEM = 'cheese'
 
 
