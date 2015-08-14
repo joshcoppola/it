@@ -4006,8 +4006,9 @@ class Object:
 
         return blocks_mov
 
-    def set_astar_target(self, target_x, target_y):
-        g.game.add_message('%s setting astar target'%self.fullname(), self. color)
+    def set_astar_target(self, target_x, target_y, dbg_reason):
+        g.game.add_message(dbg_reason, libtcod.color_lerp(self.color, libtcod.red, .5))
+        g.game.add_message('{0} setting astar target ({1}, {2}): {3}'.format(self.fulltitle(), target_x, target_y, join_list([o.fulltitle() for o in g.M.tiles[target_x][target_y].objects])), self.color)
         ''' Sets a target using A*, includes flipping the target tile to unblocks_mov if it's a creature '''
         flip_target_tile = False
         # If the target is blocked, we need to temporarily set it to unblocked so A* can work
@@ -6710,22 +6711,22 @@ class DijmapSapient:
         # Refresh to new target location
         if self.target_figure and ( (1 <= len(self.owner.cached_astar_path) <= 5) or self.astar_refresh_cur == 5):
             self.target_location = (self.target_figure.x, self.target_figure.y)
-            self.owner.set_astar_target(self.target_location[0], self.target_location[1])
+            self.owner.set_astar_target(self.target_location[0], self.target_location[1], dbg_reason='has targ figure; 1 <= path len <= 5; refresh_cur = {0}'.format(self.astar_refresh_cur))
         # Path to target location if it exists and is not set
         elif not self.target_figure and self.target_location and not self.owner.cached_astar_path:
-            self.owner.set_astar_target(self.target_location[0], self.target_location[1])
+            self.owner.set_astar_target(self.target_location[0], self.target_location[1], dbg_reason='no targ figure / location / cached a* path')
 
 
     def set_target_figure(self, target_figure):
         self.target_figure = target_figure
         self.target_location = target_figure.x, target_figure.y
         ## Now set the location
-        self.owner.set_astar_target(self.target_location[0], self.target_location[1])
+        self.owner.set_astar_target(self.target_location[0], self.target_location[1], dbg_reason='set_target_figure()')
 
     def set_target_location(self, target_location):
         self.target_figure = None
         self.target_location = target_location
-        self.owner.set_astar_target(self.target_location[0], self.target_location[1])
+        self.owner.set_astar_target(self.target_location[0], self.target_location[1], dbg_reason='set_target_location()')
 
     def unset_target(self):
         self.target_figure = None
@@ -6741,8 +6742,8 @@ class DijmapSapient:
             self.unset_target()
 
         elif blocks_mov == 1:
-            # Reset path. TODO - new path to target_figure if existsw
-            self.owner.set_astar_target(self.target_location[0], self.target_location[1])
+            # Reset path. TODO - new path to target_figure if exists
+            self.owner.set_astar_target(self.target_location[0], self.target_location[1], dbg_reason='path was blocked - recalculating')
             self.owner.move_with_stored_astar_path(path=self.owner.cached_astar_path)
 
     def battle_behavior(self):
