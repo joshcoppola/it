@@ -30,7 +30,7 @@ from wmap import *
 from map_base import *
 import history as hist
 import goap
-
+import data_importer as data
 
 
 
@@ -277,7 +277,7 @@ class World(Map):
         self.road_fov_map = None
         self.road_path_map = None
 
-        economy.setup_resources()
+        # economy.setup_resources()
         #### load phys info ####
         phys.main()
 
@@ -1000,7 +1000,7 @@ class World(Map):
 
 
                 #### New code - add resources
-                for resource in economy.commodity_manager.resources:
+                for resource in data.commodity_manager.resources:
                     for biome, chance in resource.app_chances.iteritems():
                         if biome == self.tiles[x][y].region or (biome == 'river' and self.tiles[x][y].has_feature('river')):
                             if roll(1, 1200) < chance:
@@ -1350,7 +1350,7 @@ class World(Map):
 
             #### Give the culture's pantheon a holy object ####
             object_blueprint = phys.object_dict['holy relic']
-            material = phys.materials['copper']
+            material = data.commodity_manager.materials['copper']
             initial_location = random.choice(culture.territory)
             obj = assemble_object(object_blueprint=object_blueprint, force_material=material, wx=initial_location[0], wy=initial_location[1])
             culture.pantheon.add_holy_object(obj)
@@ -1571,7 +1571,7 @@ class World(Map):
         for city in created_cities:
             c_language = city.culture.language
             #### Book ####
-            book = assemble_object(object_blueprint=phys.object_dict['book'], force_material=phys.materials['wood'], wx=city.x, wy=city.y)
+            book = assemble_object(object_blueprint=phys.object_dict['book'], force_material=data.commodity_manager.materials['wood'], wx=city.x, wy=city.y)
 
             for event in hist.historical_events:
                 book.components[0].add_information_of_event(language=c_language, event_id=event.id_, date_written=date, author=None, location_accuracy=1)
@@ -1582,7 +1582,7 @@ class World(Map):
             book.set_current_building(building=city_hall)
 
             #### Map ####
-            map_ = assemble_object(object_blueprint=phys.object_dict['map'], force_material=phys.materials['wood'], wx=city.x, wy=city.y)
+            map_ = assemble_object(object_blueprint=phys.object_dict['map'], force_material=data.commodity_manager.materials['wood'], wx=city.x, wy=city.y)
 
             for site in g.WORLD.sites:
                 map_.components[0].add_information_of_site(language=c_language, site=site, date_written=date, author=None, location_accuracy=5, is_part_of_map=1, describe_site=0)
@@ -1604,7 +1604,7 @@ class World(Map):
             if site.type_ in potential_map_sites and roll(1, 100) < potential_map_sites[site.type_]:
                 language = random.choice(self.ancient_languages)
                 # Create a map
-                map_ = assemble_object(object_blueprint=phys.object_dict['map'], force_material=phys.materials['wood'], wx=site.x, wy=site.y)
+                map_ = assemble_object(object_blueprint=phys.object_dict['map'], force_material=data.commodity_manager.materials['wood'], wx=site.x, wy=site.y)
                 # Find info for map
                 for chunk in self.get_nearby_chunks(chunk=self.tiles[site.x][site.y].chunk, distance=1):
                     for other_site in chunk.get_all_sites():
@@ -2425,14 +2425,14 @@ class City(Site):
         # Add economy to city
         self.econ = economy.Economy(native_resources=self.native_res.keys(), local_taxes=g.DEFAULT_TAX_AMOUNT, owner=self)
 
-        for resource_type, amount in economy.CITY_RESOURCE_SLOTS.iteritems():
-            for resource_class in economy.commodity_manager.get_commodities_of_type(resource_type):
+        for resource_type, amount in data.CITY_RESOURCE_SLOTS.iteritems():
+            for resource_class in data.commodity_manager.get_commodities_of_type(resource_type):
                 if resource_class.name in self.native_res:
                     self.resource_slots[resource_class.name] = amount
 
         good_tokens_we_can_produce = economy.list_goods_from_strategic(self.native_res.keys())
-        for good_type, amount in economy.CITY_INDUSTRY_SLOTS.iteritems():
-            for good_class in economy.commodity_manager.get_commodities_of_type(good_type):
+        for good_type, amount in data.CITY_INDUSTRY_SLOTS.iteritems():
+            for good_class in data.commodity_manager.get_commodities_of_type(good_type):
                 if good_class.name in good_tokens_we_can_produce:
                     self.industry_slots[good_class.name] = amount
 
@@ -2450,7 +2450,7 @@ class City(Site):
     def setup_imports(self):
 
 
-        goods_by_resource_token = economy.commodity_manager.get_goods_by_resource_token()
+        goods_by_resource_token = data.commodity_manager.get_goods_by_resource_token()
 
         for city, import_list in self.imports.iteritems():
 
@@ -3259,7 +3259,7 @@ class Faction:
         ''' Create a few types of unique weapons for this culture '''
         for wtype in weapon_types:
             material_name = random.choice(materials)
-            material = phys.materials[material_name]
+            material = data.commodity_manager.materials[material_name]
 
             special_properties = {random.choice(phys.PROPERTIES): random.choice( (5, 10) ) }
 
@@ -7243,13 +7243,12 @@ class BasicWorldBrain:
             #     self.handle_goal_behavior()
             if self.current_goal_path:
                 self.take_goal_behavior()
-            else:
-                if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
-                    #unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
-                    #item_name = random.choice(unique_objs) if unique_objs else 'shirt'
-                    #print self.owner.fulltitle(), item_name
-                    item_name = 'shirt'
-                    self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
+            #else:
+            #    if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
+            #        unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
+            #        item_name = random.choice(unique_objs) if unique_objs else 'shirt'
+            #
+            #        self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
@@ -7812,7 +7811,7 @@ class Culture:
         ''' Create a few types of unique weapons for this culture '''
         for wtype in weapon_types:
             material_name = random.choice(materials)
-            material = phys.materials[material_name]
+            material = data.commodity_manager.materials[material_name]
 
             special_properties = {random.choice(phys.PROPERTIES): random.choice( (5, 10) ) }
 
@@ -7895,7 +7894,7 @@ class Culture:
 
         ###### Give them a weapon #######
         if armed:
-            material = phys.materials['iron']
+            material = data.commodity_manager.materials['iron']
             if len(faction.weapons):    wname = random.choice(faction.weapons)
             else:                       wname = random.choice(self.weapons)
 
@@ -7937,7 +7936,7 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, loc
     else:
         # Not ideal, but when importing xml, we cache all possible materials the object can include - pick a random one for the color
         #print object_blueprint['possible_materials']
-        color = phys.materials[random.choice(object_blueprint['possible_materials'])].color
+        color = data.commodity_manager.materials[random.choice(object_blueprint['possible_materials'])].color
 
     components = phys.assemble_components(clist=object_blueprint['components'], force_material=force_material)
 
@@ -8712,7 +8711,7 @@ class Game:
 
         # Give weapon to g.player
         wname = random.choice(faction1.weapons)
-        weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=phys.materials['iron'], wx=None, wy=None)
+        weapon = assemble_object(object_blueprint=phys.object_dict[wname], force_material=data.commodity_manager.materials['iron'], wx=None, wy=None)
         g.player.initial_give_object_to_hold(weapon)
 
         g.player.make_trade(other=leader, my_trade_items=[g.player.creature.get_current_weapon()], other_trade_items=[leader.creature.get_current_weapon()], price=0)
@@ -9015,6 +9014,8 @@ if __name__ == '__main__':
 
 
     g.game = Game(interface, render_handler)
+
+    data.import_data()
 
     main_menu()
     #prof.run('main_menu()', 'itstats')

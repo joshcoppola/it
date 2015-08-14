@@ -13,6 +13,7 @@ import physics as phys
 from map_base import Map
 import it
 
+import data_importer as data
 
 ##### City map generating stuff
 MAX_BUILDING_SIZE = 18
@@ -1672,7 +1673,7 @@ class CityMap:
 
                         # Placeholder way to show agent's inventory on the map
                         if amount:
-                            obj = it.assemble_object(object_blueprint=phys.object_dict['crate'], force_material=phys.materials[building.linked_economy_agent.finished_good.material.name], wx=self.usemap.wx, wy=self.usemap.wy)
+                            obj = it.assemble_object(object_blueprint=phys.object_dict['crate'], force_material=data.commodity_manager.materials[building.linked_economy_agent.finished_good.material.name], wx=self.usemap.wx, wy=self.usemap.wy)
                             obj.name = 'Stack of {0} {1}'.format(amount, sold_good.name)
                             obj.description = 'This is a stack of {0} {1}'.format(amount, sold_good.name)
 
@@ -1680,7 +1681,7 @@ class CityMap:
 
                             # Place some dummy example objects for now
                             for n_obj in building.linked_economy_agent.get_sold_objects():
-                                n_obj = it.assemble_object(object_blueprint=phys.object_dict[n_obj], force_material=phys.materials[building.linked_economy_agent.finished_good.material.name], wx=self.usemap.wx, wy=self.usemap.wy)
+                                n_obj = it.assemble_object(object_blueprint=phys.object_dict[n_obj], force_material=data.commodity_manager.materials[building.linked_economy_agent.finished_good.material.name], wx=self.usemap.wx, wy=self.usemap.wy)
                                 building.place_within(n_obj)
 
 
