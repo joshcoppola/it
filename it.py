@@ -5849,6 +5849,23 @@ class Creature:
     #        self.verbalize_question(asker=asker, target=target, question_type=question_type)
     #        self.verbalize_answer(asker=asker, target=target, question_type=question_type, answer_type=answer_type)
 
+    def buy_object(self, obj, sell_agent, price, material=None, create_object=1):
+
+        # First create the object if it doesn't exist
+        if create_object:
+            obj = assemble_object(object_blueprint=phys.object_dict[obj], force_material=material, wx=self.owner.wx, wy=self.owner.wy)
+
+        # Decrement object form owner's inventory
+        sell_agent.inventory[sell_agent.finished_good.name] -= 1
+
+        sell_agent.gold += price
+
+        #own_component = [grasper for grasper in self.get_graspers() if not grasper.grasped_item][0]
+        #self.owner.pick_up_object(own_component=own_component, obj=obj)
+        self.owner.initial_give_object_to_hold(obj)
+
+        return obj
+
     def ask_question(self, target, question_type):
         ''' Handles the information transfer between questions.
         The verbalization component is handled in the "verbalize" functions '''
@@ -7226,9 +7243,13 @@ class BasicWorldBrain:
             #     self.handle_goal_behavior()
             if self.current_goal_path:
                 self.take_goal_behavior()
-            #else:
-            #    if roll(1, 10) == 1:
-            #        self.set_goal(goal_state=goap.HaveItem(item_name='shirt', entity=self.owner), reason='hehehehehe', priority=1)
+            else:
+                if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
+                    #unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
+                    #item_name = random.choice(unique_objs) if unique_objs else 'shirt'
+                    #print self.owner.fulltitle(), item_name
+                    item_name = 'shirt'
+                    self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
@@ -7915,6 +7936,7 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, loc
     elif force_material:            color = force_material.color
     else:
         # Not ideal, but when importing xml, we cache all possible materials the object can include - pick a random one for the color
+        #print object_blueprint['possible_materials']
         color = phys.materials[random.choice(object_blueprint['possible_materials'])].color
 
     components = phys.assemble_components(clist=object_blueprint['components'], force_material=force_material)
