@@ -7,13 +7,13 @@ import yaml
 from collections import defaultdict
 
 from it import Profession
+import data_importer as data
 
 try:
     import matplotlib.pyplot as plt
 except:
     print 'Can\'t load matplotlib - no access to graphs'
 
-YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
 HIST_WINDOW_SIZE = 5 # Amount of trades auctions keep in memory to determine avg price (used by agents)
 MAX_INVENTORY_SIZE = 15 # A not-really-enforced max inventory limit
@@ -55,100 +55,16 @@ plot_colors = {'food':(.3, .8, .3), 'flax':(1, .5, 1), 'clay':(.25, 0, .5), 'woo
                'copper armor':(.5, .1, 0), 'bronze armor':(.3, 1, 1), 'iron armor':(0, 0, 0)}
 
 
-with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
-    AGENT_INFO = yaml.load(a)
-
-CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
-CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8, 'armor':2, 'weapons':2}
-
-
-class CommodityManager:
-    def __init__(self):
-
-        # These 3 contain the actual Resource / Good classes in the list
-        self.resources = []
-        self.goods = []
-        self.all_commodities = []
-
-        # These are dicts of category --> list of matching commodities
-        self.commodity_type_to_actual_tokens = defaultdict(list)
-        self.commodity_type_to_token_names = defaultdict(list)
-
-        self.commodity_name_to_actual_tokens = {}
-
-        # Finally these are the goods that can be made from a paricular resource
-        self.goods_by_resource_token = defaultdict(list)
-
-        # Temp - this has got to go!
-        self.strategic_types = defaultdict(list)
-
-        self.load_yaml()
-
-
-    def add_commodity(self, commodity):
-        self.all_commodities.append(commodity)
-        self.commodity_type_to_actual_tokens[commodity.category].append(commodity)
-        self.commodity_type_to_token_names[commodity.category].append(commodity.name)
-        self.commodity_name_to_actual_tokens[commodity.name] = commodity
-
-    def get_strategic_resources(self):
-        return [r for r in self.resources if resource.resource_class == 'strategic']
-
-    def load_yaml(self):
-        ''' Load the yaml file containing resource info '''
-        with open(os.path.join(YAML_DIRECTORY, 'resources.yml')) as r:
-            resource_info = yaml.load(r)
-
-        # Loop through all resources in the yaml, creating resources and their associated reactions as we go
-        for rname in resource_info:
-            resource = Resource(name=rname, category=resource_info[rname]['category'], resource_class=resource_info[rname]['resource_class'],
-                               gather_amount=resource_info[rname]['gather_amount'], break_chance=resource_info[rname]['break_chance'],
-                               app_chances=resource_info[rname]['app_chances'], app_amt=resource_info[rname]['app_amount'])
-
-            self.resources.append(resource)
-
-            # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
-            for reaction_type in resource_info[rname]['reactions']:
-                finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['input_units'], out_amt=resource_info[rname]['reactions'][reaction_type]['output_units'])
-                self.goods.append(finished_good)
-
-
-        #### Now build more info about each of these into the class ####
-        for commodity in self.resources:
-            self.add_commodity(commodity=commodity)
-
-            if resource.resource_class == 'strategic':
-                self.strategic_types[resource.category].append(resource)
-
-        for good in self.goods:
-            self.goods_by_resource_token[good.material.name].append(good)
-            self.add_commodity(commodity=good)
-
-    def get_commodities_of_type(self, commodity_type):
-        return self.commodity_type_to_actual_tokens[commodity_type]
-
-    def get_names_of_commodities_of_type(self, commodity_type):
-        return self.commodity_type_to_token_names[commodity_type]
-
-    def get_actual_commodity_from_name(self, commodity_name):
-        return self.commodity_name_to_actual_tokens[commodity_name]
-
-    def get_goods_by_resource_token(self):
-        goods_by_material_token = defaultdict(list)
-        for good in self.goods:
-            goods_by_material_token[good.material.name].append(good)
-
-        return goods_by_material_token
 
 
 
 def economy_test_run():
-    native_resources = [resource.name for resource in commodity_manager.resources]
+    native_resources = [resource.name for resource in data.commodity_manager.resources]
     print native_resources
     economy = Economy(native_resources=native_resources, local_taxes=5, owner=None)
 
     for i in xrange(6):
-        for resource in commodity_manager.resources:
+        for resource in data.commodity_manager.resources:
             if resource.name != 'food' and resource.name != 'flax':
                 economy.add_resource_gatherer(resource.name)
                 economy.add_resource_gatherer(resource.name)
@@ -165,7 +81,7 @@ def economy_test_run():
                 economy.add_resource_gatherer(resource.name)
 
     for i in xrange(4):
-        for good in commodity_manager.goods:
+        for good in data.commodity_manager.goods:
             if good.name == 'flax clothing':
                 economy.add_good_producer(good.name)
                 economy.add_good_producer(good.name)
@@ -187,7 +103,7 @@ def economy_test_run():
 def check_strategic_resources(nearby_resources):
     # Checks a set of resources to see if there's enough types of strategic resources
     unavailable_types = []
-    for resource_type, resource_token_list in commodity_manager.strategic_types.iteritems():
+    for resource_type, resource_token_list in data.commodity_manager.strategic_types.iteritems():
         has_token = False
         for resource_token in resource_token_list:
             if resource_token.name in nearby_resources:
@@ -200,40 +116,13 @@ def check_strategic_resources(nearby_resources):
 def list_goods_from_strategic(strategic_resources):
     goods_we_can_make = []
 
-    goods_by_resource_token = commodity_manager.get_goods_by_resource_token()
+    goods_by_resource_token = data.commodity_manager.get_goods_by_resource_token()
 
     for resource in strategic_resources:
         if resource in goods_by_resource_token:
             for good_class in goods_by_resource_token[resource]:
                 goods_we_can_make.append(good_class.name)
     return goods_we_can_make
-
-
-
-class Resource(object):
-    def __init__(self, name, category, resource_class, gather_amount, break_chance, app_chances, app_amt):
-        self.name = name
-        self.category = category
-        self.resource_class = resource_class
-        self.gather_amount = gather_amount
-        self.break_chance = break_chance
-        self.app_chances = app_chances
-        self.app_amt = app_amt
-
-
-class FinishedGood(object):
-    def __init__(self, category, material, in_amt, out_amt):
-        # Type, i.e. tools
-        self.category = category
-        # The resource type that makes this specific good
-        self.material = material
-        self.break_chance = self.material.break_chance
-
-        self.name = self.material.name + ' ' + self.category
-
-        # How many of the input materials produce how many of this good
-        self.in_amt = in_amt
-        self.out_amt = out_amt
 
 
 class Agent(object):
@@ -313,7 +202,7 @@ class Agent(object):
 
     def has_token(self, type_of_item):
         # Test whether or not we have a token of an item
-        for token_of_item in commodity_manager.get_names_of_commodities_of_type(type_of_item):
+        for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
             if self.inventory[token_of_item]:
                 return True
         return False
@@ -456,9 +345,9 @@ class ResourceGatherer(Agent):
         ##### dict of what we believe the true price of an item is, for each token of an item we can possibly use
         self.perceived_values = {resource:Value(START_VAL, START_UNCERT)}
         for type_of_item in consumed + essential + preferred:
-            for token_of_item in commodity_manager.get_names_of_commodities_of_type(type_of_item):
+            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
                 self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
-            for token_of_item in commodity_manager.get_names_of_commodities_of_type('foods'):
+            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type('foods'):
                 self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
         ##################################################################################
 
@@ -618,7 +507,7 @@ class ResourceGatherer(Agent):
 
             for type_of_item in self.preferred + self.essential:
                 for token_of_item in self.economy.available_types[type_of_item]:
-                    if self.inventory[token_of_item] >= self.represented_population_number and roll(1, 1000) <= commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance:
+                    if self.inventory[token_of_item] >= self.represented_population_number and roll(1, 1000) <= data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance:
                         self.inventory[token_of_item] -= self.represented_population_number
                         break
         #else:
@@ -636,18 +525,18 @@ class ResourceGatherer(Agent):
         for type_of_item in self.essential + self.preferred:
             for token_of_item in self.economy.available_types[type_of_item]:
                 if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                     break
 
         for type_of_item in self.consumed:
             for token_of_item in self.economy.available_types[type_of_item]:
                 if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                     break
 
         for token_of_item in self.economy.available_types['foods']:
             if self.inventory[token_of_item]:
-                production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                 break
         # Take into account the taxes we pay
         production_cost += self.economy.local_taxes
@@ -711,9 +600,9 @@ class GoodProducer(Agent):
 
         self.perceived_values = {finished_good.name:Value(START_VAL, START_UNCERT), self.input:Value(START_VAL, START_UNCERT)}
         for type_of_item in consumed + essential + preferred:
-            for token_of_item in commodity_manager.get_names_of_commodities_of_type(type_of_item):
+            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
                 self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
-            for token_of_item in commodity_manager.get_names_of_commodities_of_type('foods'):
+            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type('foods'):
                 self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
 
             self.inventory[token_of_item] += self.represented_population_number
@@ -746,7 +635,7 @@ class GoodProducer(Agent):
         if self.economy.owner:
             for obj in self.economy.owner.faction.unique_object_dict:
                 for tag in self.economy.owner.faction.unique_object_dict[obj]['tags']:
-                    if tag in AGENT_INFO['producers'][self.sell_item]['sold_object_tags']:
+                    if tag in data.AGENT_INFO['producers'][self.sell_item]['sold_object_tags']:
                         sold_objects.append(obj)
                         break
 
@@ -884,7 +773,7 @@ class GoodProducer(Agent):
 
         for type_of_item in self.essential + self.preferred:
             for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item] >= self.represented_population_number and roll(1, 1000) <= commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance:
+                if self.inventory[token_of_item] >= self.represented_population_number and roll(1, 1000) <= data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance:
                     self.inventory[token_of_item] -= self.represented_population_number
                     break
 
@@ -906,18 +795,18 @@ class GoodProducer(Agent):
         for type_of_item in self.essential + self.preferred:
             for token_of_item in self.economy.available_types[type_of_item]:
                 if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                     break
 
         for type_of_item in self.consumed:
             for token_of_item in self.economy.available_types[type_of_item]:
                 if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                     break
 
         for token_of_item in self.economy.available_types['foods']:
             if self.inventory[token_of_item]:
-                production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                 break
 
         # Take into account the taxes we pay
@@ -984,13 +873,13 @@ class Merchant(object):
         self.sell_perceived_values = {traded_item:Value(START_VAL*2, START_UNCERT)}
 
         for type_of_item in consumed + essential + preferred:
-            for token_of_item in commodity_manager.get_commodities_of_type[type_of_item]:
+            for token_of_item in data.commodity_manager.get_commodities_of_type[type_of_item]:
                 if token_of_item != self.traded_item:
                     self.buy_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
                     self.sell_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
                 #self.inventory.append(token_of_item.name)
 
-        for token_of_item in commodity_manager.get_commodities_of_type('foods'):
+        for token_of_item in data.commodity_manager.get_commodities_of_type('foods'):
             if token_of_item != self.traded_item:
                 self.buy_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
                 self.sell_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
@@ -1088,7 +977,7 @@ class Merchant(object):
 
     def has_token(self, type_of_item):
         # Test whether or not we have a token of an item
-        for token_of_item in commodity_manager.get_names_of_commodities_of_type(type_of_item):
+        for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
             if self.buy_inventory[token_of_item]:
                 return True
         return False
@@ -1217,9 +1106,9 @@ class Merchant(object):
         production_cost = self.buy_perceived_values[self.traded_item].center
         # These items are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
         for type_of_item in self.consumed + self.essential + self.preferred:
-            for token_of_item in commodity_manager.get_commodities_of_type(type_of_item):
+            for token_of_item in data.commodity_manager.get_commodities_of_type(type_of_item):
                 if self.buy_inventory[token_of_item]:
-                    production_cost += int(round(self.buy_economy.auctions[token_of_item].mean_price * (commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
+                    production_cost += int(round(self.buy_economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
                     break
         # Take into account the taxes we pay
         production_cost += self.buy_economy.local_taxes
@@ -1349,7 +1238,7 @@ class Economy:
 
     def add_commodity_to_economy(self, commodity):
         ''' Each commodity has an associated auction house, containing some price / bidding history '''
-        category = commodity_manager.get_actual_commodity_from_name(commodity).category
+        category = data.commodity_manager.get_actual_commodity_from_name(commodity).category
         if category in self.available_types:
             if commodity not in self.available_types[category]:
                 self.available_types[category].append(commodity)
@@ -1374,16 +1263,16 @@ class Economy:
 
     def add_random_agent(self):
         if roll(0, 1):
-            commodity = random.choice(commodity_manager.resources)
+            commodity = random.choice(data.commodity_manager.resources)
             self.add_resource_gatherer(commodity.name)
         else:
-            commodity = random.choice(commodity_manager.goods)
+            commodity = random.choice(data.commodity_manager.goods)
             self.add_good_producer(commodity.name)
 
     def add_resource_gatherer(self, resource):
-        info = AGENT_INFO['gatherers'][resource]
+        info = data.AGENT_INFO['gatherers'][resource]
         gatherer = ResourceGatherer(name=info['name'], id_=self.agent_num, represented_population_number=100, economy=self, resource=resource,
-                                    gather_amount=commodity_manager.get_actual_commodity_from_name(resource).gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
+                                    gather_amount=data.commodity_manager.get_actual_commodity_from_name(resource).gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
 
         self.agent_num += 1
 
@@ -1414,9 +1303,9 @@ class Economy:
 
 
     def add_good_producer(self, good):
-        info = AGENT_INFO['producers'][good]
+        info = data.AGENT_INFO['producers'][good]
         producer = GoodProducer(name=info['name'], id_=self.agent_num, represented_population_number=20,
-                                economy=self, finished_good=commodity_manager.get_actual_commodity_from_name(good), finished_good_type=commodity_manager.get_actual_commodity_from_name(good).category,
+                                economy=self, finished_good=data.commodity_manager.get_actual_commodity_from_name(good), finished_good_type=data.commodity_manager.get_actual_commodity_from_name(good).category,
                                 consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
 
         self.good_producers.append(producer)
@@ -1431,7 +1320,7 @@ class Economy:
         self.agent_num += 1
 
     def add_merchant(self, sell_economy, traded_item, attached_to=None):
-        info = AGENT_INFO['merchants']['merchant']
+        info = data.AGENT_INFO['merchants']['merchant']
         name = '{0} merchant'.format(traded_item)
         merchant = Merchant(name=name, id_=self.agent_num, represented_population_number=20,
                             buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
@@ -1449,10 +1338,10 @@ class Economy:
     def add_agent_based_on_token(self, token):
         ''' If we only have a token and don't know whether it's a resource or a commodity,
         this function helps us figure out which method to call'''
-        if token in [r.name for r in commodity_manager.resources]:
+        if token in [r.name for r in data.commodity_manager.resources]:
             self.add_resource_gatherer(token)
 
-        elif token in [g.name for g in commodity_manager.goods]:
+        elif token in [g.name for g in data.commodity_manager.goods]:
             self.add_good_producer(token)
 
 
@@ -1522,7 +1411,7 @@ class Economy:
         # Returns a list of valid commodities in this economy that can be used to create agents
         # For instance, copper miners won't be produced in a city with no access to copper
         for commodity in self.get_valid_agent_types():
-            if (restrict_based_on_available_resource_slots and commodity in [r.name for r in commodity_manager.resources] and commodity in available_resource_slots) or not restrict_based_on_available_resource_slots:
+            if (restrict_based_on_available_resource_slots and commodity in [r.name for r in data.commodity_manager.resources] and commodity in available_resource_slots) or not restrict_based_on_available_resource_slots:
                 current_ratio = self.auctions[commodity].demand/ max(self.auctions[commodity].supply, 1) # no div/0
                 if current_ratio > greatest_demand_ratio:
                     greatest_demand_ratio = current_ratio
@@ -1708,9 +1597,9 @@ class Economy:
             new_solid = []
             dot = []
             for item in solid:
-                if item in [r.name for r in commodity_manager.resources]:
+                if item in [r.name for r in data.commodity_manager.resources]:
                     dot.append(item)
-                elif item in [g.name for g in commodity_manager.goods]:
+                elif item in [g.name for g in data.commodity_manager.goods]:
                     new_solid.append(item)
 
             solid = new_solid
@@ -1771,10 +1660,6 @@ class Economy:
         plt.legend(glegend, loc=2, prop={'size':7})
         plt.show()
 
-
-def setup_resources():
-    global commodity_manager
-    commodity_manager = CommodityManager()
 
 def main():
     #setup_resources()
