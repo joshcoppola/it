@@ -11,6 +11,7 @@ import libtcodpy as libtcod
 from helpers import join_list, ct, infinite_defaultdict
 
 import economy as econ
+import data_importer as data
 
 YAML_DIRECTORY = os.path.join(os.getcwd(), 'data')
 
@@ -126,18 +127,6 @@ class Wound:
         self.damage_type = damage_type
         self.damage = damage
 
-
-
-class Material:
-    ''' Basic material instance '''
-    def __init__(self, name, rgb_color, density, rigid, force_diffusion, slice_resistance):
-        self.name = name
-        self.density = density
-        self.color = libtcod.Color(*rgb_color)
-        self.rigid = rigid
-        self.force_diffusion = force_diffusion
-        # 0 = soft (like flesh), 1 = very likely to shatter
-        self.slice_resistance = slice_resistance
 
 
 class MaterialLayer:
@@ -525,6 +514,23 @@ class ObjectComponent:
         return mass / volume
 
 
+
+def get_valid_material_names_for_layer(layer):
+    ''' Given a blueprint / dict structure of a material layer of a component, find all valid material names which could
+        be used to create that layer '''
+    valid_material_names = []
+
+    for material_token in layer['material_tokens']:
+        if material_token not in valid_material_names:
+            valid_material_names.append(material_token)
+
+    for material_type in layer['material_types']:
+        for material_token in data.commodity_manager.get_names_of_commodities_of_type(material_type):
+            if material_token not in valid_material_names:
+                valid_material_names.append(material_token)
+
+    return valid_material_names
+
 def assemble_components(clist, force_material=None):
     ''' Assembles an objects' components based on an input dictionary '''
 
@@ -540,7 +546,9 @@ def assemble_components(clist, force_material=None):
             if force_material:
                 material = force_material
             else:
-                material = materials[clayer['material_tokens'][0]]
+                # If no particular layer was specified, pick a random valid material and use that
+                material_name = random.choice(get_valid_material_names_for_layer(layer=clayer))
+                material = data.commodity_manager.materials[material_name]
 
             ## Create the material layer
             layer = MaterialLayer(material=material, coverage=clayer['coverage'], dimensions=clayer['dimensions'], inner_dimensions=clayer['inner_dimensions'])
@@ -603,14 +611,9 @@ def import_object_yml(file_path):
                 material_tokens = []
                 for _component in object_dict[obj]['components']:
                     for layer in _component['layers']:
-                        for material_token in layer['material_tokens']:
-                            if material_token not in material_tokens:
-                                material_tokens.append(material_token)
-
-                        for material_type in layer['material_types']:
-                            for material_token in econ.commodity_manager.get_commodities_of_type(material_type):
-                                if material_token not in material_tokens:
-                                    material_tokens.append(material_token)
+                        for material_name in get_valid_material_names_for_layer(layer=layer):
+                            if not material_name in material_tokens:
+                                material_tokens.append(material_name)
 
                 object_dict[obj]['possible_materials'] = material_tokens
 
@@ -645,7 +648,7 @@ def get_valid_assembly_materials(object_name, object_dict):
 
             # Types are higher up in the hierarchy, such as "ores"
             for rtype in layer['material_types']:
-                for token in econ.commodity_manager.get_commodities_of_type(rtype):
+                for token in data.commodity_manager.get_commodities_of_type(rtype):
                     layer_valid_materials.append(token.name)
 
         component_materials[component_name] = layer_valid_materials
@@ -675,17 +678,7 @@ def cache_basic_weapon_types():
     return basic_weapon_types
 
 def main():
-    global creature_dict, object_dict, blueprint_dict, wgenerator, basic_weapon_types, materials
-    # Grab yaml file and convert it to a dictionary
-    with open(os.path.join(YAML_DIRECTORY, 'materials.yml')) as m:
-        loaded_materials = yaml.load(m)
-
-    materials = {}
-    for material_name in loaded_materials:
-        materials[material_name] = Material(name=material_name, rgb_color=loaded_materials[material_name]['rgb_color'],
-                                       density=loaded_materials[material_name]['density'], rigid=loaded_materials[material_name]['rigid'],
-                                       force_diffusion=loaded_materials[material_name]['force_diffusion'],
-                                       slice_resistance=loaded_materials[material_name]['slice_resistance'])
+    global creature_dict, object_dict, blueprint_dict, wgenerator, basic_weapon_types
 
     #### Load XML ######
     file_path = os.path.join(os.getcwd(), 'data', 'creatures')
