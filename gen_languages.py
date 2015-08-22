@@ -1,4 +1,4 @@
-# coding: latin-1
+# coding=Latin-1
 
 # Language generator - for Python 2.7
 #
@@ -838,7 +838,7 @@ def w_rand(choices):
 if __name__ == '__main__':
     # create an instance of the Language class
     lang = Language()
-
+    
     for word in lang.vocab_m.values() + lang.vocab_n.values() + lang.vocab_f.values():
         print word
 
