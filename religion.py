@@ -324,12 +324,12 @@ class CreationMyth:
 
                          c_fullname + cverb + self.astrology.list_celestial_bodies() + '.',
 
-                         c_fullname + cverb + self.earth_name + '; the earth_name.',
+                         c_fullname + cverb + self.earth_name + '; the earth.',
 
                          c_fullname + cverb + r(['the world, and named it ',
-                                                 'the earth_name, and named it ',
+                                                 'the earth, and named it ',
                                                  'the world, calling it ',
-                                                 'the earth_name, naming it ',
+                                                 'the earth, naming it ',
                                                  'all that is. The center of creation was the world, '
                                                  ]) + self.earth_name + '.',
 
@@ -344,10 +344,10 @@ class CreationMyth:
             self.story_text.append(' '.join([opening + s1, s2 ]) )
             ##########
 
-            s3 = r([self.creator.name + ' saw the earth_name, and, feeling it empty, created the all the flora, trees, and plants. ' \
+            s3 = r([self.creator.name + ' saw the earth, and, feeling it empty, created the all the flora, trees, and plants. ' \
                                         'Thus the first living things were made. Even so, ' + ctitle + ' still felt it empty. '\
                                         'All manner of creatures thus came to be. But ' + self.creator.name + 'still felt it empty. '\
-                                        'Thus was the race of Man created, so that others could appreciate the earth_name.',
+                                        'Thus was the race of Man created, so that others could appreciate the earth.',
 
                     self.creator.name + ' created Man in ' + self.creator.get_pronoun(s=0) + ' image. So that Man was not alone, '\
                                         'all manner of beasts were created to populate ' + self.earth_name + ', along with various flora '\
@@ -366,7 +366,7 @@ class CreationMyth:
 
             liq = r(['water'])
 
-            s1 = self.earth_name + ', the earth_name, was ' + r(l_adj) + ' ' + liq + '.'
+            s1 = self.earth_name + ', the earth, was ' + r(l_adj) + ' ' + liq + '.'
             s2 = ''
             s3 = ''
 
@@ -391,10 +391,10 @@ class CreationMyth:
                 a_name = self.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
                 a_name = lang.spec_cap(a_name)
 
-                expand_phrase = r(['which expanded into ' + r(['land.', 'the earth_name.']),
-                                  'which became ' + r(['land.', 'the earth_name.', 'the continent.']),
-                                  'which grew into ' + r(['land.', 'the earth_name.', 'the continent.']),
-                                  ' which begat ' + r(['land.', 'the earth_name.', 'the continent.'])
+                expand_phrase = r(['which expanded into ' + r(['land.', 'the earth.']),
+                                  'which became ' + r(['land.', 'the earth.', 'the continent.']),
+                                  'which grew into ' + r(['land.', 'the earth.', 'the continent.']),
+                                  ' which begat ' + r(['land.', 'the earth.', 'the continent.'])
                                   ])
 
                 if a_type == 'bird':
@@ -407,7 +407,7 @@ class CreationMyth:
                                   'fell to ' + self.earth_name + '. Confused, it'])
 
                     a_action = r(['flapped its wings until the ocean gave way to land.',
-                                  'splashed the water aside and packed the '+land+' into earth_name.',
+                                  'splashed the water aside and packed the '+land+' into earth.',
                                   'dove into the waters to find ' + land + '. Slowly the ' +land+ ' was piled together to form land.',
                                   'dove into the waters and brought ' +land+ ' to the surface, ' + expand_phrase,
                                   'had nowhere to rest and dove into the waters in search of ' + land + '. ' + a_name + ' brought ' +land+ ' to the surface, ' + expand_phrase])
@@ -436,13 +436,13 @@ class CreationMyth:
 
 
                     s3 = r([a_name + ', the ' + animal + ', was sent to see if the landmass was dry. It was still soft, and ' +
-                            a_name + '\'s wings grazed the earth_name, creating the mountains and the valleys.',
+                            a_name + '\'s wings grazed the earth, creating the mountains and the valleys.',
 
                             a_name + ', the ' + animal + ', was sent to see if the landmass was dry. It was still soft, and ' +
-                            a_name + '\'s claws scraped the earth_name, creating the valleys and the mountains.'])
+                            a_name + '\'s claws scraped the earth, creating the valleys and the mountains.'])
                 else:
-                    s3 = r([c_fullname + ' saw the earth_name, and shaped the land.',
-                            c_fullname + ' saw the earth_name, and formed the land into mountains, and hills, and valleys.'])
+                    s3 = r([c_fullname + ' saw the earth, and shaped the land.',
+                            c_fullname + ' saw the earth, and formed the land into mountains, and hills, and valleys.'])
 
 
             self.story_text.append( opening + ' '.join([s1, s2, s3]) )
@@ -471,12 +471,12 @@ class CreationMyth:
             cverb = r([' brought order to the unformed void and fashioned ',
                       ' created ', ' brought forth '])
 
-            s3 = r([ prep + c_fullname + cverb + self.earth_name + '; the earth_name.',
+            s3 = r([ prep + c_fullname + cverb + self.earth_name + '; the earth.',
 
                      prep + c_fullname + cverb + r(['the world, and named it ',
-                                                 'the earth_name, and named it ',
+                                                 'the earth, and named it ',
                                                  'the world, calling it ',
-                                                 'the earth_name, naming it ',
+                                                 'the earth, naming it ',
                                                  'all that is. The center of this creation was the world, '
                                                  ]) + self.earth_name + '.',
 
@@ -489,10 +489,10 @@ class CreationMyth:
             #########
             self.story_text.append(opening + ' '.join([s1, s2, s3, s4]) )
             #########
-            s5 = r([self.creator.name + ' saw the earth_name, and, feeling it empty, created the all the flora, trees, and plants. ' \
+            s5 = r([self.creator.name + ' saw the earth, and, feeling it empty, created the all the flora, trees, and plants. ' \
                                         'Thus the first living things were made. Even so, ' + ctitle + ' still felt it empty. '\
                                         'All manner of creatures thus came to be. But ' + self.creator.name + 'still felt it empty. '\
-                                        'Thus was the race of Man created, so that others could appreciate the earth_name.',
+                                        'Thus was the race of Man created, so that others could appreciate the earth.',
 
                     self.creator.name + ' created Man in ' + self.creator.get_pronoun(s=0) + ' image. So that Man was not alone, '\
                                         'all manner of beasts were created to populate ' + self.earth_name + ', along with various flora '\
