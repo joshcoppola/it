@@ -1454,7 +1454,7 @@ class World(Map):
 
                 ratio = new_path_len/current_path_len
 
-                if ratio <= .65:
+                if ratio <= g.NEW_ROAD_PATH_RATIO:
                     # Build a new road
                     city.build_road_to(other_city.x, other_city.y, libtcod.darker_sepia)
                     city.connect_to(other_city)
