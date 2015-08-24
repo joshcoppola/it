@@ -1478,6 +1478,7 @@ class World(Map):
                     if self.tiles[x][y].has_feature('road'):
                         self.set_road_tile(x, y)
 
+                    # This will update the graphic on the border tile to make it "connect" to the current road
                     for xx, yy in get_border_tiles(x, y):
                         if self.tiles[xx][yy].has_feature('road'):
                             self.set_road_tile(xx, yy)
