@@ -95,6 +95,8 @@ class Region:
         if resource_name == 'land' and not self.has_minor_site(type_='farm'):
             g.WORLD.add_farm(self.x, self.y, city=self.territory)
 
+        if resource_name in ('iron', 'bronze', 'copper') and not self.has_minor_site(type_='mine'):
+            g.WORLD.add_mine(self.x, self.y, city=self.territory)
 
     def remove_resource_gatherer_from_region(self, resource_name, agent):
         self.agent_slots[resource_name]['agents'].remove(agent)
@@ -1491,10 +1493,10 @@ class World(Map):
             for x in xrange(city.x-5, city.x+6):
                 for y in xrange(city.y-5, city.y+6):
                     # Try to add a mine somewhere near the city
-                    if not mine_added and g.MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < g.MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city) and self.get_astar_distance_to(city.x, city.y, x, y) < 8:
-                        self.add_mine(x, y, city)
-                        mine_added = 1
-                        continue
+                    #if not mine_added and g.MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < g.MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city) and self.get_astar_distance_to(city.x, city.y, x, y) < 8:
+                    #    self.add_mine(x, y, city)
+                    #    mine_added = 1
+                    #    continue
 
                     # Loop should only get here if no site is added, due to the continue syntax
                     if not shrine_added and self.is_valid_site(x=x, y=y, civ=city) and roll(1, 100) >= 97:
