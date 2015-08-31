@@ -27,11 +27,11 @@ MERCHANT_STARTING_GOLD = 1000000
 
 PREFERRED_ITEM_MIN_GOLD = 100000
 
-MIN_CERTAINTY_VALUE = 8 ## Within what range traders are limited to estimating the market price
+MIN_CERTAINTY_VALUE = 2 ## Within what range traders are limited to estimating the market price
 BID_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when our bid is rejected
 ASK_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when nobody buys our stuff
 REJECTED_UNCERTAINTY_AMOUNT = 2 # We get this much more uncertain about a price when an offer is rejected
-ACCEPTED_CERTAINTY_AMOUNT = 1  # Out uncertainty about a price decreases by this amount when an offer is accepted
+ACCEPTED_CERTAINTY_AMOUNT = 2  # Out uncertainty about a price decreases by this amount when an offer is accepted
 
 MAX_UNCERTAINTY_PERCENT = .25 # Uncertainty maxes out this percentage of the average price (.35 means  avg price - 35% to avg price + 35%)
 
