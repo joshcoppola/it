@@ -734,10 +734,15 @@ def show_civs(world):
                     # Set the g.player to "become" one of these agents
                     if mouse.lbutton_pressed:
                         agent.update_holder(figure=g.player)
-                        panel4.render = True
+
+                        for panel in g.game.interface.gui_panels:
+                            if panel.name == 'Panel4':
+                                break
+
+                        panel.render = True
                         pcolor = libtcod.color_lerp(g.PANEL_FRONT, libtcod.light_green, .5)
                         hcolor = pcolor * 2
-                        panel4.wmap_buttons.append(gui.Button(gui_panel=panel4, func=g.WORLD.time_cycle.goto_next_week, args=[],
+                        panel.wmap_buttons.append(Button(gui_panel=panel, func=g.WORLD.time_cycle.goto_next_week, args=[],
                                                               text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, hcolor=hcolor, do_draw_box=True) )
 
                 else:

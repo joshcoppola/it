@@ -8171,15 +8171,24 @@ class RenderHandler:
             if g.player.creature.economy_agent is not None:
                 libtcod.console_set_default_foreground(panel4.con, g.PANEL_FRONT)
 
+                if panel4.recalculate_wmap_dyn_buttons: # TODO - this should go inside the gui panel logic, along with passing the new buttons to be recalculated!
+                    panel4.wmap_dynamic_buttons = []
+
                 agent = g.player.creature.economy_agent
-                y = 5
+                y = 2
                 libtcod.console_print(panel4.con, 2, y, agent.name + ' (' + agent.economy.owner.name + ')')
                 y +=  1
                 libtcod.console_print(panel4.con, 2, y, str(agent.gold) + ' gold')
-                # Display price beliefs
-                for item, value in agent.perceived_values.iteritems():
+
+
+                # Display price beliefs and inventory
+
+                # Display inventory
+                inv = Counter(agent.inventory)
+                for item, amount in inv.iteritems():
                     y += 1
-                    libtcod.console_print(panel4.con, 2, y, item + ': ' + str(value.center-value.uncertainty) + ' to ' + str(value.center+value.uncertainty))
+                    libtcod.console_print(panel4.con, 2, y, '{0}: {1}'.format(item, amount))
+                    libtcod.console_print(panel4.con, 30, y, '{0} to {1}'.format(agent.perceived_values[item].center - agent.perceived_values[item].uncertainty, agent.perceived_values[item].center + agent.perceived_values[item].uncertainty))
 
                 y += 2
                 libtcod.console_print(panel4.con, 2, y, '-* Last turn *-')
@@ -8188,13 +8197,10 @@ class RenderHandler:
                     y += h
                     h = libtcod.console_print_rect(panel4.con, 2, y, PANEL4_WIDTH -4, 2, ' - ' + action)
 
-                y += h + 2
-                libtcod.console_print(panel4.con, 2, y, '-* Inventory *-')
-                # Display inventory
-                inv = Counter(agent.inventory)
-                for item, amount in inv.iteritems():
-                    y += 1
-                    libtcod.console_print(panel4.con, 2, y, item + ': ' + str(amount))
+                    if y > 50: # Hardcoded cutoff Y value
+                        y += 1
+                        libtcod.console_print_rect(panel4.con, 2, y, PANEL4_WIDTH -4, 2, ' <more> ')
+                        break
 
                 y += 2
                 libtcod.console_print(panel4.con, 2, y, '-* Future buys *-')
@@ -8205,14 +8211,14 @@ class RenderHandler:
 
                     if panel4.recalculate_wmap_dyn_buttons:
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, -1),
-                                                                      text='<', topleft=(PANEL4_WIDTH-3, y), width=2, height=2, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, 1),
-                                                                      text='>', topleft=(PANEL4_WIDTH-2, y), width=2, height=2, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, -1),
-                                                                      text='<', topleft=(PANEL4_WIDTH-5, y), width=2, height=2, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, 1),
-                                                                      text='>', topleft=(PANEL4_WIDTH-4, y), width=2, height=2, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                 y += 1
                 libtcod.console_print(panel4.con, 2, y, '-* Future sells *-')
@@ -8977,7 +8983,7 @@ if __name__ == '__main__':
     PANEL3_WIDTH = PANEL2_WIDTH
     PANEL3_HEIGHT = PANEL1_HEIGHT
 
-    PANEL4_WIDTH = 28
+    PANEL4_WIDTH = 45
     PANEL4_HEIGHT = 45
     PANEL4_XPOS = 0
     PANEL4_YPOS = g.SCREEN_HEIGHT - PANEL1_HEIGHT - PANEL4_HEIGHT
