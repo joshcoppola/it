@@ -33,6 +33,8 @@ ASK_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when nobody buys our st
 REJECTED_UNCERTAINTY_AMOUNT = 2 # We get this much more uncertain about a price when an offer is rejected
 ACCEPTED_CERTAINTY_AMOUNT = 1  # Out uncertainty about a price decreases by this amount when an offer is accepted
 
+MAX_UNCERTAINTY_PERCENT = .25 # Uncertainty maxes out this percentage of the average price (.35 means  avg price - 35% to avg price + 35%)
+
 P_DIF_ADJ = 3  # When offer is accepted and exceeds what we thought the price value was, adjust it upward by this amount
 N_DIF_ADJ = 3  # When offer is accepted and is lower than what we thought the price value was, adjust it downward by this amount
 P_DIF_THRESH = 2.5  #Threshhold at which adjustment of P_DIF_ADJ is added to the perceived value of a commodity
@@ -291,12 +293,18 @@ class Agent(object):
         if self.economy.auctions[type_of_item].supply:
             if price is None:
                 self.perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
-                self.perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                self.adjust_uncertainty(economy, type_of_item)
+
             else:
                 # Radical re-evaluation of the price
                 self.perceived_values[type_of_item].center = price + self.perceived_values[type_of_item].uncertainty
-                self.perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                self.adjust_uncertainty(economy, type_of_item)
 
+
+    def adjust_uncertainty(self, economy, type_of_item):
+        ''' Ensures that the uncertainty value is never adjusted to be too wide '''
+        uncertainty_limit = int(max(self.economy.auctions[type_of_item].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
+        self.perceived_values[type_of_item].uncertainty = min(self.perceived_values[type_of_item].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
 
 class ResourceGatherer(Agent):
     def __init__(self, name, id_, represented_population_number, economy, resource, gather_amount, consumed, essential, preferred):
@@ -551,7 +559,7 @@ class ResourceGatherer(Agent):
 
             self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
             #self.perceived_values[type_of_item].center = self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
-            self.perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+            self.adjust_uncertainty(economy, type_of_item)
 
 
 class GoodProducer(Agent):
@@ -822,7 +830,7 @@ class GoodProducer(Agent):
 
             #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
             self.perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
-            self.perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+            self.adjust_uncertainty(economy, type_of_item)
 
 
 class Merchant(object):
@@ -1054,6 +1062,14 @@ class Merchant(object):
                 self.sell_perceived_values[type_of_item].center = \
                     max(self.sell_perceived_values[type_of_item].center - N_DIF_ADJ, (self.sell_economy.local_taxes) + self.sell_perceived_values[type_of_item].uncertainty)
 
+    def adjust_uncertainty(self, economy, type_of_item):
+        ''' Ensures that the uncertainty value is never adjusted to be too wide '''
+        if economy == self.buy_economy:
+            uncertainty_limit = int(max(self.buy_economy.auctions[type_of_item].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
+            self.buy_perceived_values[type_of_item].uncertainty = min(self.buy_perceived_values[type_of_item].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
+        elif economy == self.sell_economy:
+            uncertainty_limit = int(max(self.sell_economy.auctions[type_of_item].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
+            self.sell_perceived_values[type_of_item].uncertainty = min(self.sell_perceived_values[type_of_item].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
 
     def eval_bid_rejected(self, economy, type_of_item, price=None):
         # What to do when we've bid on something and didn't get it
@@ -1061,20 +1077,20 @@ class Merchant(object):
             if economy == self.buy_economy:
                 if price is None:
                     self.buy_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
-                    self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                    self.adjust_uncertainty(economy, type_of_item)
                 else:
                     # Radical re-evaluation of the price
                     self.buy_perceived_values[type_of_item].center = price + self.buy_perceived_values[type_of_item].uncertainty
-                    self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                    self.adjust_uncertainty(economy, type_of_item)
 
             elif economy == self.sell_economy:
                 if price is None:
                     self.sell_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
-                    self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                    self.adjust_uncertainty(economy, type_of_item)
                 else:
                     # Radical re-evaluation of the price
                     self.sell_perceived_values[type_of_item].center = price + self.sell_perceived_values[type_of_item].uncertainty
-                    self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                    self.adjust_uncertainty(economy, type_of_item)
 
     def eval_need(self):
         # bid for food if we have < 5 units:
@@ -1123,10 +1139,10 @@ class Merchant(object):
             if economy == self.buy_economy:
                 #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
                 self.buy_perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
-                self.buy_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                self.adjust_uncertainty(economy, type_of_item)
             elif economy == self.sell_economy:
                 self.sell_perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
-                self.sell_perceived_values[type_of_item].uncertainty += REJECTED_UNCERTAINTY_AMOUNT
+                self.adjust_uncertainty(economy, type_of_item)
 
 
 def roll(a, b):
