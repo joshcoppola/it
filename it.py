@@ -5956,19 +5956,19 @@ class Creature:
                     self.say('I currently do not hold any citizenship.')
 
             elif question_type == 'goals':
-                if len(self.owner.world_brain.goals):
-                    if len(self.owner.world_brain.goals) == 1:
-                        self.say('My current goal is to {0}.'.format(self.owner.world_brain.goals[0].get_name()) )
-                    elif len(self.owner.world_brain.goals) > 1:
-                        goal_names = join_list([goal.get_name() for goal in self.owner.world_brain.goals[1:]])
-                        self.say('My current plan is to {0}. Later, I\'m going to {1}'.format(self.owner.world_brain.goals[0].get_name(), goal_names))
+                if len(self.owner.world_brain.current_goal_path):
+                    if len(self.owner.world_brain.current_goal_path) == 1:
+                        self.say('My current goal is to {0}.'.format(self.owner.world_brain.current_goal_path[0].get_name()) )
+                    elif len(self.owner.world_brain.current_goal_path) > 1:
+                        goal_names = join_list([goal.get_name() for goal in self.owner.world_brain.current_goal_path[1:]])
+                        self.say('My current plan is to {0}. Later, I\'m going to {1}'.format(self.owner.world_brain.current_goal_path[0].get_name(), goal_names))
                 # IF we're travelling under someone's command
-                elif self.commander and len(self.commander.world_brain.goals):
-                    if len(self.commander.world_brain.goals) == 1:
-                        self.say('I\'m with {0}. Our current plan is to {1}.'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name()) )
-                    elif len(self.commander.world_brain.goals) > 1:
-                        goal_names = join_list([goal.get_name() for goal in self.commander.world_brain.goals[1:]])
-                        self.say('I\'m with {0}. Our current plan is to {1}. Later, we\'ll {2}'.format(self.commander.fullname(), self.commander.world_brain.goals[0].get_name(), goal_names))
+                elif self.commander and len(self.commander.world_brain.current_goal_path):
+                    if len(self.commander.world_brain.current_goal_path) == 1:
+                        self.say('I\'m with {0}. Our current plan is to {1}.'.format(self.commander.fullname(), self.commander.world_brain.current_goal_path[0].get_name()) )
+                    elif len(self.commander.world_brain.current_goal_path) > 1:
+                        goal_names = join_list([goal.get_name() for goal in self.commander.world_brain.current_goal_path[1:]])
+                        self.say('I\'m with {0}. Our current plan is to {1}. Later, we\'ll {2}'.format(self.commander.fullname(), self.commander.world_brain.current_goal_path[0].get_name(), goal_names))
                 else:
                     self.say('I don\'t really have any goals at the moment.')
 
