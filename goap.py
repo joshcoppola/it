@@ -344,7 +344,7 @@ class UnloadGoodsBehavior(ActionBase):
         self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
 
     def get_name(self):
-        goal_name = 'Unload goods in {0}'.format(self.target_city.name)
+        goal_name = 'unload goods in {0}'.format(self.target_city.name)
         return goal_name
 
     def is_completed(self):
@@ -372,7 +372,7 @@ class LoadGoodsBehavior(ActionBase):
         self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
 
     def get_name(self):
-        goal_name = 'Load goods in {0}'.format(self.target_city.name)
+        goal_name = 'load goods in {0}'.format(self.target_city.name)
         return goal_name
 
     def is_completed(self):
