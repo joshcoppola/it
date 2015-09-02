@@ -302,26 +302,26 @@ class World(Map):
         #### Setup actual world ####
 
         steps = 6
-        g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps, self.cm.story_text)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps, []) # self.cm.story_text)
         self.setup_world()
         ########################### Begin with heightmap ##################################
-        g.game.render_handler.progressbar_screen('Generating World Map', 'generating heightmap', 2, steps, self.cm.story_text)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'generating heightmap', 2, steps, []) # self.cm.story_text)
         self.make_heightmap()
         ## Now, loop through map and check each land tile for its distance to water
-        g.game.render_handler.progressbar_screen('Generating World Map', 'setting moisture', 3, steps, self.cm.story_text)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'setting moisture', 3, steps, []) # self.cm.story_text)
         self.calculate_water_dist()
 
         ##### EXPERIMENTOIAENH ######
         #self.calculate_rainfall()
         ########################## Now, generate rivers ########################
-        g.game.render_handler.progressbar_screen('Generating World Map', 'generating rivers', 4, steps, self.cm.story_text)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'generating rivers', 4, steps, []) # self.cm.story_text)
         self.gen_rivers()
         ################################ Resources ##########################################
-        g.game.render_handler.progressbar_screen('Generating World Map', 'setting resources and biome info', 5, steps, self.cm.story_text)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'setting resources and biome info', 5, steps, []) #self.cm.story_text)
 
         # Print out creation myth
-        for line in self.cm.story_text:
-            g.game.add_message(line)
+        #for line in self.cm.story_text:
+        #    g.game.add_message(line)
 
         self.set_resource_and_biome_info()
 
