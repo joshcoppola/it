@@ -333,9 +333,9 @@ class World(Map):
         ######## Add some buttons #######
         panel2.wmap_buttons = [
                           gui.Button(gui_panel=panel2, func=self.gen_history, args=[1],
-                                     text='Generate History', topleft=(4, PANEL2_HEIGHT-11), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                                     text='Generate History', topleft=(4, g.PANEL2_HEIGHT-11), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
                           gui.Button(gui_panel=panel2, func=self.generate, args=[],
-                                     text='Regenerate Map', topleft=(4, PANEL2_HEIGHT-6), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
+                                     text='Regenerate Map', topleft=(4, g.PANEL2_HEIGHT-6), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
                           ]
 
     def tile_blocks_mov(self, x, y):
@@ -1121,7 +1121,7 @@ class World(Map):
                 break
         else:
             panel2.wmap_buttons.append(gui.Button(gui_panel=panel2, func=g.game.new_game, args=[],
-                                    text='Start Playing', topleft=(4, PANEL2_HEIGHT-16), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                    text='Start Playing', topleft=(4, g.PANEL2_HEIGHT-16), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
 
 
     def gen_mythological_creatures(self):
@@ -8019,7 +8019,7 @@ def get_info_under_mouse():
     elif g.game.map_scale == 'world' and g.WORLD.is_val_xy((x, y)):
         color = g.PANEL_FRONT
         xc, yc = g.game.camera.map2cam(x, y)
-        if 0 <= xc <= CAMERA_WIDTH and 0 <= yc <= CAMERA_HEIGHT:
+        if 0 <= xc <= g.CAMERA_WIDTH and 0 <= yc <= g.CAMERA_HEIGHT:
             if g.game.state == 'playing':
                 info.append(('DBG: Reg{0}, {1}ht, {2}dist'.format(g.WORLD.tiles[x][y].region_number, g.WORLD.tiles[x][y].height, g.WORLD.distance_from_civilization_dmap.dmap[x][y]), libtcod.color_lerp(color, g.WORLD.tiles[x][y].color, .5)))
 
@@ -8135,7 +8135,7 @@ class RenderHandler:
             # Render red
             #libtcod.console_put_char_ex(con.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, color, color)
             libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, 'X', color, color)
-            libtcod.console_blit(g.game.interface.map_console.con, 0, 0, CAMERA_WIDTH, CAMERA_HEIGHT, 0, 0, 0)
+            libtcod.console_blit(g.game.interface.map_console.con, 0, 0, g.CAMERA_WIDTH, g.CAMERA_HEIGHT, 0, 0, 0)
             libtcod.console_flush()
             time.sleep(speed)
             # Render background color
@@ -8195,11 +8195,11 @@ class RenderHandler:
                 h = 1
                 for action in agent.last_turn:
                     y += h
-                    h = libtcod.console_print_rect(panel4.con, 2, y, PANEL4_WIDTH -4, 2, ' - ' + action)
+                    h = libtcod.console_print_rect(panel4.con, 2, y, g.PANEL4_WIDTH -4, 2, ' - ' + action)
 
                     if y > 50: # Hardcoded cutoff Y value
                         y += 1
-                        libtcod.console_print_rect(panel4.con, 2, y, PANEL4_WIDTH -4, 2, ' <more> ')
+                        libtcod.console_print_rect(panel4.con, 2, y, g.PANEL4_WIDTH -4, 2, ' <more> ')
                         break
 
                 y += 2
@@ -8211,14 +8211,14 @@ class RenderHandler:
 
                     if panel4.recalculate_wmap_dyn_buttons:
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, -1),
-                                                                      text='<', topleft=(PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, 1),
-                                                                      text='>', topleft=(PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, -1),
-                                                                      text='<', topleft=(PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, 1),
-                                                                      text='>', topleft=(PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                 y += 1
                 libtcod.console_print(panel4.con, 2, y, '-* Future sells *-')
@@ -8229,21 +8229,21 @@ class RenderHandler:
 
                     if panel4.recalculate_wmap_dyn_buttons:
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_price, args=(item, -1),
-                                                                      text='<', topleft=(PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_price, args=(item, 1),
-                                                                      text='>', topleft=(PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_quant, args=(item, -1),
-                                                                      text='<', topleft=(PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_quant, args=(item, 1),
-                                                                      text='>', topleft=(PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
 
 
                 if panel4.recalculate_wmap_dyn_buttons:
                     panel4.recalculate_wmap_dyn_buttons = 0
 
             ## Panel 3 - g.player info ##
-            libtcod.console_print_ex(panel3.con, int(round(PANEL3_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, '-* {0} *-'.format(g.player.fullname()))
+            libtcod.console_print_ex(panel3.con, int(round(g.PANEL3_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, '-* {0} *-'.format(g.player.fullname()))
 
             libtcod.console_print(panel3.con, 2, 3, g.player.creature.status)
             # A list of things to display
@@ -8271,24 +8271,24 @@ class RenderHandler:
         y = 6
         for (line, color) in get_info_under_mouse():
             ## Quick fix to catch more text than panel height
-            if y > PANEL2_HEIGHT - 4:
-                libtcod.console_print(panel2.con, PANEL2_TEXTX, y, '<< More >>')
+            if y > g.PANEL2_HEIGHT - 4:
+                libtcod.console_print(panel2.con, g.PANEL2_TEXTX, y, '<< More >>')
                 break
                 ## Otherwise, print the info in whatever color it was specified as
             if not line == ' ':
-                splitline = textwrap.wrap(line, PANEL2_WIDTH - PANEL2_TEXTX - 2)
+                splitline = textwrap.wrap(line, g.PANEL2_WIDTH - g.PANEL2_TEXTX - 2)
             else:
                 splitline = ' '
             for nline in splitline:
                 libtcod.console_set_default_foreground(panel2.con, color)
-                libtcod.console_print(panel2.con, PANEL2_TEXTX, y, nline)
+                libtcod.console_print(panel2.con, g.PANEL2_TEXTX, y, nline)
                 y += 1
 
         #print the game messages
         y = 1
         for (line, color) in g.game.get_game_msgs():
             libtcod.console_set_default_foreground(panel1.con, color)
-            libtcod.console_print(panel1.con, MSG_X, y, line)
+            libtcod.console_print(panel1.con, g.MSG_X, y, line)
             y += 1
 
         #blit the contents of "panel" to the root console
@@ -8524,7 +8524,7 @@ class Game:
         self.map_scale = 'world'
         self.world_map_display_type = 'normal'
 
-        self.camera = Camera(width=CAMERA_WIDTH, height=CAMERA_HEIGHT)
+        self.camera = Camera(width=g.CAMERA_WIDTH, height=g.CAMERA_HEIGHT)
 
         self.msgs = []
 
@@ -8535,34 +8535,34 @@ class Game:
 
     def get_game_msgs(self):
         ''' Get the messages to display '''
-        if len(self.msgs) < MSG_HEIGHT:
+        if len(self.msgs) < g.MSG_HEIGHT:
             return self.msgs
         else:
-            return self.msgs[self.msg_index:(self.msg_index + MSG_HEIGHT)]
+            return self.msgs[self.msg_index:(self.msg_index + g.MSG_HEIGHT)]
 
 
     def set_msg_index(self, amount=None):
         ''' Sets the index from which messages will be read.
         Makes sure that the message index will stat within appropriate bounds '''
         if amount is None:
-            self.msg_index = max(0, len(self.msgs) - MSG_HEIGHT)
+            self.msg_index = max(0, len(self.msgs) - g.MSG_HEIGHT)
 
         elif self.msg_index + amount < 0:
             self.msg_index = 0
 
-        elif self.msg_index + amount > len(self.msgs) - MSG_HEIGHT:
-            self.msg_index = len(self.msgs) - MSG_HEIGHT
+        elif self.msg_index + amount > len(self.msgs) - g.MSG_HEIGHT:
+            self.msg_index = len(self.msgs) - g.MSG_HEIGHT
 
         else:
             self.msg_index = self.msg_index + amount
 
     def add_message(self, new_msg, color=libtcod.white):
         #split the message if necessary, among multiple lines
-        new_msg_lines = textwrap.wrap(new_msg, MSG_WIDTH)
+        new_msg_lines = textwrap.wrap(new_msg, g.MSG_WIDTH)
 
         for line in new_msg_lines:
             #if the buffer is full, remove the first line to make room for the new one
-            if len(self.msgs) == MSG_HEIGHT * 10:
+            if len(self.msgs) == g.MSG_HEIGHT * 10:
                 del self.msgs[0]
                 #add the new line as a tuple, with the text and the color
             self.msgs.append((line, color))
@@ -8581,22 +8581,22 @@ class Game:
         if self.map_scale == 'human':
 
             panel2.bmap_buttons = [
-                                   gui.Button(gui_panel=panel2, func=player_order_move, args=[], text='Move!', topleft=(4, PANEL2_HEIGHT-22), width=10, height=4),
-                                   gui.Button(gui_panel=panel2, func=player_order_follow, args=[], text='Follow Me!', topleft=(14, PANEL2_HEIGHT-22), width=10, height=4),
+                                   gui.Button(gui_panel=panel2, func=player_order_move, args=[], text='Move!', topleft=(4, g.PANEL2_HEIGHT-22), width=10, height=4),
+                                   gui.Button(gui_panel=panel2, func=player_order_follow, args=[], text='Follow Me!', topleft=(14, g.PANEL2_HEIGHT-22), width=10, height=4),
 
-                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-18), width=bwidth, height=4),
-                                   gui.Button(gui_panel=panel2, func=self.return_to_worldmap, args=[], text='Return to World view', topleft=(4, PANEL2_HEIGHT-14), width=20, height=4),
-                                   gui.Button(gui_panel=panel2, func=pick_up_menu, args=[], text='Pick up item', topleft=(4, PANEL2_HEIGHT-10), width=20, height=4),
-                                   gui.Button(gui_panel=panel2, func=manage_inventory, args=[], text='Inventory', topleft=(4, PANEL2_HEIGHT-6), width=20, height=4)
+                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, g.PANEL2_HEIGHT-18), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=self.return_to_worldmap, args=[], text='Return to World view', topleft=(4, g.PANEL2_HEIGHT-14), width=20, height=4),
+                                   gui.Button(gui_panel=panel2, func=pick_up_menu, args=[], text='Pick up item', topleft=(4, g.PANEL2_HEIGHT-10), width=20, height=4),
+                                   gui.Button(gui_panel=panel2, func=manage_inventory, args=[], text='Inventory', topleft=(4, g.PANEL2_HEIGHT-6), width=20, height=4)
                                    ]
 
         elif self.map_scale == 'world':
 
             panel2.wmap_buttons = [
-                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, PANEL2_HEIGHT-18), width=bwidth, height=4),
-                                   gui.Button(gui_panel=panel2, func=g.WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, PANEL2_HEIGHT-14), width=bwidth, height=4),
-                                   gui.Button(gui_panel=panel2, func=gui.show_civs, args=[g.WORLD], text='Civ info', topleft=(4, PANEL2_HEIGHT-10), width=bwidth, height=4),
-                                   gui.Button(gui_panel=panel2, func=gui.show_cultures, args=[g.WORLD, None], text='Cultures', topleft=(4, PANEL2_HEIGHT-6), width=bwidth, height=4)
+                                   gui.Button(gui_panel=panel2, func=debug_menu, args=[], text='Debug Panel', topleft=(4, g.PANEL2_HEIGHT-18), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=g.WORLD.goto_scale_map, args=[], text='Go to scale map', topleft=(4, g.PANEL2_HEIGHT-14), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=gui.show_civs, args=[g.WORLD], text='Civ info', topleft=(4, g.PANEL2_HEIGHT-10), width=bwidth, height=4),
+                                   gui.Button(gui_panel=panel2, func=gui.show_cultures, args=[g.WORLD, None], text='Cultures', topleft=(4, g.PANEL2_HEIGHT-6), width=bwidth, height=4)
                                    ]
 
     def handle_fov_recompute(self):
@@ -8965,37 +8965,6 @@ if __name__ == '__main__':
 
     g.init()
 
-    PANEL1_HEIGHT = 17
-    #sizes and coordinates relevant for the GUI
-    PANEL2_WIDTH = 30
-    PANEL2_XPOS = g.SCREEN_WIDTH - PANEL2_WIDTH
-    PANEL2_HEIGHT = g.SCREEN_HEIGHT - PANEL1_HEIGHT
-    PANEL2_TEXTX = 2
-    PANEL2_YPOS = 0
-
-    PANEL1_WIDTH = g.SCREEN_WIDTH - PANEL2_WIDTH
-    PANEL1_YPOS = g.SCREEN_HEIGHT - PANEL1_HEIGHT
-    PANEL1_XPOS = 0
-
-    PANEL3_YPOS = PANEL1_YPOS
-    PANEL3_XPOS = PANEL2_XPOS
-
-    PANEL3_WIDTH = PANEL2_WIDTH
-    PANEL3_HEIGHT = PANEL1_HEIGHT
-
-    PANEL4_WIDTH = 45
-    PANEL4_HEIGHT = 45
-    PANEL4_XPOS = 0
-    PANEL4_YPOS = g.SCREEN_HEIGHT - PANEL1_HEIGHT - PANEL4_HEIGHT
-
-    #size of the map portion shown on-screen
-    CAMERA_WIDTH = g.SCREEN_WIDTH - PANEL2_WIDTH
-    CAMERA_HEIGHT = g.SCREEN_HEIGHT - PANEL1_HEIGHT
-
-    MSG_X = 2
-    MSG_WIDTH = PANEL1_WIDTH - 5
-    MSG_HEIGHT = PANEL1_HEIGHT - 2
-
     spritesheet = 't12_test.png' if g.TILE_SIZE == 12 else 't16_test.png'
     font_path = os.path.join(os.getcwd(), 'fonts', spritesheet)
 
@@ -9008,12 +8977,12 @@ if __name__ == '__main__':
     interface = gui.PlayerInterface()
 
     root_con = gui.GuiPanel(width=g.SCREEN_WIDTH, height=g.SCREEN_HEIGHT, xoff=0, yoff=0, interface=interface, is_root=1, name='Root', append_to_panels=0)
-    map_con = gui.GuiPanel(width=CAMERA_WIDTH, height=CAMERA_HEIGHT, xoff=0, yoff=0, interface=interface, name='MapCon', append_to_panels=0)
+    map_con = gui.GuiPanel(width=g.CAMERA_WIDTH, height=g.CAMERA_HEIGHT, xoff=0, yoff=0, interface=interface, name='MapCon', append_to_panels=0)
     ## Other GUI panels ##
-    panel1 = gui.GuiPanel(width=PANEL1_WIDTH, height=PANEL1_HEIGHT, xoff=PANEL1_XPOS, yoff=PANEL1_YPOS, interface=interface, name='Panel1')
-    panel2 = gui.GuiPanel(width=PANEL2_WIDTH, height=PANEL2_HEIGHT, xoff=PANEL2_XPOS, yoff=PANEL2_YPOS, interface=interface, name='Panel2')
-    panel3 = gui.GuiPanel(width=PANEL3_WIDTH, height=PANEL3_HEIGHT, xoff=PANEL3_XPOS, yoff=PANEL3_YPOS, interface=interface, name='Panel3')
-    panel4 = gui.GuiPanel(width=PANEL4_WIDTH, height=PANEL4_HEIGHT, xoff=PANEL4_XPOS, yoff=PANEL4_YPOS, interface=interface, name='Panel4')
+    panel1 = gui.GuiPanel(width=g.PANEL1_WIDTH, height=g.PANEL1_HEIGHT, xoff=g.PANEL1_XPOS, yoff=g.PANEL1_YPOS, interface=interface, name='Panel1')
+    panel2 = gui.GuiPanel(width=g.PANEL2_WIDTH, height=g.PANEL2_HEIGHT, xoff=g.PANEL2_XPOS, yoff=g.PANEL2_YPOS, interface=interface, name='Panel2')
+    panel3 = gui.GuiPanel(width=g.PANEL3_WIDTH, height=g.PANEL3_HEIGHT, xoff=g.PANEL3_XPOS, yoff=g.PANEL3_YPOS, interface=interface, name='Panel3')
+    panel4 = gui.GuiPanel(width=g.PANEL4_WIDTH, height=g.PANEL4_HEIGHT, xoff=g.PANEL4_XPOS, yoff=g.PANEL4_YPOS, interface=interface, name='Panel4')
     panel4.render = False
 
 
