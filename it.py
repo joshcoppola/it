@@ -8996,8 +8996,9 @@ if __name__ == '__main__':
     MSG_WIDTH = PANEL1_WIDTH - 5
     MSG_HEIGHT = PANEL1_HEIGHT - 2
 
-    #font_path = os.path.join(os.getcwd(), 'fonts', 't12_test.png')
-    font_path = os.path.join(os.getcwd(), 'fonts', 't16_test.png')
+    spritesheet = 't12_test.png' if g.TILE_SIZE == 12 else 't16_test.png'
+    font_path = os.path.join(os.getcwd(), 'fonts', spritesheet)
+
     libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
     libtcod.console_init_root(g.SCREEN_WIDTH, g.SCREEN_HEIGHT, 'Iron Testament v0.5', True, renderer=libtcod.RENDERER_GLSL)
     libtcod.mouse_show_cursor(visible=1)

@@ -12,7 +12,7 @@ except:
     SCREEN_RES = (1280, 720)
 
 
-TILE_SIZE = 16
+TILE_SIZE = 12 if SCREEN_RES[1] < 1080 else 16
 #actual size of the window
 SCREEN_WIDTH = int(SCREEN_RES[0]/TILE_SIZE)
 SCREEN_HEIGHT = int(SCREEN_RES[1]/TILE_SIZE)
