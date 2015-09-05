@@ -90,7 +90,7 @@ LIMIT_FPS = 60
 
 ## colors ##
 PANEL_BACK = libtcod.Color(18, 15, 15)
-PANEL_FRONT = libtcod.Color(138, 115, 95)
+PANEL_FRONT = libtcod.Color(140, 120, 95)
 
 
 PAIN_FRONT = libtcod.color_lerp(PANEL_FRONT, libtcod.red, .6)
