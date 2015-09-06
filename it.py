@@ -1162,11 +1162,11 @@ class World(Map):
                 name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
                 faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
                 born = g.WORLD.time_cycle.years_ago(50)
-                myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char="L", dynasty=None, important=1, faction=faction, wx=site.x, wy=site.y, armed=1, race=race, save_being=1, intelligence_level=2)
+                myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char="m", dynasty=None, important=1, faction=faction, wx=site.x, wy=site.y, armed=1, race=race, save_being=1, intelligence_level=2)
 
                 num_creatures = roll(5, 25)
                 sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
-                population = self.create_population(char="L", name="myth creature group", faction=faction, creatures=None, sentients=sentients, goods={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
+                population = self.create_population(char="m", name="myth creature group", faction=faction, creatures=None, sentients=sentients, goods={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
 
 
     def gen_sentient_races(self):
@@ -2083,7 +2083,7 @@ class World(Map):
             culture = Culture(color=libtcod.black, language=random.choice(self.languages), world=self, races=[race_name])
 
             born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-            leader = culture.create_being(sex=1, born=born, char='u', dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
+            leader = culture.create_being(sex=1, born=born, dynasty=None, important=0, faction=faction, wx=x, wy=y, armed=1, save_being=1, intelligence_level=2)
             faction.set_leader(leader)
 
             sentients = {leader.creature.culture:{leader.creature.type_:{'Swordsman':10}}}
@@ -2118,7 +2118,7 @@ class World(Map):
 
         # Create a bandit leader from nearby city
         born = g.WORLD.time_cycle.years_ago(roll(18, 35))
-        leader = closest_city.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=1, house=None)
+        leader = closest_city.create_inhabitant(sex=1, born=born, dynasty=None, important=1, house=None)
         bandit_faction.set_leader(leader)
         # Set profession, weirdly enough
         profession = Profession(name='Bandit', category='bandit')
@@ -2134,7 +2134,7 @@ class World(Map):
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
-        #prisoner = closest_city.create_inhabitant(sex=1, born=WORLD.time_cycle.current_year-roll(18, 35), char='o', dynasty=None, important=0, house=None)
+        #prisoner = closest_city.create_inhabitant(sex=1, born=WORLD.time_cycle.current_year-roll(18, 35), dynasty=None, important=0, house=None)
         #bandits.add_captive(figure=prisoner)
         ############
 
@@ -2265,7 +2265,7 @@ class Site:
         else:
             return 'a {0}'.format(self.type_)
 
-    def create_inhabitant(self, sex, born, char, dynasty, important, race=None, armed=0, house=None):
+    def create_inhabitant(self, sex, born, dynasty, important, race=None, armed=0, house=None, char=None, world_char=None):
         ''' Add an inhabitant to the site '''
 
         # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our hometown)
@@ -2277,7 +2277,8 @@ class Site:
             culture = self.culture
             hometown = self
 
-        human = culture.create_being(sex=sex, born=born, char=char, dynasty=dynasty, important=important, faction=self.faction, wx=self.x, wy=self.y, armed=armed, race=race, save_being=1)
+        human = culture.create_being(sex=sex, born=born, dynasty=dynasty, important=important, faction=self.faction,
+                                     wx=self.x, wy=self.y, armed=armed, race=race, save_being=1, char=char, world_char=world_char)
 
         # Make sure our new inhabitant has a house
         if house is None:
@@ -2515,7 +2516,7 @@ class City(Site):
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
         born = g.WORLD.time_cycle.years_ago(roll(20, 60))
-        human = self.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
+        human = self.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None, world_char=257)
         human.set_world_brain(BasicWorldBrain())
 
         ## Actually give profession to the person ##
@@ -2683,10 +2684,10 @@ class City(Site):
             wife_dynasty = None
 
         born = g.WORLD.time_cycle.years_ago(roll(28, 40))
-        leader = self.create_inhabitant(sex=1, born=born, char='o', dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
+        leader = self.create_inhabitant(sex=1, born=born, dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
 
         born = g.WORLD.time_cycle.years_ago(roll(28, 35))
-        wife = self.create_inhabitant(sex=0, born=born, char='o', dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.creature.house)
+        wife = self.create_inhabitant(sex=0, born=born, dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.creature.house)
         # Make sure wife takes husband's name
         wife.creature.lastname = new_dynasty.lastname
 
@@ -2701,7 +2702,7 @@ class City(Site):
         for i in xrange(roll(2, 5)):
             sex = roll(0, 1)
             born = g.WORLD.time_cycle.years_ago(roll(28, 40))
-            sibling = self.create_inhabitant(sex=sex, born=born, char='o', dynasty=new_dynasty, race=new_dynasty.race, important=1, house=None)
+            sibling = self.create_inhabitant(sex=sex, born=born, dynasty=new_dynasty, race=new_dynasty.race, important=1, house=None)
             leader_siblings.append(sibling)
             all_new_figures.append(sibling)
 
@@ -2711,7 +2712,7 @@ class City(Site):
             for i in xrange(roll(2, 5)):
                 sex = roll(0, 1)
                 born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-                sibling = self.create_inhabitant(sex=sex, born=born, char='o', dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
+                sibling = self.create_inhabitant(sex=sex, born=born, dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
                 wife_siblings.append(sibling)
                 all_new_figures.append(sibling)
 
@@ -2891,7 +2892,7 @@ class Building:
             # Otherwise, create a new person
             else:
                 born = g.WORLD.time_cycle.years_ago(roll(18, 40))
-                human = self.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
+                human = self.site.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None)
                 # all_new_figures = [human]
 
         ## Actually give profession to the person ##
@@ -3236,7 +3237,7 @@ class Faction:
                 heir = random.choice(self.members)
                 if heir is None:
                     born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-                    heir = self.headquarters.site.culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
+                    heir = self.headquarters.site.culture.create_being(sex=1, born=born, dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
                     self.set_heir(heir=heir, number_in_line=1)
 
                 return [heir]
@@ -3292,10 +3293,11 @@ class Object:
     def __init__(self, name, char, color, components, blocks_mov, blocks_vis, description,
                  creature=None, local_brain=None, world_brain=None,
                  weapon=None, wearable=None,
-                 x=None, y=None, wx=None, wy=None):
+                 x=None, y=None, wx=None, wy=None, world_char=None):
 
         self.name = name
         self.char = char
+        self.world_char = char if not world_char else world_char
 
         self.set_color(color)
 
@@ -4165,7 +4167,7 @@ class Object:
         if x is not None:
             #set the color and then draw the character that represents this object at its position
             libtcod.console_set_default_foreground(g.game.interface.map_console.con, self.color)
-            libtcod.console_put_char(g.game.interface.map_console.con, x, y, self.char, libtcod.BKGND_NONE)
+            libtcod.console_put_char(g.game.interface.map_console.con, x, y, self.world_char, libtcod.BKGND_NONE)
 
     #### End moving world-coords style ########
 
@@ -4922,7 +4924,7 @@ class Population:
                 for profession_name in self.sentients[culture][race]:
                     for i in xrange(self.sentients[culture][race][profession_name]):
                         born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-                        human = culture.create_being(sex=1, born=born, char='o', dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1, race=race)
+                        human = culture.create_being(sex=1, born=born, dynasty=None, important=0, faction=self.faction, wx=self.wx, wy=self.wy, armed=1, race=race)
                         # TODO - this should be improved
                         human.creature.commander = self.commander
 
@@ -6238,7 +6240,7 @@ class Creature:
             return possible_successors[0]
         else:
             born = g.WORLD.time_cycle.years_ago(roll(18, 35))
-            return self.current_citizenship.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=self.important)
+            return self.current_citizenship.create_inhabitant(sex=1, born=born, dynasty=None, important=self.important)
 
 
     def die(self, reason):
@@ -6354,7 +6356,7 @@ class Creature:
         if date_born == 'today':
             date_born = g.WORLD.time_cycle.get_current_date()
 
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=date_born, char='o', dynasty=self.spouse.creature.dynasty, race=self.type_, important=self.important, house=self.house)
+        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=date_born, dynasty=self.spouse.creature.dynasty, race=self.type_, important=self.important, house=self.house)
 
         # Let the child know who its siblings are
         for other_child in self.children:
@@ -7141,7 +7143,7 @@ class BasicWorldBrain:
                 sex = abs(self.owner.creature.sex-1)
                 born = g.WORLD.time_cycle.years_ago(roll(18, 30))
                 potential_spouses = [self.owner.creature.current_citizenship.create_inhabitant(sex=sex, born=born,
-                                                                                char='o', dynasty=None, race=self.owner.creature.type_,
+                                                                                dynasty=None, race=self.owner.creature.type_,
                                                                                 important=self.owner.creature.important,
                                                                                 house=self.owner.creature.house)]
             elif self.owner.creature.current_citizenship is None:
@@ -7857,7 +7859,7 @@ class Culture:
 
 
 
-    def create_being(self, sex, born, char, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3):
+    def create_being(self, sex, born, dynasty, important, faction, wx, wy, armed=0, race=None, save_being=0, intelligence_level=3, char=None, world_char=None):
         ''' Create a human, using info loaded from xml in the physics module '''
         # If race=None then we'll need to pick a random race from this culture
         if not race:
@@ -7877,7 +7879,8 @@ class Culture:
         creature_component = Creature(type_=race, sex=sex, intelligence_level=intelligence_level, firstname=firstname, lastname=lastname, culture=self, born=born, dynasty=dynasty, important=important)
 
 
-        human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component, local_brain=DijmapSapient(), world_brain=BasicWorldBrain())
+        human = assemble_object(object_blueprint=info, force_material=None, wx=wx, wy=wy, creature=creature_component,
+                                local_brain=DijmapSapient(), world_brain=BasicWorldBrain(), force_char=char, force_world_char=world_char)
 
         # Give it language
         human.creature.update_language_knowledge(language=self.language, verbal=10, written=0)
@@ -7931,7 +7934,7 @@ class Culture:
         return human
 
 
-def assemble_object(object_blueprint, force_material, wx, wy, creature=None, local_brain=None, world_brain=None):
+def assemble_object(object_blueprint, force_material, wx, wy, creature=None, local_brain=None, world_brain=None, force_char=None, force_world_char=None):
     ''' Build an object from the blueprint dictionary '''
     ## TODO - Currently only force_material works...
 
@@ -7942,10 +7945,15 @@ def assemble_object(object_blueprint, force_material, wx, wy, creature=None, loc
         #print object_blueprint['possible_materials']
         color = data.commodity_manager.materials[random.choice(object_blueprint['possible_materials'])].color
 
+    # Set display character for human-scale map and world map; default to the one defined in the object blueprint if none selected
+    char = force_char if force_char else object_blueprint['char']
+    world_char = force_world_char if force_world_char else char
+
     components = phys.assemble_components(clist=object_blueprint['components'], force_material=force_material)
 
     obj = Object(name = object_blueprint['name'],
-                    char = object_blueprint['char'],
+                    char = char,
+                    world_char = world_char,
                     color = color,
                     components = components,
                     blocks_mov = object_blueprint['blocks_mov'],
