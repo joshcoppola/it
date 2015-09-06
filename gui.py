@@ -38,6 +38,9 @@ class GuiPanel:
 
         self.backcolor = backcolor
         self.frontcolor = frontcolor
+        # Auto-set default panel colors
+        libtcod.console_set_default_background(self.con, backcolor)
+        libtcod.console_set_default_foreground(self.con, frontcolor)
 
 
         self.gen_buttons = []
@@ -130,7 +133,7 @@ class GuiPanel:
 
         # This will cause the title to appear above the bar
         if not title_inset:
-            y = y - 1
+            y -= 1
             #finally, some centered text with the values
         libtcod.console_set_default_foreground(self.con, text_color)
         if show_values:
@@ -140,7 +143,7 @@ class GuiPanel:
 
 
         libtcod.console_set_default_background(self.con, self.backcolor)
-        libtcod.console_set_default_background(self.con, self.frontcolor)
+        libtcod.console_set_default_foreground(self.con, self.frontcolor)
 
     def draw_box(self, x, x2, y, y2, color=libtcod.white, corners=(218, 191, 217, 192)):
         libtcod.console_set_default_foreground(self.con, color)
@@ -212,7 +215,7 @@ class GuiPanel:
 
 class Button:
     # A button. Usually has a border, needs to highlight on mouseover, and execute its function on click
-    def __init__(self, gui_panel, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
+    def __init__(self, gui_panel, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=g.PANEL_FRONT, hcolor=None, do_draw_box=True, closes_menu=0):
         x, y = topleft
 
         self.gui_panel = gui_panel
@@ -228,7 +231,7 @@ class Button:
         self.hover_text_offset = hover_text_offset
 
         self.color = color
-        self.hcolor = hcolor
+        self.hcolor = hcolor if hcolor else self.color * 1.5
         self.do_draw_box = do_draw_box
 
         # Whether clicking the button will close the menu or not
@@ -424,6 +427,11 @@ def show_people(world):
     x_att_offset = 10 #  where to offset attribute offsets from
     x_list_offset = 35 #where to offset list of people from
 
+    libtcod.console_clear(0) ## 0 should be variable "con"?
+    libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
+    libtcod.console_set_default_background(0, g.PANEL_BACK)
+    libtcod.console_flush()
+
     key_pressed = None
     while key_pressed != libtcod.KEY_ESCAPE:
         if key_pressed == libtcod.KEY_DOWN:
@@ -436,7 +444,7 @@ def show_people(world):
             city_number += 1
 
         libtcod.console_clear(0) ## 0 should be variable "con"?
-        libtcod.console_set_default_foreground(0, libtcod.white)
+        libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
         libtcod.console_print(0, 2, 2, 'Civ people (ESC to exit, LEFT and RIGHT arrows to scroll)')
 
         selected_person = world.tiles[world.cities[city_number].x][world.cities[city_number].y].entities[curr_p]
@@ -527,6 +535,7 @@ def show_cultures(world, spec_culture=None):
         libtcod.console_print(0, 2, 2, 'Cultures and Languages (ESC to exit, LEFT and RIGHT arrows to scroll)')
 
         libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
+        libtcod.console_set_default_background(0, g.PANEL_BACK)
         libtcod.console_print(0, 4, 4, '-* The {0} culture *-'.format(culture.name))
 
         ## Background info, including subsitence and races

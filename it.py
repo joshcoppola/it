@@ -8106,23 +8106,20 @@ class RenderHandler:
 
     def progressbar_screen(self, header, current_action, min_val, max_val, background_text=None):
         root_con.clear()
-        g.game.interface.map_console.clear()
 
-        libtcod.console_print_ex(0, int(round(g.SCREEN_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, header)
+        libtcod.console_print_ex(root_con.con, int(round(g.SCREEN_WIDTH / 2)), 1, libtcod.BKGND_NONE, libtcod.CENTER, header)
 
         if background_text:
             y = 10
             for line in background_text:
-                h = libtcod.console_print_rect(con=g.game.interface.map_console.con, x=20, y=y, w=g.SCREEN_WIDTH-20, h=30, fmt=line)
+                h = libtcod.console_print_rect(con=root_con.con, x=20, y=y, w=g.SCREEN_WIDTH-20, h=30, fmt=line)
                 y += h + 2
 
 
-        g.game.interface.map_console.render_bar(x=int(round(g.SCREEN_WIDTH / 2)) - 9, y=1, total_width=18, name=current_action, value=min_val,
+        root_con.render_bar(x=int(round(g.SCREEN_WIDTH / 2)) - 9, y=20, total_width=18, name=current_action, value=min_val,
                    maximum=max_val, bar_color=libtcod.color_lerp(libtcod.dark_yellow, g.PANEL_FRONT, .5),
                    back_color=g.PANEL_BACK, text_color=g.PANEL_FRONT, show_values=False, title_inset=False)
-        libtcod.console_blit(g.game.interface.map_console.con, 0, 0, g.game.camera.width, g.game.camera.height, 0, 0, 10)
-        #libtcod.console_blit(con.con, 0, 0, g.SCREEN_WIDTH, PANEL1_HEIGHT, 0, 0, PANEL1_YPOS)
-        libtcod.console_set_default_background(g.game.interface.map_console.con, libtcod.black)
+
         libtcod.console_flush()
 
     def blink(self, x, y, color, repetitions, speed):
@@ -8928,13 +8925,13 @@ def main_menu():
         bys.append(sty + (i * 7))
         ## The buttons themselves
     buttons = [gui.Button(gui_panel=root_con, func=g.game.create_new_world_and_begin_game, args=[],
-                          text='Generate World', topleft=(bx, bys[0]), width=b_width, height=6, color=libtcod.light_grey, hcolor=libtcod.white, do_draw_box=True),
+                          text='Generate World', topleft=(bx, bys[0]), width=b_width, height=6, color=g.PANEL_FRONT, do_draw_box=True),
                gui.Button(gui_panel=root_con, func=g.game.setup_quick_battle, args=[],
-                          text='Quick Battle', topleft=(bx, bys[1]), width=b_width, height=6, color=libtcod.light_grey, hcolor=libtcod.white, do_draw_box=True),
+                          text='Quick Battle', topleft=(bx, bys[1]), width=b_width, height=6, color=g.PANEL_FRONT, do_draw_box=True),
                #gui.Button(gui_panel=root_con, func=lambda:2, args=[],
                #           text='Continue Game', topleft=(bx, bys[2]), width=b_width, height=6, color=libtcod.light_grey, hcolor=libtcod.white, do_draw_box=True),
                gui.Button(gui_panel=root_con, func=g.game.switch_to_quit_game, args=[],
-                          text='Quit', topleft=(bx, bys[3]), width=b_width, height=6, color=libtcod.light_grey, hcolor=libtcod.white, do_draw_box=True)]
+                          text='Quit', topleft=(bx, bys[3]), width=b_width, height=6, color=g.PANEL_FRONT, do_draw_box=True)]
 
     ## Start looping
     while not libtcod.console_is_window_closed():
@@ -8948,7 +8945,7 @@ def main_menu():
             button.display(mouse)
 
         #show the title
-        libtcod.console_set_default_foreground(0, libtcod.light_grey)
+        #libtcod.console_set_default_foreground(0, libtcod.light_grey)
         libtcod.console_print_ex(0, int(round(g.SCREEN_WIDTH / 2)), int(round(g.SCREEN_HEIGHT / 4)), libtcod.BKGND_NONE, libtcod.CENTER, 'I R O N   T E S T A M E N T')
         libtcod.console_print_ex(0, int(round(g.SCREEN_WIDTH / 2)), int(round(g.SCREEN_HEIGHT) - 2), libtcod.BKGND_NONE, libtcod.CENTER, 'By Josh Coppola - (thanks to Jotaf\'s tutorial!)')
 
