@@ -209,7 +209,7 @@ class GuiPanel:
 
         return player_input
 
-    def add_button(self, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=0):
+    def add_button(self, func, args, text, topleft, width, height, hover_header=None, hover_text=None, hover_text_offset=(0, 0), color=g.PANEL_FRONT, hcolor=None, do_draw_box=True, closes_menu=0):
         ''' Pretty ugly because the panel has multiple button lists for now... '''
         self.gen_buttons.append(Button(self, func, args, text, topleft, width, height, hover_header, hover_text, hover_text_offset, color, hcolor, do_draw_box, closes_menu))
 
@@ -750,9 +750,8 @@ def show_civs(world):
 
                         panel.render = True
                         pcolor = libtcod.color_lerp(g.PANEL_FRONT, libtcod.light_green, .5)
-                        hcolor = pcolor * 2
                         panel.wmap_buttons.append(Button(gui_panel=panel, func=g.WORLD.time_cycle.goto_next_week, args=[],
-                                                              text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, hcolor=hcolor, do_draw_box=True) )
+                                                              text='Advance', topleft=(15, 40), width=12, height=3, color=pcolor, do_draw_box=True) )
 
                 else:
                     acolor = g.PANEL_FRONT

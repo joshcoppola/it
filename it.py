@@ -333,9 +333,9 @@ class World(Map):
         ######## Add some buttons #######
         panel2.wmap_buttons = [
                           gui.Button(gui_panel=panel2, func=self.gen_history, args=[1],
-                                     text='Generate History', topleft=(4, g.PANEL2_HEIGHT-11), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                                     text='Generate History', topleft=(4, g.PANEL2_HEIGHT-11), width=20, height=5, color=g.PANEL_FRONT, do_draw_box=True),
                           gui.Button(gui_panel=panel2, func=self.generate, args=[],
-                                     text='Regenerate Map', topleft=(4, g.PANEL2_HEIGHT-6), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
+                                     text='Regenerate Map', topleft=(4, g.PANEL2_HEIGHT-6), width=20, height=5, color=g.PANEL_FRONT, do_draw_box=True)
                           ]
 
     def tile_blocks_mov(self, x, y):
@@ -1121,7 +1121,7 @@ class World(Map):
                 break
         else:
             panel2.wmap_buttons.append(gui.Button(gui_panel=panel2, func=g.game.new_game, args=[],
-                                    text='Start Playing', topleft=(4, g.PANEL2_HEIGHT-16), width=20, height=5, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                    text='Start Playing', topleft=(4, g.PANEL2_HEIGHT-16), width=20, height=5, color=g.PANEL_FRONT, do_draw_box=True))
 
 
     def gen_mythological_creatures(self):
@@ -4262,9 +4262,9 @@ def attack_menu(actor, target):
         atx, aty = 4, 14
         # Setup buttons
         buttons = [gui.Button(gui_panel=wpanel, func=show_object_info, args=[target],
-                                  text='Obj info', topleft=(mid_x, 40), width=bwidth, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                                  text='Obj info', topleft=(mid_x, 40), width=bwidth, height=4, color=g.PANEL_FRONT, do_draw_box=True),
                    gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
         ########## New simultaneous combat system preview ############
         weapon = g.player.creature.get_current_weapon()
@@ -4323,13 +4323,13 @@ def attack_menu(actor, target):
 
 
             buttons.append(gui.Button(gui_panel=wpanel, func=g.player.creature.set_combat_attack, args=[target, listed_combat_move, listed_combat_move],
-                                   text=listed_combat_move.name, topleft=(xval, yval), width=20, height=3, color=button_color, hcolor=libtcod.white, do_draw_box=True,
+                                   text=listed_combat_move.name, topleft=(xval, yval), width=20, height=3, color=button_color, do_draw_box=True,
                                    hover_header=[listed_combat_move.name, can_hit], hover_text=hover_odds, hover_text_offset=(30, 0)) )
         ######### End new simultaneous combat system preview #########
 
         mid_y += 4
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                                  text='Cancel', topleft=(mid_x, 44), width=bwidth, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='Cancel', topleft=(mid_x, 44), width=bwidth, height=4, color=g.PANEL_FRONT, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
 
@@ -4390,28 +4390,28 @@ def talk_screen(actor, target):
     def refresh_buttons():
         aty = 10
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
         talk_options = g.player.creature.get_valid_questions(target)
 
         for option in talk_options:
             button = gui.Button(gui_panel=wpanel, func=g.player.creature.ask_question, args=(target, option),
-                                text=option, topleft=(atx, aty), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)
+                                text=option, topleft=(atx, aty), width=16, height=3, color=g.PANEL_FRONT, do_draw_box=True)
 
             buttons.append(button)
             aty += 3
 
         #buttons.append(gui.Button(gui_panel=wpanel, func=recruit, args=[target], text='Recruit', origin=(atx, aty), width=6, tall=1, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
         buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, target],
-                                  text='Attack!', topleft=(atx, aty+3), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  text='Attack!', topleft=(atx, aty+3), width=16, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
         buttons.append(gui.Button(gui_panel=wpanel, func=order_menu, args=[g.player, target],
-                                  text='Order', topleft=(atx, aty+6), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  text='Order', topleft=(atx, aty+6), width=16, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.render_handler.debug_dijmap_view, args=[target],
-                                  text='See DMap', topleft=(atx, aty+9), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='See DMap', topleft=(atx, aty+9), width=16, height=3, color=g.PANEL_FRONT, do_draw_box=True))
         buttons.append(gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                                  text='Done', topleft=(atx, aty+12), width=16, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True))
+                                  text='Done', topleft=(atx, aty+12), width=16, height=3, color=g.PANEL_FRONT, do_draw_box=True))
 
         wpanel.gen_buttons = buttons
 
@@ -4663,9 +4663,9 @@ def storage_menu(obj):
     storage_items = g.player.get_storage_items()
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
-                          topleft=(bx, height-5), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                          topleft=(bx, height-5), width=b_width, height=3, color=g.PANEL_FRONT, do_draw_box=True),
                gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
     # Store item
     y = 0
@@ -4673,7 +4673,7 @@ def storage_menu(obj):
         y += 5
         buttons.append(gui.Button(gui_panel=wpanel, func=component_with_storage.owner.place_inside, args=[component_with_storage, obj],
                                   text='Place ' + obj.name + ' in ' + component_with_storage.name, topleft=(bx, y),
-                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
     wpanel.gen_buttons = buttons
 
@@ -4706,9 +4706,9 @@ def choose_object_to_interact_with(objs, x, y):
         wpanel = gui.GuiPanel(width=width, height=height, xoff=cx, yoff=cy, interface=g.game.interface)
 
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel], text='Done',
-                              topleft=(bx, height-5), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                              topleft=(bx, height-5), width=b_width, height=3, color=g.PANEL_FRONT, do_draw_box=True),
                    gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+                          text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
         y = 0
         for obj in objs:
@@ -4716,19 +4716,19 @@ def choose_object_to_interact_with(objs, x, y):
                 y += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
                                   text='Talk to ' + obj.fullname(), topleft=(bx, y),
-                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
             if obj.interactable:
                 y += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=obj.interactable['func'], args=obj.interactable['args'],
                                   text=obj.interactable['text'], topleft=(bx, y),
-                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
             else:
                 y += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
                                   text='Interact with ' + obj.fullname(), topleft=(bx, y),
-                                  width=b_width, height=4, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                  width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
         # Specific tile interaction...
         if g.M.tiles[x][y].interactable:
@@ -4739,7 +4739,7 @@ def choose_object_to_interact_with(objs, x, y):
 
             y += 4
             buttons.append(gui.Button(gui_panel=wpanel, func=func, args=args, text=text,
-                                   topleft=(bx, y), width=b_width, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1))
+                                   topleft=(bx, y), width=b_width, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
 
         wpanel.gen_buttons = buttons
@@ -4753,20 +4753,20 @@ def debug_menu():
 
     if g.game.map_scale == 'world':
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                 text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                 text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True),
 
                    gui.Button(gui_panel=wpanel, func=list_people, args=[],
-                 text='People', topleft=(3, 5), width=width-4, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1),
+                 text='People', topleft=(3, 5), width=width-4, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1),
 
                     gui.Button(gui_panel=wpanel, func=list_factions, args=[],
-                 text='Factions', topleft=(3, 8), width=width-4, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
+                 text='Factions', topleft=(3, 8), width=width-4, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1)
                    ]
     elif g.game.map_scale == 'human':
         buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-                 text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True),
+                 text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True),
 
                  gui.Button(gui_panel=wpanel, func=list_people, args=[],
-                 text='People', topleft=(3, 5), width=width-4, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True, closes_menu=1)
+                 text='People', topleft=(3, 5), width=width-4, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1)
                    ]
 
     wpanel.gen_buttons = buttons
@@ -4779,7 +4779,7 @@ def list_people():
     wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
     y = 5
     for faction in g.WORLD.factions:
@@ -4788,7 +4788,7 @@ def list_people():
         if leader is not None:
             y += 1
             buttons.append(gui.Button(gui_panel=wpanel, func=leader.creature.die, args=['godly debug powers'],
-                 text=leader.fulltitle(), topleft=(2, y), width=width-4, height=1, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
+                 text=leader.fulltitle(), topleft=(2, y), width=width-4, height=1, color=g.PANEL_FRONT, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
 
@@ -4800,14 +4800,14 @@ def list_factions():
     wpanel = gui.GuiPanel(width=width, height=height, xoff=0, yoff=0, interface=g.game.interface)
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
     y = 5
     for faction in g.WORLD.factions:
 
         y += 1
         buttons.append(gui.Button(gui_panel=wpanel, func=dbg_faction_relations, args=[faction],
-             text='%s (%i)' % (faction.name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=False) )
+             text='%s (%i)' % (faction.name, len(faction.members) ), topleft=(2, y), width=width-4, height=1, color=g.PANEL_FRONT, do_draw_box=False) )
 
     wpanel.gen_buttons = buttons
 
@@ -4819,7 +4819,7 @@ def dbg_faction_relations(faction):
     wpanel = gui.GuiPanel(width=width, height=height, xoff=30, yoff=0, interface=g.game.interface)
 
     buttons = [gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
-             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, hcolor=libtcod.white, do_draw_box=True)]
+             text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
     def render_text_func():
         y = 2
@@ -8208,14 +8208,14 @@ class RenderHandler:
 
                     if panel4.recalculate_wmap_dyn_buttons:
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, -1),
-                                                                      text='<', topleft=(g.PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_price, args=(item, 1),
-                                                                      text='>', topleft=(g.PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, do_draw_box=False) )
 
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, -1),
-                                                                      text='<', topleft=(g.PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_bid_quant, args=(item, 1),
-                                                                      text='>', topleft=(g.PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, do_draw_box=False) )
 
                 y += 1
                 libtcod.console_print(panel4.con, 2, y, '-* Future sells *-')
@@ -8226,14 +8226,14 @@ class RenderHandler:
 
                     if panel4.recalculate_wmap_dyn_buttons:
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_price, args=(item, -1),
-                                                                      text='<', topleft=(g.PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-3, y), width=1, height=1, color=libtcod.light_blue, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_price, args=(item, 1),
-                                                                      text='>', topleft=(g.PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-2, y), width=1, height=1, color=libtcod.light_blue*1.3, do_draw_box=False) )
 
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_quant, args=(item, -1),
-                                                                      text='<', topleft=(g.PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='<', topleft=(g.PANEL4_WIDTH-5, y), width=1, height=1, color=libtcod.light_violet, do_draw_box=False) )
                         panel4.wmap_dynamic_buttons.append(gui.Button(gui_panel=panel4, func=g.player.creature.economy_agent.change_sell_quant, args=(item, 1),
-                                                                      text='>', topleft=(g.PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, hcolor=libtcod.white, do_draw_box=False) )
+                                                                      text='>', topleft=(g.PANEL4_WIDTH-4, y), width=1, height=1, color=libtcod.light_violet*1.3, do_draw_box=False) )
 
 
                 if panel4.recalculate_wmap_dyn_buttons:
