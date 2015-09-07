@@ -101,6 +101,9 @@ PAIN_BACK = libtcod.color_lerp(libtcod.dark_red, libtcod.black, .6)
 TREE_CHARS = {0:(307, 308), 1:(311, 312), 2:(313, 314), 3:(309, 310) }
 TREE_STUMP_CHARS = {0:315, 1:317, 2:318, 3:316 }
 
+ARMED_MAN_CHAR = 255
+UNARMED_MAN_CHAR = 256
+CARAVAN_CHAR = 257
 
 MIN_MARRIAGE_AGE = 16
 MAX_MARRIAGE_AGE = 50

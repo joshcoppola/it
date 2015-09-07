@@ -2516,7 +2516,7 @@ class City(Site):
     def create_merchant(self, sell_economy, traded_item):
         ## Create a human to attach an economic agent to
         born = g.WORLD.time_cycle.years_ago(roll(20, 60))
-        human = self.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None, world_char=257)
+        human = self.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None, world_char=g.CARAVAN_CHAR)
         human.set_world_brain(BasicWorldBrain())
 
         ## Actually give profession to the person ##
