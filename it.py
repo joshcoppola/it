@@ -2588,13 +2588,12 @@ class City(Site):
     def increase_radius(self, amount=1):
         # Increase the territory held by the city
         self.territory_radius += amount
-        for x in xrange(self.x - self.territory_radius, self.x + self.territory_radius + 1):
-            for y in xrange(self.y - self.territory_radius, self.y + self.territory_radius + 1):
-                if in_circle(center_x=self.x, center_y=self.y, radius=self.territory_radius, x=x, y=y) and not g.WORLD.tiles[x][y].blocks_mov and g.WORLD.tiles[x][y].territory is None:
-                    self.acquire_tile(x, y)
-                # Force-acquire any tile within 2 distance of us
-                elif g.WORLD.tiles[x][y].territory != self and self.distance(x, y) < 2:
-                    self.acquire_tile(x, y)
+        for x, y in get_circle_tiles(self.x, self.y, self.territory_radius):
+            if not g.WORLD.tiles[x][y].blocks_mov and g.WORLD.tiles[x][y].territory is None:
+                self.acquire_tile(x, y)
+            # Force-acquire any tile within 2 distance of us
+            elif not g.WORLD.tiles[x][y].blocks_mov and g.WORLD.tiles[x][y].territory != self and self.distance(x, y) <= 2:
+                self.acquire_tile(x, y)
 
     def obtain_resource(self, resource, amount):
         if resource not in self.native_res:

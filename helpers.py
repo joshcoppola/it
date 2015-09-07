@@ -250,6 +250,26 @@ def is_circle_radius(center_x, center_y, radius, x, y):
     square_dist = (center_x - x) ** 2 + (center_y - y) ** 2
     return square_dist == radius ** 2
 
+def get_circle_tiles(center_x, center_y, radius):
+    ''' Generator to create tiles in a circle and generate each once and only once '''
+
+    for x in xrange(center_x - radius, center_x + radius + 1):
+        for y in xrange(center_y - radius, center_y + radius + 1):
+            if (center_x - x) ** 2 + (center_y - y) ** 2 <= radius ** 2:
+                yield (x, y)
+
+    # # Due to some weird quick of the generator, the 2 tiles at the most extreme x values need to be hard-coded
+    # yield (center_x - radius, center_y)
+    # yield (center_x + radius, center_y)
+    # # Loop through the tiles in one-quarter of the circle
+    # for x in xrange(center_x - radius, center_x + 1):
+    #     ydist = int(math.sqrt(radius**2 - (center_x - x)**2))
+    #     for y in xrange(center_y - ydist, center_y):
+    #         # Yield that tile, and then any other "opposite" tiles in any of the other 3 quarters of the circle
+    #         yield (x, y)
+    #         if x != center_x and y != center_y:     yield (center_x + (center_x - x), y + ydist)
+    #         if x != center_x:                       yield (center_x + (center_x - x), y)
+    #         if y != center_y and ydist:             yield (x, y + ydist)
 
 def weighted_choice(choices):
     ''' Taken from http://stackoverflow.com/questions/3679694/a-weighted-version-of-random-choice '''
