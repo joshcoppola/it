@@ -40,6 +40,26 @@ class FinishedGood(object):
         self.in_amt = in_amt
         self.out_amt = out_amt
 
+class Reaction:
+    def __init__(self, is_raw, commodity_input, commodities_consumed, commodity_produced, commodities_required):
+        self.is_raw = is_raw
+        self.commodity_input = commodity_input if commodity_input else {}
+        self.commodities_consumed = commodities_consumed if commodities_consumed else {}
+        self.commodity_produced = commodity_produced  if commodity_produced else {}
+        self.commodities_required = commodities_required if commodities_required else {}
+
+        # Cache list of all possible commodities needed for this reaction, and their relative amounts. Will be used later
+        # by each agent when checking how many times the reaction can be run
+        self.all_commodities_required_for_reaction = defaultdict(int)
+
+        for commodity, amount in self.commodity_input:
+            self.all_commodities_required_for_reaction[commodity] += amount
+        for commodity, amount in self.commodities_consumed:
+            self.all_commodities_required_for_reaction[commodity] += amount
+        for commodity, amount in self.commodities_required :
+            self.all_commodities_required_for_reaction[commodity] += amount
+
+
 
 ######## FOR PHYSICS ##########
 
@@ -82,10 +102,8 @@ class CommodityManager:
         ###### For materials in physics module ######
         self.materials = {}
 
-
-
-        self.load_yaml()
-
+        # Determines what is needed to gather raw materials, or what is needed to turn raw materials into finished goods
+        self.reactions = {}
 
     def add_commodity(self, commodity):
         self.all_commodities.append(commodity)
@@ -104,15 +122,29 @@ class CommodityManager:
         # Loop through all resources in the yaml, creating resources and their associated reactions as we go
         for rname in resource_info:
             resource = Resource(name=rname, category=resource_info[rname]['category'], resource_class=resource_info[rname]['resource_class'],
-                               gather_amount=resource_info[rname]['gather_amount'], break_chance=resource_info[rname]['break_chance'],
+                               gather_amount=resource_info[rname]['harvest']['number_output'], break_chance=resource_info[rname]['break_chance'],
                                app_chances=resource_info[rname]['app_chances'], app_amt=resource_info[rname]['app_amount'])
 
             self.resources.append(resource)
 
+            self.reactions[rname] = Reaction(is_raw=1,
+                                commodity_input={},
+                                commodities_consumed=resource_info[rname]['harvest']['commodities_consumed'],
+                                commodity_produced={rname: resource_info[rname]['harvest']['number_output']},
+                                commodities_required=resource_info[rname]['harvest']['commodities_required'])
+
             # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
             for reaction_type in resource_info[rname]['reactions']:
-                finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['input_units'], out_amt=resource_info[rname]['reactions'][reaction_type]['output_units'])
+                finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['number_input'], out_amt=resource_info[rname]['reactions'][reaction_type]['number_output'])
                 self.goods.append(finished_good)
+
+                ### Saving those reactions ###
+                reaction_name = '{0} {1}'.format(rname, reaction_type)
+                self.reactions[reaction_name] = Reaction(is_raw=0,
+                                commodity_input={rname: resource_info[rname]['reactions'][reaction_type]['number_input']},
+                                commodities_consumed=resource_info[rname]['reactions'][reaction_type]['commodities_consumed'],
+                                commodity_produced={reaction_name: resource_info[rname]['reactions'][reaction_type]['number_output']},
+                                commodities_required=resource_info[rname]['reactions'][reaction_type]['commodities_required'])
 
 
         #### Now build more info about each of these into the class ####
@@ -169,4 +201,16 @@ def import_data():
     CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8, 'armor':2, 'weapons':2}
 
     commodity_manager = CommodityManager()
+    commodity_manager.load_yaml()
 
+    for reaction, thing in commodity_manager.reactions.iteritems():
+        verb = '(gathered)' if thing.is_raw else '(produced)'
+        print reaction, verb
+        print 'input:', thing.commodity_input
+        print 'output:', thing.commodity_produced
+        print 'consumed:', thing.commodities_consumed
+        print 'required', thing.commodities_required
+        print ''
+
+if __name__ == '__main__':
+    import_data()
