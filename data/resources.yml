@@ -2,18 +2,31 @@
 copper:
     category: ores
     resource_class: strategic
-    gather_amount: 2
     break_chance: 225
+    harvest:
+        number_output: 2
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions:
         tools:
-            input_units: 1
-            output_units: 2
+            number_input: 1
+            number_output: 2
+            commodities_consumed:
+                woods: 1
+            commodities_required:
         weapons:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 2
+            commodities_consumed:
+                woods: 1
+            commodities_required:
         armor:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 2
+            commodities_consumed:
+                woods: 1
+            commodities_required:
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -31,18 +44,34 @@ copper:
 bronze:
     category: ores
     resource_class: strategic
-    gather_amount: 2
     break_chance: 150
+    harvest:
+        number_output: 2
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions:
         tools:
-            input_units: 1
-            output_units: 2
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+                woods: 1
+            commodities_required:
+                tools: 1
         weapons:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+                woods: 1
+            commodities_required:
+                tools: 1
         armor:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+                woods: 1
+            commodities_required:
+                tools: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -60,18 +89,34 @@ bronze:
 iron:
     category: ores
     resource_class: strategic
-    gather_amount: 2
     break_chance: 75
+    harvest:
+        number_output: 2
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions:
         tools:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+                woods: 1
+            commodities_required:
+                tools: 1
         weapons:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+                woods: 1
+            commodities_required:
+                tools: 1
         armor:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+                woods: 1
+            commodities_required:
+                tools: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -89,12 +134,18 @@ iron:
 clay:
     category: clays
     resource_class: strategic
-    gather_amount: 2
     break_chance: 300
+    harvest:
+        number_output: 2
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions:
         pottery:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+            commodities_required:
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -135,12 +186,19 @@ clay:
 wood:
     category: woods
     resource_class: strategic
-    gather_amount: 2
     break_chance: 300
+    harvest:
+        number_output: 2
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions:
         furniture:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+            commodities_required:
+                tools: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -158,12 +216,19 @@ wood:
 flax:
     category: cloths
     resource_class: strategic
-    gather_amount: 3
     break_chance: 300
+    harvest:
+        number_output: 3
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions:
         clothing:
-            input_units: 1
-            output_units: 1
+            number_input: 1
+            number_output: 1
+            commodities_consumed:
+            commodities_required:
+                tools: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -181,8 +246,12 @@ flax:
 food:
     category: foods
     resource_class: strategic
-    gather_amount: 3
     break_chance: 1
+    harvest:
+        number_output: 3
+        commodities_consumed:
+        commodities_required:
+            tools: 1
     reactions: {}
     
     app_amount: 2000
