@@ -2445,11 +2445,11 @@ class City(Site):
         # Add gatherers and producers based on the slots allocated when we prepared the economy
         for resource, amount in self.resource_slots.iteritems():
             for i in xrange(amount):
-                self.econ.add_resource_gatherer(resource)
+                self.econ.add_agent_based_on_token(resource)
 
         for good, amount in self.industry_slots.iteritems():
             for i in xrange(amount):
-                self.econ.add_good_producer(good)
+                self.econ.add_agent_based_on_token(good)
 
     def setup_imports(self):
 
@@ -2465,22 +2465,22 @@ class City(Site):
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     city.create_merchant(sell_economy=self.econ, traded_item=item)
                     ## Add extra resource gatherers in the other city
-                    #city.econ.add_resource_gatherer(item)
-                    #city.econ.add_resource_gatherer(item)
-                    #city.econ.add_resource_gatherer(item)
-                    #city.econ.add_resource_gatherer(item)
+                    #city.econ.add_agent_based_on_token(item)
+                    #city.econ.add_agent_based_on_token(item)
+                    #city.econ.add_agent_based_on_token(item)
+                    #city.econ.add_agent_based_on_token(item)
 
                     ## Add some specialists who can now make use of the imported goods
                     good_tokens_this_resource_can_produce = economy.list_goods_from_strategic([item])
                     for good in good_tokens_this_resource_can_produce:
-                        self.econ.add_good_producer(good)
-                        self.econ.add_good_producer(good)
+                        self.econ.add_agent_based_on_token(good)
+                        self.econ.add_agent_based_on_token(good)
 
                         # Other city too!
-                        city.econ.add_good_producer(good)
-                        city.econ.add_good_producer(good)
-                        city.econ.add_good_producer(good)
-                        city.econ.add_good_producer(good)
+                        city.econ.add_agent_based_on_token(good)
+                        city.econ.add_agent_based_on_token(good)
+                        city.econ.add_agent_based_on_token(good)
+                        city.econ.add_agent_based_on_token(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
                     for good_class in goods_by_resource_token[item]:
@@ -2570,10 +2570,10 @@ class City(Site):
 
         # Unload the goods
         if self.econ == caravan_leader.creature.economy_agent.sell_economy:
-            amount_to_unload = caravan_leader.creature.economy_agent.travel_inventory[caravan_leader.creature.economy_agent.traded_item]
+            amount_to_unload = caravan_leader.creature.economy_agent.merchant_travel_inventory[caravan_leader.creature.economy_agent.sold_commodity_name]
 
-            caravan_leader.creature.economy_agent.travel_inventory[caravan_leader.creature.economy_agent.traded_item] -= amount_to_unload
-            caravan_leader.creature.economy_agent.sell_inventory[caravan_leader.creature.economy_agent.traded_item] += amount_to_unload
+            caravan_leader.creature.economy_agent.merchant_travel_inventory[caravan_leader.creature.economy_agent.sold_commodity_name] -= amount_to_unload
+            caravan_leader.creature.economy_agent.sell_inventory[caravan_leader.creature.economy_agent.sold_commodity_name] += amount_to_unload
 
         # Add workers to the market
         for figure in caravan_leader.creature.commanded_figures + [caravan_leader]:

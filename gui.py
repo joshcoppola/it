@@ -715,7 +715,8 @@ def show_civs(world):
             libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
 
-            all_agents = (city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants)
+            #all_agents = (city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants)
+            all_agents = (city.econ.all_agents + city.econ.buy_merchants + city.econ.sell_merchants)
             merchants = city.econ.buy_merchants + city.econ.sell_merchants
 
             for agent in all_agents[minr:maxr]:
@@ -762,7 +763,7 @@ def show_civs(world):
                 libtcod.console_print(0, 30, y, str(agent.gold))
 
                 libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.light_yellow, g.PANEL_FRONT, .7))
-                libtcod.console_print(0, 40, y, '{0:.2f}'.format(agent.gold / agent.represented_population_number))
+                libtcod.console_print(0, 40, y, '{0:.2f}'.format(agent.gold / agent.population_number))
 
                 #libtcod.console_set_default_foreground(0, libtcod.color_lerp(libtcod.blue, g.PANEL_FRONT, .7))
                 #libtcod.console_print(0, 40, y, str(agent.buys))
