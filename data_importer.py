@@ -52,11 +52,11 @@ class Reaction:
         # by each agent when checking how many times the reaction can be run
         self.all_commodities_required_for_reaction = defaultdict(int)
 
-        for commodity, amount in self.commodity_input:
+        for commodity, amount in self.commodity_input.iteritems():
             self.all_commodities_required_for_reaction[commodity] += amount
-        for commodity, amount in self.commodities_consumed:
+        for commodity, amount in self.commodities_consumed.iteritems():
             self.all_commodities_required_for_reaction[commodity] += amount
-        for commodity, amount in self.commodities_required :
+        for commodity, amount in self.commodities_required.iteritems():
             self.all_commodities_required_for_reaction[commodity] += amount
 
 
@@ -86,6 +86,7 @@ class CommodityManager:
         self.resources = []
         self.goods = []
         self.all_commodities = []
+        self.all_commodity_names = []
 
         # These are dicts of category --> list of matching commodities
         self.commodity_type_to_actual_tokens = defaultdict(list)
@@ -107,6 +108,7 @@ class CommodityManager:
 
     def add_commodity(self, commodity):
         self.all_commodities.append(commodity)
+        self.all_commodity_names.append(commodity.name)
         self.commodity_type_to_actual_tokens[commodity.category].append(commodity)
         self.commodity_type_to_token_names[commodity.category].append(commodity.name)
         self.commodity_name_to_actual_tokens[commodity.name] = commodity
@@ -203,14 +205,14 @@ def import_data():
     commodity_manager = CommodityManager()
     commodity_manager.load_yaml()
 
-    for reaction, thing in commodity_manager.reactions.iteritems():
-        verb = '(gathered)' if thing.is_raw else '(produced)'
-        print reaction, verb
-        print 'input:', thing.commodity_input
-        print 'output:', thing.commodity_produced
-        print 'consumed:', thing.commodities_consumed
-        print 'required', thing.commodities_required
-        print ''
+    # for reaction, thing in commodity_manager.reactions.iteritems():
+    #     verb = '(gathered)' if thing.is_raw else '(produced)'
+    #     print reaction, verb
+    #     print 'input:', thing.commodity_input
+    #     print 'output:', thing.commodity_produced
+    #     print 'consumed:', thing.commodities_consumed
+    #     print 'required', thing.commodities_required
+    #     print ''
 
 if __name__ == '__main__':
     import_data()
