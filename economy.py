@@ -1,5 +1,6 @@
 from __future__ import division
 import random
+from random import randint as roll
 #import cProfile
 #import pstats
 import os
@@ -68,29 +69,29 @@ def economy_test_run():
     for i in xrange(6):
         for resource in data.commodity_manager.resources:
             if resource.name != 'food' and resource.name != 'flax':
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
             elif resource.name == 'flax':
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
             else: # Add lots of farmers
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
-                economy.add_resource_gatherer(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
+                economy.add_agent_based_on_token(resource.name)
 
     for i in xrange(4):
         for good in data.commodity_manager.goods:
             if good.name == 'flax clothing':
-                economy.add_good_producer(good.name)
-                economy.add_good_producer(good.name)
-                economy.add_good_producer(good.name)
+                economy.add_agent_based_on_token(good.name)
+                economy.add_agent_based_on_token(good.name)
+                economy.add_agent_based_on_token(good.name)
             else:
-                economy.add_good_producer(good.name)
-                economy.add_good_producer(good.name)
+                economy.add_agent_based_on_token(good.name)
+                economy.add_agent_based_on_token(good.name)
 
     for i in xrange(20):
         #print '------------', i, '--------------'
@@ -127,723 +128,28 @@ def list_goods_from_strategic(strategic_resources):
     return goods_we_can_make
 
 
+class PriceBelief:
+    def __init__(self, center, uncertainty):
+        self.center = center
+        self.uncertainty = uncertainty
+
+
 class Agent(object):
-
-
-    def adjust_gold(self, amount):
-        self.gold += amount
-        if self.attached_to:
-            self.attached_to.creature.net_money += amount
-
-    def player_auto_manage(self):
-        tokens_to_bid = self.eval_need()
-
-        for token in tokens_to_bid:
-            bid_price, bid_quantity = self.eval_bid(token)
-
-            self.future_bids[token] = [bid_price, bid_quantity]
-
-        # Straight from food bidding code, except subtract one because we'll be consuming it next turn
-        if self.need_food and self.inventory['food'] <= (FOOD_BID_THRESHHOLD * self.represented_population_number):
-            token = random.choice(self.economy.available_types['foods'])
-            bid_price, bid_quantity = self.eval_bid(token)
-
-            self.future_bids[token] = [bid_price, bid_quantity]
-
-
-        sell_price, quantity_to_sell = self.check_sell()
-        if quantity_to_sell > 0:
-            self.future_sells[self.sell_item] = [sell_price, quantity_to_sell]
-
-
-    #### For use with player only for now ####
-    def change_bid_price(self, item_to_change, amt):
-        ''' Change price of a future bid '''
-        self.future_bids[item_to_change][0] = max(self.future_bids[item_to_change][0] + amt, 1)
-
-    def change_bid_quant(self, item_to_change, amt):
-        ''' Change quantity of a future bid '''
-        self.future_bids[item_to_change][1] = max(self.future_bids[item_to_change][1] + amt, 1)
-
-    def change_sell_price(self, item_to_change, amt):
-        ''' Change price of a future sell offer '''
-        self.future_sells[item_to_change][0] = max(self.future_sells[item_to_change][0] + amt, 1)
-
-    def change_sell_quant(self, item_to_change, amt):
-        ''' Change quantity of a future sell offer '''
-        self.future_sells[item_to_change][1] = min( max(self.future_sells[item_to_change][1] + amt, 1), self.inventory[item_to_change] )
-    ###########################################
-
-    def take_bought_item(self, item, amount):
-        self.inventory[item] += amount
-
-    def remove_sold_item(self, item, amount):
-        self.inventory[item] -= amount
-
-    def pay_taxes(self):
-        # Pay taxes. If the economy has an owner, pay the taxes to that treasury
-        self.gold -= self.economy.local_taxes
-        # economy owner - should be the city
-        if self.economy.owner:
-            self.economy.owner.treasury += self.economy.local_taxes
-
-
-    def update_holder(self, figure):
-        '''If the original holder we're attached to dies, we can be passed on to others'''
-        # Remove self from who we were previously attached to
-        if self.attached_to is not None:
-            self.attached_to.creature.economy_agent = None
-
-        if figure.creature.economy_agent is not None:
-            figure.creature.economy_agent.attached_to = None
-            figure.creature.economy_agent = None
-
-        self.attached_to = figure
-        self.attached_to.creature.economy_agent = self
-
-
-    def has_token(self, type_of_item):
-        # Test whether or not we have a token of an item
-        for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
-            if self.inventory[token_of_item]:
-                return True
-        return False
-
-    def eval_bid(self, token_to_bid):
-        ## Evaluate a bid in the economy
-        est_price = self.perceived_values[token_to_bid].center
-        uncertainty = self.perceived_values[token_to_bid].uncertainty
-        bid_price = roll(est_price - uncertainty, est_price + uncertainty)
-
-        quantity = roll(1, 2) * 100
-
-        # TODO: Should keep a running total of amount we've bid so far
-        # This will prevent agent from bidding on a bunch of things when
-        # low on cash
-        if bid_price * quantity > self.gold:
-            bid_price = int(self.gold / quantity)
-
-        return bid_price, quantity
-
-    def place_bid(self, token_to_bid, bid_price, bid_quantity):
-        self.last_turn.append('Bid on {0} {1} for {2} each'.format(bid_quantity, token_to_bid, bid_price))
-        self.economy.auctions[token_to_bid].bids.append(Offer(owner=self, commodity=token_to_bid, price=bid_price, quantity=bid_quantity))
-
-    def check_sell(self):
-        sell_item = self.sell_item
-        prod_adj_amt = self.prod_adj_amt
-
-        # Determines how many items to sell, and at what cost
-        production_cost = self.check_production_cost()
-        min_sale_price = int(round( (production_cost/prod_adj_amt)*PROFIT_MARGIN ) )
-        ## Prevent our beliefs from getting too out of whack
-        if min_sale_price > self.perceived_values[sell_item].center * 2:
-            self.perceived_values[sell_item].center = min_sale_price
-
-        est_price = self.perceived_values[sell_item].center
-        uncertainty = self.perceived_values[sell_item].uncertainty
-        # won't go below what they paid for it
-        sell_price = max(roll(est_price - uncertainty, est_price + uncertainty), min_sale_price)
-
-        #self.last_turn.append('Prod: ' + str(production_cost) + '; min: ' + str(min_sale_price))
-        quantity_to_sell = self.inventory[sell_item]
-        #print self.name, 'selling', quantity_to_sell, sell_item
-
-        return sell_price, quantity_to_sell
-
-    def create_sell(self, sell_item, sell_price, quantity_to_sell):
-        if quantity_to_sell > 0:
-            self.last_turn.append('Offered to sell ' + str(quantity_to_sell) + ' ' + sell_item + ' for ' + str(sell_price))
-            self.economy.auctions[sell_item].sells.append( Offer(owner=self, commodity=sell_item, price=sell_price, quantity=quantity_to_sell) )
-        else:
-            self.last_turn.append('Tried to sell ' + sell_item + ' but had none in inventory')
-
-
-    def handle_sells(self):
-        if self.future_sells == {}:
-            sell_price, quantity_to_sell = self.check_sell()
-
-            self.create_sell(sell_item=self.sell_item, sell_price=sell_price, quantity_to_sell=quantity_to_sell)
-
-        else:
-            for sell_item, (sell_price, quantity_to_sell) in self.future_sells.iteritems():
-
-                self.create_sell(sell_item=sell_item, sell_price=sell_price, quantity_to_sell=quantity_to_sell)
-
-            self.future_sells = {}
-
-
-    def eval_trade_accepted(self, economy, type_of_item, price):
-        # Then, adjust our belief in the price
-        if self.perceived_values[type_of_item].uncertainty >= MIN_CERTAINTY_VALUE:
-            self.perceived_values[type_of_item].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
-
-        our_mean = self.perceived_values[type_of_item].center
-
-        if price > our_mean * P_DIF_THRESH:
-            self.perceived_values[type_of_item].center += P_DIF_ADJ
-        elif price < our_mean * N_DIF_THRESH:
-            # We never let it's worth drop under a certain % of tax money.
-            self.perceived_values[type_of_item].center = \
-                max(self.perceived_values[type_of_item].center - N_DIF_ADJ, (self.economy.local_taxes) + self.perceived_values[type_of_item].uncertainty)
-
-
-    def eval_bid_rejected(self, economy, type_of_item, price=None):
-        # What to do when we've bid on something and didn't get it
-        if self.economy.auctions[type_of_item].supply:
-            if price is None:
-                self.perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
-                self.adjust_uncertainty(economy, type_of_item)
-
-            else:
-                # Radical re-evaluation of the price
-                self.perceived_values[type_of_item].center = price + self.perceived_values[type_of_item].uncertainty
-                self.adjust_uncertainty(economy, type_of_item)
-
-
-    def adjust_uncertainty(self, economy, type_of_item):
-        ''' Ensures that the uncertainty value is never adjusted to be too wide '''
-        uncertainty_limit = int(max(self.economy.auctions[type_of_item].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
-        self.perceived_values[type_of_item].uncertainty = min(self.perceived_values[type_of_item].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
-
-class ResourceGatherer(Agent):
-    def __init__(self, name, id_, represented_population_number, economy, resource, gather_amount, consumed, essential, preferred):
-        self.name = name
+    def __init__(self, id_, name, type_, population_number, buy_economy, sell_economy, sold_commodity_name, sold_commodity_type, is_merchant=0, attached_to=None):
         self.id_ = id_
-        self.represented_population_number = represented_population_number
-        self.economy = economy
-        self.resource = resource
-        self.gather_amount = gather_amount * self.represented_population_number
-        self.consumed = consumed
-        self.essential = essential
-        self.preferred = preferred
-
-        self.turns_since_food = 0
-        self.resource_gathering_region = None
-        self.activity_is_blocked = 0
-
-        self.need_food = 1
-        if 'Food' in self.name:
-            self.need_food = 0
-
-        self.turns_alive = 0
-        self.buys = 0
-        self.sells = 0
-
-        self.able_to_produce = 1
-
-        # For the actual person in the world exemplifying this agent
-        self.attached_to = None
-
-        self.gold = RESOURCE_GATHERER_STARTING_GOLD
-        self.inventory = defaultdict(int)
-        self.inventory['food'] += (self.represented_population_number * roll(1, 3))
-        self.inventory['iron tools'] += self.represented_population_number
-        self.inventory[resource] += gather_amount
-
-        self.inventory_size = 20 * self.represented_population_number
-
-        self.sell_item = self.resource
-        self.prod_adj_amt = self.gather_amount
-
-        self.last_turn = []
-        self.future_bids = {}
-        self.future_sells = {}
-
-        ##### dict of what we believe the true price of an item is, for each token of an item we can possibly use
-        self.perceived_values = {resource:Value(START_VAL, START_UNCERT)}
-        for type_of_item in consumed + essential + preferred:
-            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
-                self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
-            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type('foods'):
-                self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
-        ##################################################################################
-
-    def bankrupt(self):
-        ''' Remove self from the region where we gather resources, and deal with removing self from the rest of the economic framework '''
-        if self.resource_gathering_region:
-            if self.resource == 'food': resource = 'land'
-            else: resource = self.resource
-
-            self.resource_gathering_region.remove_resource_gatherer_from_region(resource_name=resource, agent=self)
-            #print 'success in removing {0} from {1} !!!!!!!!!!!!!!'.format(self.resource, self.economy.owner.name)
-        else:
-            print '{0} has no resource gathering region in {1}!!!!!!!'.format(self.name, self.economy.owner.name)
-
-        # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name) ## DEBUG
-        self.economy.resource_gatherers.remove(self)
-        if self.economy.owner: self.economy.owner.former_agents.append(self)
-
-        if self.attached_to is not None:
-            self.attached_to.creature.economy_agent = None
-            self.attached_to = None
-
-        self.economy.add_new_agent_to_economy()
-
-
-    def take_turn(self):
-        self.last_turn = []
-
-        if self.gold < 0:
-            # If agent is low on gold, either remove it or give it a government bailout (if it is the last of its kind)
-            all_agents_of_this_type_in_this_economy = [a for a in self.economy.resource_gatherers if a.name == self.name]
-
-            if len(all_agents_of_this_type_in_this_economy) > 1:
-                self.bankrupt()
-                return
-
-            elif len(all_agents_of_this_type_in_this_economy) == 1:
-                #print 'Bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
-                # Government bailout
-                self.gold += 500
-
-
-        self.consume_food()
-        if not self.activity_is_blocked:
-            self.check_production_ability() # <- will gather resources
-            self.handle_bidding()
-            self.pay_taxes()
-            self.handle_sells()
-
-        self.activity_is_blocked = 0
-        self.turns_alive += 1
-
-    def consume_food(self):
-        '''Eat and bid on foods - exclude farmers'''
-        if (not self.need_food) and self.able_to_produce:
-            self.turns_since_food = 0
-
-        else:
-            for token_of_item in self.economy.available_types['foods']:
-                if self.inventory[token_of_item]:
-                    self.inventory[token_of_item] = max(self.inventory[token_of_item] - self.represented_population_number, 0)
-                    self.turns_since_food = 0
-                    break
-            # We didn't have anything in inventory...
-            else:
-                self.turns_since_food += 1
-        '''
-            else:
-                self.turns_since_food += 1
-                if self.turns_since_food > GRANARY_THRESH:
-                    self.economy.starving_agents.append(self)
-                if self.turns_since_food > STARVATION_THRESH:
-                    self.starve()
-        '''
-
-    # def starve(self):
-    #     '''What happens when we run out of food'''
-    #     print self.name, 'has starved', self.inventory, self.gold, 'gold'
-    #     self.economy.resource_gatherers.remove(self)
-    #     if self.economy.owner:
-    #         self.economy.owner.former_agents.append(self)
-
-    def check_production_ability(self):
-        # Check whether we have the right items to gather resources
-        critical_items, other_items = self.check_for_needed_items()
-        if critical_items == []:
-            self.gather_resources()
-        else:
-            self.gather_resources(required_items=False)
-            #print '{0} couldn\'t effectively gather resources due to lack of {1}; (had {2}).'.format(self.name, ', '.join(critical_items), ', '.join(self.inventory))
-
-    def handle_bidding(self):
-        if self.future_bids == {}:
-            tokens_to_bid = self.eval_need()
-
-            for token in tokens_to_bid:
-                bid_price, bid_quantity = self.eval_bid(token)
-
-                self.place_bid(token_to_bid=token, bid_price=bid_price, bid_quantity=bid_quantity)
-
-
-            ## Bid on food if we have less than a certain stockpile
-            if self.need_food and self.inventory['food'] < FOOD_BID_THRESHHOLD:
-                token_to_bid = random.choice(self.economy.available_types['foods'])
-                bid_price, bid_quantity = self.eval_bid(token_to_bid)
-                self.place_bid(token_to_bid=token_to_bid, bid_price=bid_price, bid_quantity=bid_quantity)
-
-        # If we already have action queued ...
-        else:
-            for token, [bid_price, bid_quantity] in self.future_bids.iteritems():
-                self.place_bid(token_to_bid=token, bid_price=bid_price, bid_quantity=bid_quantity)
-
-            self.future_bids = {}
-
-
-    def eval_need(self):
-        tokens_to_bid = []
-        critical_items, other_items = self.check_for_needed_items()
-        for type_of_item in critical_items:
-            # For now, place a bid for a random item available to use of that type
-            token_of_item = random.choice(self.economy.available_types[type_of_item])
-            tokens_to_bid.append(token_of_item)
-
-        # Bid on "preferred" items - those which we'd like to have but aren't essential
-        if self.gold > PREFERRED_ITEM_MIN_GOLD:
-            for type_of_item in other_items:
-                # For now, place a bid for a random item available to use of that type
-                token_of_item = random.choice(self.economy.available_types[type_of_item])
-                tokens_to_bid.append(token_of_item)
-
-        return tokens_to_bid
-
-    def gather_resources(self, required_items=True):
-        # Gather resources, consume items, and account for breaking stuff
-        amount = max(self.inventory_size - sum(self.inventory.values()), 0)
-        consume_and_update = False
-
-        if amount > 0 and required_items:
-            # Add the resource to our own inventory.
-            self.inventory[self.resource] += min(self.gather_amount, amount)
-
-            self.last_turn.append('Gathered {0} {1}'.format(min(self.gather_amount, amount), self.resource))
-            consume_and_update = True
-
-        elif amount > 0 and not required_items:
-            self.inventory[self.resource] += self.represented_population_number
-            self.last_turn.append('Only gathered {0} {1} due to not having required items'.format(self.represented_population_number, self.resource))
-            consume_and_update = True
-
-        if consume_and_update:
-            # Consume any consumables (food is seperate), and then check for other things breaking
-            for type_of_item in self.consumed:
-                for token_of_item in self.economy.available_types[type_of_item]:
-                    if self.inventory[token_of_item] >= self.represented_population_number:
-                        self.inventory[token_of_item] -= self.represented_population_number
-                        break
-
-            for type_of_item in self.preferred + self.essential:
-                for token_of_item in self.economy.available_types[type_of_item]:
-                    if self.inventory[token_of_item] >= self.represented_population_number and roll(1, 1000) <= data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance:
-                        self.inventory[token_of_item] -= self.represented_population_number
-                        break
-        #else:
-        #	print self.name, '- inventory too large to gather resources:', self.inventory
-
-    def check_for_needed_items(self):
-        # Make a list of items we need to gather resources
-        critical_items = [type_of_item for type_of_item in self.consumed + self.essential if not self.has_token(type_of_item)]
-        other_items = [type_of_item for type_of_item in self.preferred if not self.has_token(type_of_item)]
-        return critical_items, other_items
-
-    def check_production_cost(self):
-        production_cost = 0
-        # These items are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
-        for type_of_item in self.essential + self.preferred:
-            for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                    break
-
-        for type_of_item in self.consumed:
-            for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                    break
-
-        for token_of_item in self.economy.available_types['foods']:
-            if self.inventory[token_of_item]:
-                production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                break
-        # Take into account the taxes we pay
-        production_cost += self.economy.local_taxes
-
-        return production_cost
-
-    def eval_sell_rejected(self, economy, type_of_item):
-        # What to do when we put something up for sale and nobody bought it. Only adjust if there was a demand
-        if self.economy.auctions[type_of_item].demand:
-            production_cost = self.check_production_cost()
-            min_sale_price = int(round((production_cost/self.gather_amount)*PROFIT_MARGIN))
-
-            self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
-            #self.perceived_values[type_of_item].center = self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT
-            self.adjust_uncertainty(economy, type_of_item)
-
-
-class GoodProducer(Agent):
-    def __init__(self, name, id_, represented_population_number, economy, finished_good, finished_good_type, consumed, essential, preferred):
         self.name = name
-        self.id_ = id_
-        self.represented_population_number = represented_population_number
-        self.economy = economy
-        self.finished_good = finished_good
-        self.finished_good_type = finished_good_type
-        self.consumed = consumed
-        self.essential = essential
-        self.preferred = preferred
+        self.type_ = type_
+        self.population_number = population_number
 
-        self.in_amt = finished_good.in_amt * self.represented_population_number
-        self.out_amt = finished_good.out_amt * self.represented_population_number
-
-        self.input = finished_good.material.name
-        self.output = finished_good.name
-
-        self.turns_since_food = 0
-        self.turns_alive = 0
-        self.buys = 0
-        self.sells = 0
-
-        self.need_food = 1
-
-        self.last_turn = []
-        self.future_bids = {}
-        self.future_sells = {}
-
-        self.sell_item = self.finished_good.name
-        self.prod_adj_amt = self.out_amt
-
-        # For the actual person in the world exemplifying this agent
-        self.attached_to = None
-        self.linked_economy_building = None
-
-        self.gold = GOOD_PRODUCER_STARTING_GOLD
-        self.inventory = defaultdict(int)
-        self.inventory['food'] += self.represented_population_number * roll(1, 4)
-        self.inventory[self.input] += 2 * self.represented_population_number
-        self.inventory[finished_good.name] += 2 * self.represented_population_number
-
-        self.inventory_size = 100 * self.represented_population_number
-
-        self.perceived_values = {finished_good.name:Value(START_VAL, START_UNCERT), self.input:Value(START_VAL, START_UNCERT)}
-        for type_of_item in consumed + essential + preferred:
-            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
-                self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
-            for token_of_item in data.commodity_manager.get_names_of_commodities_of_type('foods'):
-                self.perceived_values[token_of_item] = Value(START_VAL, START_UNCERT)
-
-            self.inventory[token_of_item] += self.represented_population_number
-
-    #########################################################
-
-    def bankrupt(self):
-        # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
-        self.economy.good_producers.remove(self)
-
-        # Unset linked economy building from building list, if necessary
-        ## TODO - Ensure that when the building is already generated, and when cities are saved / loaded, that the buildings open up for future use
-        if self.linked_economy_building:
-            self.economy.owner.buildings.remove(self.linked_economy_building)
-            self.linked_economy_building.linked_economy_agent = None
-            self.linked_economy_building = None
-
-        if self.economy.owner:
-            self.economy.owner.former_agents.append(self)
-
-        if self.attached_to is not None:
-            self.attached_to.creature.economy_agent = None
-            self.attached_to = None
-
-            self.economy.add_new_agent_to_economy()
-
-    def get_sold_objects(self):
-        ''' Return the names of the objects sold by this agent '''
-        sold_objects = []
-        if self.economy.owner:
-            for obj in self.economy.owner.faction.unique_object_dict:
-                for tag in self.economy.owner.faction.unique_object_dict[obj]['tags']:
-                    if tag in data.AGENT_INFO['producers'][self.sell_item]['sold_object_tags']:
-                        sold_objects.append(obj)
-                        break
-
-        return sold_objects
-
-
-    def take_turn(self):
-        self.last_turn = []
-        #print self.name, 'have:', self.inventory, 'selling:', self.gold
-        all_agents_of_this_type_in_this_economy = [a for a in self.economy.good_producers if a.name == self.name]
-
-        if self.gold < 0 and len(all_agents_of_this_type_in_this_economy) > 1:
-            self.bankrupt()
-            return
-
-        elif self.gold < 0 and len(all_agents_of_this_type_in_this_economy) == 1:
-            # print 'bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
-            # Government bailout
-            self.gold += 500
-
-        self.consume_food()
-        self.check_production_ability() # <- will gather resources
-        self.handle_bidding()
-        self.pay_taxes()
-        #self.create_sell(sell_item=self.finished_good.name, prod_adj_amt=self.out_amt) # <- will check to make sure we have items to sell...
-        self.handle_sells()
-        self.turns_alive += 1
-
-    def consume_food(self):
-        '''Eat and bid on foods'''
-        for token_of_item in self.economy.available_types['foods']:
-            if self.inventory[token_of_item]:
-                '''
-                ## Only consume food every ~5 turns
-                if roll(1, 5) == 1:
-                    self.inventory.remove(token_of_item)
-                    self.turns_since_food = 0
-                    break
-                else:
-                    self.turns_since_food = 0
-                    break
-                '''
-                # Replace above code: these guys eat every round now
-                self.inventory[token_of_item] = max(self.inventory[token_of_item] - self.represented_population_number, 0)
-                self.turns_since_food = 0
-                break
-
-        else:
-            self.turns_since_food += 1
-        '''
-            if self.turns_since_food > GRANARY_THRESH * 5:
-                self.economy.starving_agents.append(self)
-            if self.turns_since_food > STARVATION_THRESH * 5:
-                self.starve()
-        '''
-
-
-
-    # def starve(self):
-    #     '''What happens when we run out of food'''
-    #     print self.name, 'has starved'
-    #     self.economy.good_producers.remove(self)
-    #     if self.economy.owner: self.economy.owner.former_agents.append(self)
-
-
-    def check_production_ability(self):
-        # Check whether we have the right input item, and the other necessary items
-        has_required_input = False
-        if self.inventory[self.input] >= self.in_amt:
-            has_required_input = True
-
-        critical_items, other_items = self.check_for_needed_items()
-        if critical_items == [] and has_required_input and (self.inventory_size - sum(self.inventory.values()) > 0):
-            self.produce_items()
-        #elif not (self.inventory_size - len(self.inventory) > 0):
-            #print '{0} stopped producing goods due to too much inventory'.format(self.name)
-        #else:
-        #	print self.name, '- not producing because: critical items-', critical_items, 'required_input', has_required_input, 'inventory:', self.inventory
-
-    def handle_bidding(self):
-        if self.future_bids == {}:
-            tokens_to_bid = self.eval_need()
-
-            for token in tokens_to_bid:
-                bid_price, bid_quantity = self.eval_bid(token)
-
-                self.place_bid(token_to_bid=token, bid_price=bid_price, bid_quantity=bid_quantity)
-
-
-            ## Bid on food if we have less than a certain stockpile
-            if self.need_food and self.inventory['food'] < FOOD_BID_THRESHHOLD * self.represented_population_number:
-                token_to_bid = random.choice(self.economy.available_types['foods'])
-                bid_price, bid_quantity = self.eval_bid(token_to_bid)
-                self.place_bid(token_to_bid=token_to_bid, bid_price=bid_price, bid_quantity=bid_quantity)
-
-        # If we already have action queued ...
-        else:
-            for token, [bid_price, bid_quantity] in self.future_bids.iteritems():
-                self.place_bid(token_to_bid=token, bid_price=bid_price, bid_quantity=bid_quantity)
-
-            self.future_bids = {}
-
-    def eval_need(self):
-        tokens_to_bid = []
-        critical_items, other_items = self.check_for_needed_items()
-
-        for type_of_item in critical_items:
-            # For now, place a bid for a random item available to use of that type
-            token_of_item = random.choice(self.economy.available_types[type_of_item])
-            tokens_to_bid.append(token_of_item)
-
-        if self.gold > PREFERRED_ITEM_MIN_GOLD:
-            for type_of_item in other_items:
-                # For now, place a bid for a random item available to use of that type
-                token_of_item = random.choice(self.economy.available_types[type_of_item])
-                tokens_to_bid.append(token_of_item)
-
-
-        if self.inventory[self.input] <= self.in_amt*2:
-            tokens_to_bid.append(self.input)
-
-        return tokens_to_bid
-
-    def produce_items(self):
-        # Gather resources, consume items, and account for breaking stuff
-        self.inventory[self.input] -= self.in_amt
-
-        self.inventory[self.output] += self.out_amt
-
-        for type_of_item in self.consumed:
-            for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item] >= self.represented_population_number:
-                    self.inventory[token_of_item] -= self.represented_population_number
-                    break
-
-        for type_of_item in self.essential + self.preferred:
-            for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item] >= self.represented_population_number and roll(1, 1000) <= data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance:
-                    self.inventory[token_of_item] -= self.represented_population_number
-                    break
-
-        self.last_turn.append('Produced ' + str(self.out_amt) + ' ' + self.output)
-
-    def check_for_needed_items(self):
-        # Make a list of items we need to produce items
-        critical_items = [type_of_item for type_of_item in self.consumed + self.essential if not self.has_token(type_of_item)]
-        other_items = [type_of_item for type_of_item in self.preferred if not self.has_token(type_of_item)]
-        return critical_items, other_items
-
-    def check_production_cost(self):
-        production_cost = 0
-        # Cost of input is historical mean * the amount we use (since they are used up every
-        # time we need to make something, we're using the full value of the items)
-        production_cost += (self.economy.auctions[self.input].mean_price * self.in_amt)
-        # These items are required for production, but not used.
-        # Find the item's cost * (break chance/1000) to find avg cost
-        for type_of_item in self.essential + self.preferred:
-            for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                    break
-
-        for type_of_item in self.consumed:
-            for token_of_item in self.economy.available_types[type_of_item]:
-                if self.inventory[token_of_item]:
-                    production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                    break
-
-        for token_of_item in self.economy.available_types['foods']:
-            if self.inventory[token_of_item]:
-                production_cost += int(round(self.economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                break
-
-        # Take into account the taxes we pay
-        production_cost += self.economy.local_taxes
-
-        return production_cost
-
-    def eval_sell_rejected(self, economy, type_of_item):
-        # What to do when we put something up for sale and nobody bought it. Only adjust if there was a demand
-        if self.economy.auctions[type_of_item].demand:
-            production_cost = self.check_production_cost()
-            min_sale_price = int(round((production_cost/self.in_amt)*PROFIT_MARGIN))
-
-            #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
-            self.perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
-            self.adjust_uncertainty(economy, type_of_item)
-
-
-class Merchant(object):
-    def __init__(self, name, id_, represented_population_number, buy_economy, sell_economy, traded_item, consumed, essential, preferred, attached_to=None):
-        self.name = name
-        self.id_ = id_
-        self.represented_population_number = represented_population_number
         self.buy_economy = buy_economy
         self.sell_economy = sell_economy
-        self.traded_item = traded_item
-        self.consumed = consumed
-        self.essential = essential
-        self.preferred = preferred
+
+        self.sold_commodity_name = sold_commodity_name
+        self.sold_commodity_type = sold_commodity_type
+
+        self.reaction = data.commodity_manager.reactions[sold_commodity_name]
+
+        self.is_merchant = is_merchant
 
         self.attached_to = attached_to
         if self.attached_to is not None:
@@ -853,46 +159,54 @@ class Merchant(object):
         self.buys = 0
         self.sells = 0
 
-        self.gold = MERCHANT_STARTING_GOLD
-        self.inventory_size = 100 * self.represented_population_number
-        self.buy_inventory = defaultdict(int)
-        self.buy_inventory['food'] += 2 * self.represented_population_number
-        self.buy_inventory[traded_item] += 2 * self.represented_population_number
+        self.gold = GOOD_PRODUCER_STARTING_GOLD
 
-        self.sell_inventory = defaultdict(int)
-        self.sell_inventory[traded_item] += 6 * self.represented_population_number
+        self.buy_inventory = {commodity: 0 for commodity in data.commodity_manager.all_commodity_names}
+        self.sell_inventory = {commodity: 0 for commodity in data.commodity_manager.all_commodity_names}
 
+        self.merchant_travel_inventory = defaultdict(int)
 
-        self.travel_inventory = defaultdict(int)
-        self.travel_inventory[traded_item] += 1 * self.represented_population_number
+        self.inventory_size = 20 * self.population_number ## TODO - evaluate
 
         self.last_turn = []
 
-        #self.current_location = random.choice([buy_economy, sell_economy])
+
+        self.activity_is_blocked = 0
+
         self.current_location = buy_economy
-        #if self.current_location == self.sell_economy:
-        #    for i in xrange(20):
-        #        self.inventory.append(self.traded_item)
+        self.linked_economy_building = None
+
         self.time_here = roll(0, 3)
         self.cycle_length = 4
 
-        ##### dict of what we believe the true price of an item is, for each token of an item we can possibly use
-        self.buy_perceived_values = {traded_item:Value(START_VAL, START_UNCERT)}
-        self.sell_perceived_values = {traded_item:Value(START_VAL*2, START_UNCERT)}
 
-        for type_of_item in consumed + essential + preferred:
-            for token_of_item in data.commodity_manager.get_commodities_of_type[type_of_item]:
-                if token_of_item != self.traded_item:
-                    self.buy_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
-                    self.sell_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
-                #self.inventory.append(token_of_item.name)
+        ## ============ TODO - clean up ++++++++++++ ##
+        self.perceived_values = {}
 
-        for token_of_item in data.commodity_manager.get_commodities_of_type('foods'):
-            if token_of_item != self.traded_item:
-                self.buy_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
-                self.sell_perceived_values[token_of_item.name] = Value(START_VAL, START_UNCERT)
+        self.perceived_values[self.buy_economy] = {sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
 
-        ##################################################################################
+        for token_of_commodity in data.commodity_manager.all_commodity_names:
+            self.perceived_values[self.buy_economy][token_of_commodity]  = PriceBelief(START_VAL, START_UNCERT)
+
+        if self.is_merchant:
+            self.perceived_values[self.sell_economy] = {sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
+
+            for token_of_commodity in data.commodity_manager.all_commodity_names:
+                self.perceived_values[self.sell_economy][token_of_commodity] = PriceBelief(START_VAL, START_UNCERT)
+
+
+        self.sell_inventory[self.sold_commodity_name] = 2 * self.population_number
+        self.buy_inventory['food'] = self.population_number * roll(2, 5)
+
+        self.buy_inventory['flax clothing'] = self.population_number * roll(0, 2)
+        self.buy_inventory['wood furniture'] = self.population_number * roll(0, 2)
+
+        self.buy_inventory['iron tools'] = self.population_number * roll(0, 2)
+
+
+        self.future_bids = {}
+        self.future_sells = {}
+
     def update_holder(self, figure):
         '''If the original holder we're attached to dies, we can be passed on to others'''
         # Remove self from who we were previously attached to
@@ -912,56 +226,24 @@ class Merchant(object):
         if self.attached_to:
             self.attached_to.creature.net_money += amount
 
-    def take_bought_item(self, item, amount):
-        self.buy_inventory[item] += amount
+    def take_bought_commodity(self, commodity, amount):
+        self.buy_inventory[commodity] += amount
 
-    def remove_sold_item(self, item, amount):
-        self.sell_inventory[item] -= amount
+    def remove_sold_commodity(self, commodity, amount):
+        self.sell_inventory[commodity] -= amount
 
-    def consume_food(self):
-        '''Eat and bid on foods'''
-        for token_of_item in self.buy_economy.available_types['foods']:
-            if self.buy_inventory[token_of_item]:
-                ## Only consume food every ~5 turns
-                self.turns_since_food = 0
-                self.buy_inventory[token_of_item] = max(self.buy_inventory[token_of_item] - self.represented_population_number, 0)
-                break
-
-        # else:
-        #     self.turns_since_food += 1
-        #     if self.turns_since_food > GRANARY_THRESH * 5:
-        #         self.buy_economy.starving_agents.append(self)
-        #     if self.turns_since_food > STARVATION_THRESH * 5:
-        #         self.starve()
-
-        ## Bid on food if we have less than a certain stockpile
-        if self.buy_inventory['food'] < FOOD_BID_THRESHHOLD * self.represented_population_number:
-            self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['foods']))
-
-    # def starve(self):
-    #     '''What happens when we run out of food'''
-    #     self.buy_economy.buy_merchants.remove(self)
-    #     self.sell_economy.sell_merchants.remove(self)
-    #     if self.buy_economy.owner: self.buy_economy.owner.former_agents.append(self)
-
-
-    def bankrupt(self):
-        # print '{0} has gone bankrupt'.format(self.name) ## DEBUG
-        #self.buy_economy.buy_merchants.remove(self)
-        #self.sell_economy.sell_merchants.remove(self)
-        self.gold += MERCHANT_STARTING_GOLD
 
     def increment_cycle(self):
         self.time_here += 1
         destination = None
         ## if it's part of the game, add to a list of departing merchants so they can create a caravan
         if self.time_here >= 2 and self.current_location.owner:
-            if self.current_location == self.buy_economy and self.buy_inventory[self.traded_item] >= 2 * self.represented_population_number:
+            if self.current_location == self.buy_economy and self.buy_inventory[self.sold_commodity_name] >= 2 * self.population_number:
                 destination = self.sell_economy.owner
 
-                amount = self.buy_inventory[self.traded_item]
-                self.buy_inventory[self.traded_item] -= amount
-                self.travel_inventory[self.traded_item] += amount
+                amount = self.buy_inventory[self.sold_commodity_name]
+                self.buy_inventory[self.sold_commodity_name] -= amount
+                self.merchant_travel_inventory[self.sold_commodity_name] += amount
 
             elif self.current_location == self.sell_economy:
                 destination = self.buy_economy.owner
@@ -983,176 +265,375 @@ class Merchant(object):
         if economy.owner:
             economy.owner.treasury += economy.local_taxes
 
-    def has_token(self, type_of_item):
-        # Test whether or not we have a token of an item
-        for token_of_item in data.commodity_manager.get_names_of_commodities_of_type(type_of_item):
-            if self.buy_inventory[token_of_item]:
+    def has_token(self, type_of_commodity):
+        # Test whether or not we have a token of an commodity
+        for token_of_commodity in data.commodity_manager.get_names_of_commodities_of_type(type_of_commodity):
+            if self.buy_inventory[token_of_commodity]:
                 return True
         return False
 
+    def get_all_commodities_of_type(self, type_of_commodity, inventory):
+        ''' Return a dict of all commodities in our inventory which match the type of commodity '''
+        matching_commodities = defaultdict(int)
+
+        for token_of_commodity in data.commodity_manager.get_names_of_commodities_of_type(type_of_commodity):
+            if token_of_commodity in inventory and inventory[token_of_commodity] > 0:
+                matching_commodities[token_of_commodity] = inventory[token_of_commodity]
+
+        return matching_commodities
+
+    # def starve(self):
+    #     '''What happens when we run out of food'''
+    #     self.buy_economy.buy_merchants.remove(self)
+    #     self.sell_economy.sell_merchants.remove(self)
+    #     if self.buy_economy.owner: self.buy_economy.owner.former_agents.append(self)
+
+
+    def find_token_and_place_bid(self, economy, type_of_commodity):
+        token_to_bid = random.choice(self.buy_economy.available_types[type_of_commodity])
+
+        self.place_bid(economy=economy, token_to_bid=token_to_bid)
+
     def place_bid(self, economy, token_to_bid):
         ## Place a bid in the economy
-        if economy == self.buy_economy:
-            est_price = self.buy_perceived_values[token_to_bid].center
-            uncertainty = self.buy_perceived_values[token_to_bid].uncertainty
-        elif economy == self.sell_economy:
-            est_price = self.sell_perceived_values[token_to_bid].center
-            uncertainty = self.sell_perceived_values[token_to_bid].uncertainty
+        est_price = self.perceived_values[economy][token_to_bid].center
+        uncertainty = self.perceived_values[economy][token_to_bid].uncertainty
 
         bid_price = roll(est_price - uncertainty, est_price + uncertainty)
-        if bid_price > self.gold:
-            bid_price = self.gold
 
-        if token_to_bid == self.traded_item:
+
+        if self.is_merchant and token_to_bid == self.sold_commodity_name:
             quantity = self.inventory_size - (sum(self.buy_inventory.values()) + 1)
         else:
-            quantity = roll(1, 2) * self.represented_population_number
+            quantity = roll(1, 2) * self.population_number
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         #print self.name, 'bidding for', quantity, token_to_bid
         if quantity > 0:
             self.last_turn.append('Bid on {0} {1} for {2}'.format(quantity, token_to_bid, bid_price))
             economy.auctions[token_to_bid].bids.append(Offer(owner=self, commodity=token_to_bid, price=bid_price, quantity=quantity))
+
+            #print '{0} offered to buy {1} {2} at {3}'.format(self.name, quantity, token_to_bid, bid_price)
         else:
             self.last_turn.append('Tried to bid on {0} but quantity not > 0'.format(token_to_bid))
+            #print '{0} tried to bid on {1} {2} at {3}'.format(self.name, quantity, token_to_bid, bid_price)
 
-    def create_sell(self, economy, sell_item):
-        # Determines how many items to sell, and at what cost
-        production_cost = self.check_min_sell_price()
-        min_sale_price = int(round( production_cost*PROFIT_MARGIN ) )
+    def create_sell(self, economy, sell_commodity):
+        # Determines how many commoditys to sell, and at what cost
+        # production_cost = self.check_min_sell_price()
+        # min_sale_price = int(round( production_cost*PROFIT_MARGIN ) )
+        #
+        # est_price = self.sell_perceived_values[sell_commodity].center
+        # uncertainty = self.sell_perceived_values[sell_commodity].uncertainty
+        # # won't go below what they paid for it
+        # sell_price = max(roll(est_price - uncertainty, est_price + uncertainty), min_sale_price)
 
-        est_price = self.sell_perceived_values[sell_item].center
-        uncertainty = self.sell_perceived_values[sell_item].uncertainty
-        # won't go below what they paid for it
-        sell_price = max(roll(est_price - uncertainty, est_price + uncertainty), min_sale_price)
+        est_price = self.perceived_values[self.sell_economy][sell_commodity].center
+        uncertainty = self.perceived_values[self.sell_economy][sell_commodity].uncertainty
+        sell_price = roll(est_price - uncertainty, est_price + uncertainty)
 
-        quantity_to_sell = self.sell_inventory[sell_item]
-        #print self.name, 'selling', quantity_to_sell, sell_item
+        quantity_to_sell = self.sell_inventory[sell_commodity]
+        #print self.name, 'selling', quantity_to_sell, sell_commodity
         if quantity_to_sell > 0:
-            #print self.name, 'selling', quantity_to_sell, sell_item, 'for', sell_price, 'at', self.current_location.owner.name
-            self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity_to_sell, sell_item, sell_price))
-            economy.auctions[sell_item].sells.append( Offer(owner=self, commodity=sell_item, price=sell_price, quantity=quantity_to_sell) )
+            #print self.name, 'selling', quantity_to_sell, sell_commodity, 'for', sell_price, 'at', self.current_location.owner.name
+            self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity_to_sell, sell_commodity, sell_price))
+            economy.auctions[sell_commodity].sells.append( Offer(owner=self, commodity=sell_commodity, price=sell_price, quantity=quantity_to_sell) )
+
+            #print '{0} offered to sell {1} {2} at {3}'.format(self.name, quantity_to_sell, self.sold_commodity_name, sell_price)
         else:
-            self.last_turn.append('Tried to sell {0} but inventory was empty'.format(sell_item))
+            self.last_turn.append('Tried to sell {0} but inventory was empty'.format(sell_commodity))
+            #print '{0} did not have any {1} to sell'.format(self.name, self.sold_commodity_name)
 
-    def eval_trade_accepted(self, economy, type_of_item, price):
+
+    def eval_trade_accepted(self, economy, type_of_commodity, price):
         # Then, adjust our belief in the price
-        if economy == self.buy_economy:
-            if self.buy_perceived_values[type_of_item].uncertainty >= MIN_CERTAINTY_VALUE:
-                self.buy_perceived_values[type_of_item].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
+        if self.perceived_values[economy][type_of_commodity].uncertainty >= MIN_CERTAINTY_VALUE:
+            self.perceived_values[economy][type_of_commodity].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
 
-            our_mean = (self.buy_perceived_values[type_of_item].center)
+        our_mean = (self.perceived_values[economy][type_of_commodity].center)
 
-            if price > our_mean * P_DIF_THRESH:
-                self.buy_perceived_values[type_of_item].center += P_DIF_ADJ
-            elif price < our_mean * N_DIF_THRESH:
-                # We never let it's worth drop under a certain % of tax money.
-                self.buy_perceived_values[type_of_item].center = \
-                    max(self.buy_perceived_values[type_of_item].center - N_DIF_ADJ, (self.buy_economy.local_taxes) + self.buy_perceived_values[type_of_item].uncertainty)
+        if price > our_mean * P_DIF_THRESH:
+            self.perceived_values[economy][type_of_commodity].center += P_DIF_ADJ
+        elif price < our_mean * N_DIF_THRESH:
+            # We never let it's worth drop under a certain % of tax money.
+            self.perceived_values[economy][type_of_commodity].center = \
+                max(self.perceived_values[economy][type_of_commodity].center - N_DIF_ADJ, (self.buy_economy.local_taxes) + self.perceived_values[economy][type_of_commodity].uncertainty)
 
-        elif economy == self.sell_economy:
-            if self.sell_perceived_values[type_of_item].uncertainty >= MIN_CERTAINTY_VALUE:
-                self.sell_perceived_values[type_of_item].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
 
-            our_mean = (self.sell_perceived_values[type_of_item].center)
-
-            if price > our_mean * P_DIF_THRESH:
-                self.sell_perceived_values[type_of_item].center += P_DIF_ADJ
-            elif price < our_mean * N_DIF_THRESH:
-                # We never let it's worth drop under a certain % of tax money.
-                self.sell_perceived_values[type_of_item].center = \
-                    max(self.sell_perceived_values[type_of_item].center - N_DIF_ADJ, (self.sell_economy.local_taxes) + self.sell_perceived_values[type_of_item].uncertainty)
-
-    def adjust_uncertainty(self, economy, type_of_item):
+    def adjust_uncertainty(self, economy, type_of_commodity):
         ''' Ensures that the uncertainty value is never adjusted to be too wide '''
-        if economy == self.buy_economy:
-            uncertainty_limit = int(max(self.buy_economy.auctions[type_of_item].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
-            self.buy_perceived_values[type_of_item].uncertainty = min(self.buy_perceived_values[type_of_item].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
-        elif economy == self.sell_economy:
-            uncertainty_limit = int(max(self.sell_economy.auctions[type_of_item].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
-            self.sell_perceived_values[type_of_item].uncertainty = min(self.sell_perceived_values[type_of_item].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
+        uncertainty_limit = int(max(economy.auctions[type_of_commodity].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
+        self.perceived_values[economy][type_of_commodity].uncertainty = min(self.perceived_values[economy][type_of_commodity].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
 
-    def eval_bid_rejected(self, economy, type_of_item, price=None):
+
+    def eval_bid_rejected(self, economy, type_of_commodity, price=None):
         # What to do when we've bid on something and didn't get it
-        if economy.auctions[type_of_item].supply:
-            if economy == self.buy_economy:
-                if price is None:
-                    self.buy_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
-                    self.adjust_uncertainty(economy, type_of_item)
-                else:
-                    # Radical re-evaluation of the price
-                    self.buy_perceived_values[type_of_item].center = price + self.buy_perceived_values[type_of_item].uncertainty
-                    self.adjust_uncertainty(economy, type_of_item)
-
-            elif economy == self.sell_economy:
-                if price is None:
-                    self.sell_perceived_values[type_of_item].center += BID_REJECTED_ADJUSTMENT
-                    self.adjust_uncertainty(economy, type_of_item)
-                else:
-                    # Radical re-evaluation of the price
-                    self.sell_perceived_values[type_of_item].center = price + self.sell_perceived_values[type_of_item].uncertainty
-                    self.adjust_uncertainty(economy, type_of_item)
-
-    def eval_need(self):
-        # bid for food if we have < 5 units:
-        if self.buy_inventory['food'] <= 5 * self.represented_population_number:
-            self.place_bid(economy=self.buy_economy, token_to_bid='food')
-
-        critical_items, other_items = self.check_for_needed_items()
-        for type_of_item in critical_items:
-            if type_of_item != 'foods':
-                # For now, place a bid for a random item available to use of that type
-                token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
-                self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
-
-        if self.gold >= PREFERRED_ITEM_MIN_GOLD:
-            for type_of_item in other_items:
-                if type_of_item != 'foods':
-                    # For now, place a bid for a random item available to use of that type
-                    token_of_item = random.choice(self.buy_economy.available_types[type_of_item])
-                    self.place_bid(economy=self.buy_economy, token_to_bid=token_of_item.name)
+        if economy.auctions[type_of_commodity].supply:
+            if price is None:
+                self.perceived_values[economy][type_of_commodity].center += BID_REJECTED_ADJUSTMENT
+                self.adjust_uncertainty(economy, type_of_commodity)
+            else:
+                # Radical re-evaluation of the price
+                self.perceived_values[economy][type_of_commodity].center = price + self.perceived_values[economy][type_of_commodity].uncertainty
+                self.adjust_uncertainty(economy, type_of_commodity)
 
 
-    def check_for_needed_items(self):
-        # Make a list of items we need
-        critical_items = [type_of_item for type_of_item in self.consumed + self.essential if not self.has_token(type_of_item)]
-        other_items = [type_of_item for type_of_item in self.preferred if not self.has_token(type_of_item)]
-        return critical_items, other_items
+    def produce_sold_commodity(self):
+        # Gather resources, consume commodities, and account for breaking stuff
 
-    def check_min_sell_price(self):
-        production_cost = self.buy_perceived_values[self.traded_item].center
-        # These items are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
-        for type_of_item in self.consumed + self.essential + self.preferred:
-            for token_of_item in data.commodity_manager.get_commodities_of_type(type_of_item):
-                if self.buy_inventory[token_of_item]:
-                    production_cost += int(round(self.buy_economy.auctions[token_of_item].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_item).break_chance/1000)))
-                    break
-        # Take into account the taxes we pay
-        production_cost += self.buy_economy.local_taxes
-        return production_cost
+        # Check how many raw resources of input we have
+        if self.reaction.commodity_input.items():
+            input_commodity, input_amount = self.reaction.commodity_input.items()[0]
+            available_reaction_amount = int(self.buy_inventory[input_commodity] / input_amount)
+
+        # For raw goods producers
+        else:
+            available_reaction_amount = self.population_number
+
+        # For every consumed commodity, check how many we have in inventory, and keep track of the minimum number of times
+        # we can run the reaction
+        for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
+            total_consumed_commodities = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
+            available_reaction_amount = min(int(total_consumed_commodities / amount), available_reaction_amount)
+
+        for commodity_type, amount in self.reaction.commodities_required.iteritems():
+            total_required_commodities = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
+
+            available_reaction_amount = min(int(total_required_commodities / amount), available_reaction_amount)
+
+        ##### Run the reaction however many times we can #####
+        if available_reaction_amount:
+            print self.name, 'doing reaction', available_reaction_amount
+            # Remove from buy inventory
+            for commodity, amount_produced in self.reaction.commodity_input.iteritems():
+                self.buy_inventory[commodity] -= amount_produced * available_reaction_amount
+
+            # Also consume other needed goods
+
+            for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
+                self.remove_commodities_of_type(type_of_commodity=commodity_type, inventory=self.buy_inventory, amount_to_remove=available_reaction_amount * amount)
+
+            # Add to sell inventory
+            for commodity_produced, multiplier in self.reaction.commodity_produced.iteritems():
+                self.sell_inventory[commodity_produced] += available_reaction_amount * multiplier
+        else:
+            for commodity_produced, multiplier in self.reaction.commodity_produced.iteritems():
+                self.sell_inventory[commodity_produced] += int(self.population_number / 5)
+            print 'COULD NOT DO AVAILABLE REACTION'
+        ########################################################
 
 
-    def eval_sell_rejected(self, economy, type_of_item):
+        ### ITEMS BREAKING - TODO - need to be set by actual values from data
+        for commodity, amount in self.buy_inventory.iteritems():
+            ## roll(1, 1000) <= data.commodity_manager.get_actual_commodity_from_name(token_of_commodity).break_chance
+            # TODO - need to exclude unused production items
+            self.buy_inventory[commodity] = max(self.buy_inventory[commodity] - roll(5, 10), 0)
+
+
+        self.last_turn.append('Produced {0} reactions for {1}'.format(available_reaction_amount, self.sold_commodity_name))
+
+        #print '{0} produced {1} reactions for {2}'.format(self.name, available_reaction_amount, self.sold_commodity_name)
+
+
+    # def check_min_sell_price(self):
+    #     production_cost = self.perceived_values[self.buy_economy][self.sold_commodity_name].center
+    #     # These commodities are required for production, but not used. Find the item's cost * (break chance/1000) to find avg cost
+    #     for type_of_commodity in self.consumed + self.essential + self.preferred:
+    #         for token_of_commodity in data.commodity_manager.get_commodities_of_type(type_of_commodity):
+    #             if self.buy_inventory[token_of_commodity]:
+    #                 production_cost += int(round(self.buy_economy.auctions[token_of_commodity].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_commodity).break_chance/1000)))
+    #                 break
+    #     # Take into account the taxes we pay
+    #     production_cost += self.buy_economy.local_taxes
+    #     return production_cost
+
+
+    def eval_sell_rejected(self, economy, type_of_commodity):
         # What to do when we put something up for sale and nobody bought it
-        if economy.auctions[type_of_item].demand:
-            production_cost = self.check_min_sell_price()
-            min_sale_price = int(round(production_cost*PROFIT_MARGIN))
-            if economy == self.buy_economy:
-                #self.perceived_values[type_of_item].center = max(self.perceived_values[type_of_item].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_item].uncertainty)
-                self.buy_perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
-                self.adjust_uncertainty(economy, type_of_item)
-            elif economy == self.sell_economy:
-                self.sell_perceived_values[type_of_item].center -= ASK_REJECTED_ADJUSTMENT
-                self.adjust_uncertainty(economy, type_of_item)
+        if economy.auctions[type_of_commodity].demand:
+            # production_cost = self.check_min_sell_price()
+            # min_sale_price = int(round(production_cost*PROFIT_MARGIN))
+
+            #self.perceived_values[type_of_commodity].center = max(self.perceived_values[type_of_commodity].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_commodity].uncertainty)
+            self.perceived_values[economy][type_of_commodity].center -= ASK_REJECTED_ADJUSTMENT
+            self.adjust_uncertainty(economy, type_of_commodity)
 
 
-def roll(a, b):
-    return random.randint(a, b)
+    def bankrupt(self):
 
-class Value:
-    # Agents' perceived values of objects
-    def __init__(self, center, uncertainty):
-        self.center = center + roll(-2, 2)
-        self.uncertainty = uncertainty + roll(-2, 2)
+        if self.is_merchant:
+            self.gold += MERCHANT_STARTING_GOLD
+
+        else:
+            # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
+            self.buy_economy.all_agents.remove(self)
+
+            # Unset linked economy building from building list, if necessary
+            ## TODO - Ensure that when the building is already generated, and when cities are saved / loaded, that the buildings open up for future use
+            if self.linked_economy_building:
+                self.buy_economy.owner.buildings.remove(self.linked_economy_building)
+                self.linked_economy_building.linked_economy_agent = None
+                self.linked_economy_building = None
+
+            if self.buy_economy.owner:
+                self.buy_economy.owner.former_agents.append(self)
+
+            if self.attached_to is not None:
+                self.attached_to.creature.economy_agent = None
+                self.attached_to = None
+
+                self.buy_economy.add_new_agent_to_economy()
+
+
+    def get_sold_objects(self):
+        ''' Return the names of the objects sold by this agent '''
+        sold_objects = []
+        if self.economy.owner:
+            for obj in self.economy.owner.faction.unique_object_dict:
+                for tag in self.economy.owner.faction.unique_object_dict[obj]['tags']:
+                    if tag in data.AGENT_INFO['producers'][self.sold_commodity_name]['sold_object_tags']:
+                        sold_objects.append(obj)
+                        break
+
+        return sold_objects
+
+
+    def take_turn(self):
+        self.last_turn = []
+
+        if self.gold < 0:
+            all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.type_ == self.type_]
+
+            if len(all_agents_of_this_type_in_this_economy) > 1:
+                self.bankrupt()
+                return
+            elif len(all_agents_of_this_type_in_this_economy) == 1:
+                # print 'bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
+                # Government bailout
+                self.gold += 500
+
+        if not self.activity_is_blocked:
+            #self.check_production_ability() # <- will gather resources
+            self.produce_sold_commodity()
+            self.evauluate_needs_and_place_bids()
+            #self.handle_bidding()
+            self.pay_taxes(self.buy_economy)
+            #self.handle_sells()
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name)
+        self.turns_alive += 1
+
+    def count_commodities_of_type(self, type_of_commodity, inventory):
+        return sum(self.get_all_commodities_of_type(type_of_commodity=type_of_commodity, inventory=inventory).values())
+
+    def remove_commodities_of_type(self, type_of_commodity, inventory, amount_to_remove):
+        commodities = self.get_all_commodities_of_type(type_of_commodity=type_of_commodity, inventory=inventory)
+
+        remaining_amount_to_remove = amount_to_remove
+        for commodity_token, amount in commodities.iteritems():
+            removed = min(remaining_amount_to_remove, amount)
+            inventory[commodity_token] -=  removed
+
+            remaining_amount_to_remove -= removed
+            if remaining_amount_to_remove <= 0:
+                break
+
+
+    def evauluate_needs_and_place_bids(self):
+
+        print self.name, 'evaluating'
+        ## Eat food
+        total_food_to_consume = self.population_number
+        foods = self.get_all_commodities_of_type(type_of_commodity='foods', inventory=self.buy_inventory)
+        #print foods, self.buy_inventory['food']
+        #print ''
+        for commodity, amount in foods.iteritems():
+            consumed = min(amount, total_food_to_consume)
+            self.buy_inventory[commodity] -= consumed
+            # Adjust remaining food to consume and set breakpoint
+            total_food_to_consume =- consumed
+            if total_food_to_consume <= 0:
+                break
+        ########################
+
+        if sum(self.get_all_commodities_of_type(type_of_commodity='foods', inventory=self.buy_inventory).values()) <= 2 * self.population_number:
+            self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity='foods')
+
+        # If there is an input to the reaction we generate, bid on it
+        for commodity in self.reaction.commodity_input:
+            self.place_bid(economy=self.buy_economy, token_to_bid=commodity)
+
+        # TODO - needs to be smarter
+        for commodity_type in self.reaction.commodities_consumed:
+            commodity_token = random.choice(self.buy_economy.available_types[commodity_type])
+            self.place_bid(economy=self.buy_economy, token_to_bid=commodity_token)
+
+        # TODO - better
+        self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['furniture']))
+        self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['pottery']))
+
+        # TODO - needs to be smarter
+        #for commodity_type in self.reaction.commodities_required:
+        #    if
+        #    self.buy_economy.available_types[commodity_type]
+
+
+    #def handle_bidding(self):
+        #if self.future_bids == {}:
+        # self.eval_need()
+
+        # If we already have action queued ...
+        #else:
+        #    for token, [bid_price, bid_quantity] in self.future_bids.iteritems():
+        #        self.place_bid(economy=self.buy_economy, token_to_bid=token, bid_price=bid_price, bid_quantity=bid_quantity)
+        #    self.future_bids = {}
+
+
+    #def handle_sells(self):
+        #self.create_sell(economy=self.buy_economy, sell_commodity=self.sold_commodity_name)
+
+        #else:
+        #    for sell_commodity, (sell_price, quantity_to_sell) in self.future_sells.iteritems():
+        #        self.create_sell(economy=self.buy_economy, sell_commodity=sell_commodity, sell_price=sell_price, quantity_to_sell=quantity_to_sell)
+        #    self.future_sells = {}
+
+
+    def player_auto_manage(self):
+        tokens_to_bid = self.eval_need()
+
+        for token in tokens_to_bid:
+            bid_price, bid_quantity = self.eval_bid(token)
+            self.future_bids[token] = [bid_price, bid_quantity]
+
+        # Straight from food bidding code, except subtract one because we'll be consuming it next turn
+        if self.need_food and self.inventory['food'] <= (FOOD_BID_THRESHHOLD * self.population_number):
+            token = random.choice(self.economy.available_types['foods'])
+            bid_price, bid_quantity = self.eval_bid(token)
+
+            self.future_bids[token] = [bid_price, bid_quantity]
+
+        sell_price, quantity_to_sell = self.check_sell()
+        if quantity_to_sell > 0:
+            self.future_sells[self.sold_commodity_name] = [sell_price, quantity_to_sell]
+
+
+    #### For use with player only for now ####
+    def change_bid_price(self, item_to_change, amt):
+        ''' Change price of a future bid '''
+        self.future_bids[item_to_change][0] = max(self.future_bids[item_to_change][0] + amt, 1)
+
+    def change_bid_quant(self, item_to_change, amt):
+        ''' Change quantity of a future bid '''
+        self.future_bids[item_to_change][1] = max(self.future_bids[item_to_change][1] + amt, 1)
+
+    def change_sell_price(self, item_to_change, amt):
+        ''' Change price of a future sell offer '''
+        self.future_sells[item_to_change][0] = max(self.future_sells[item_to_change][0] + amt, 1)
+
+    def change_sell_quant(self, item_to_change, amt):
+        ''' Change quantity of a future sell offer '''
+        self.future_sells[item_to_change][1] = min( max(self.future_sells[item_to_change][1] + amt, 1), self.inventory[item_to_change] )
+    ###########################################
+
+
 
 class AuctionHouse:
     # Seperate "auction" for each commodity
@@ -1230,6 +711,8 @@ class Economy:
         self.buy_merchants = []
         self.sell_merchants = []
 
+        self.all_agents = []
+
         self.starving_agents = []
         # Auctions that take place in this economy
         self.auctions = {}
@@ -1263,7 +746,6 @@ class Economy:
             self.available_types[category] = [commodity]
             self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
 
-
     def add_new_agent_to_economy(self):
         ''' Flip between adding the most profitable commodity, or the most demanded commodity '''
 
@@ -1285,61 +767,11 @@ class Economy:
             commodity = random.choice(data.commodity_manager.goods)
             self.add_good_producer(commodity.name)
 
-    def add_resource_gatherer(self, resource):
-        info = data.AGENT_INFO['gatherers'][resource]
-        gatherer = ResourceGatherer(name=info['name'], id_=self.agent_num, represented_population_number=100, economy=self, resource=resource,
-                                    gather_amount=data.commodity_manager.get_actual_commodity_from_name(resource).gather_amount, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
-
-        self.agent_num += 1
-
-        self.resource_gatherers.append(gatherer)
-        # Test if it's in the economy and add it if not
-        self.add_commodity_to_economy(resource)
-
-        ## Assign the agent to a physical slot somewhere by the city
-        if resource == 'food':
-            resource = 'land'
-
-        #print '----'
-        for region in self.owner.territory:
-            ## Special case - land!
-            if resource == 'land' and region.has_open_slot('land'):
-                region.add_resource_gatherer_to_region(resource_name=resource, agent=gatherer)
-                return
-
-            ## Main case - loop through all the resources in the rest of the tiles
-            elif resource != 'land':
-                for tile_resource, amount in region.res.iteritems():
-                    if resource == tile_resource and region.has_open_slot(resource):
-                        region.add_resource_gatherer_to_region(resource_name=resource, agent=gatherer)
-                        #print '{0} sucessfully added to {1}'.format(resource, self.owner.name)
-                        return
-
-        print 'ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name)
-
-
-    def add_good_producer(self, good):
-        info = data.AGENT_INFO['producers'][good]
-        producer = GoodProducer(name=info['name'], id_=self.agent_num, represented_population_number=20,
-                                economy=self, finished_good=data.commodity_manager.get_actual_commodity_from_name(good), finished_good_type=data.commodity_manager.get_actual_commodity_from_name(good).category,
-                                consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'] )
-
-        self.good_producers.append(producer)
-        # Test if it's in the economy and add it if not
-        self.add_commodity_to_economy(good)
-
-        if self.owner:
-            building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name=info['name'], category='commoner')], inhabitants=[], tax_status='commoner')
-            building.linked_economy_agent = producer
-            producer.linked_economy_building = building
-
-        self.agent_num += 1
-
     def add_merchant(self, sell_economy, traded_item, attached_to=None):
-        info = data.AGENT_INFO['merchants']['merchant']
         name = '{0} merchant'.format(traded_item)
-        merchant = Merchant(name=name, id_=self.agent_num, represented_population_number=20,
-                            buy_economy=self, sell_economy=sell_economy, traded_item=traded_item, consumed=info['consumed'], essential=info['essential'], preferred=info['preferred'], attached_to=attached_to)
+
+        merchant = Agent(id_=self.agent_num, name=name, type_='TEST TY{E', population_number=100, buy_economy=self, sell_economy=sell_economy, sold_commodity_name=traded_item, sold_commodity_type='TEST',
+                         is_merchant=1, attached_to=attached_to)
 
         self.buy_merchants.append(merchant)
         sell_economy.sell_merchants.append(merchant)
@@ -1354,11 +786,55 @@ class Economy:
     def add_agent_based_on_token(self, token):
         ''' If we only have a token and don't know whether it's a resource or a commodity,
         this function helps us figure out which method to call'''
-        if token in [r.name for r in data.commodity_manager.resources]:
-            self.add_resource_gatherer(token)
+        #if token in [r.name for r in data.commodity_manager.resources]:
+        #    self.add_resource_gatherer(token)
 
+        #elif token in [g.name for g in data.commodity_manager.goods]:
+        #    self.add_good_producer(token)
+
+        if token == 'food':
+            population_number = 200
+        if token in [r.name for r in data.commodity_manager.resources]:
+            population_number = 100
+        else:
+            population_number = 20
+
+        agent = Agent(id_=self.agent_num, name='{0} maker'.format(token), type_='TEST TY{E', population_number=population_number, buy_economy=self, sell_economy=self, sold_commodity_name=token, sold_commodity_type='TEST')
+
+        self.agent_num += 1
+
+        self.all_agents.append(agent)
+        # Test if it's in the economy and add it if not
+        self.add_commodity_to_economy(token)
+
+        ###### IF RESOURCE GATHERER #############
+        if token in [r.name for r in data.commodity_manager.resources]:
+            ## Assign the agent to a physical slot somewhere by the city
+            resource = 'land' if token == 'food' else token
+
+            #print '----'
+            for region in self.owner.territory:
+                ## Special case - land!
+                if resource == 'land' and region.has_open_slot('land'):
+                    region.add_resource_gatherer_to_region(resource_name=resource, agent=agent)
+                    return
+
+                ## Main case - loop through all the resources in the rest of the tiles
+                elif resource != 'land':
+                    for tile_resource, amount in region.res.iteritems():
+                        if resource == tile_resource and region.has_open_slot(resource):
+                            region.add_resource_gatherer_to_region(resource_name=resource, agent=agent)
+                            #print '{0} sucessfully added to {1}'.format(resource, self.owner.name)
+                            return
+
+            print 'ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name)
+
+        ###### IF GOOD PRODUCER #############
         elif token in [g.name for g in data.commodity_manager.goods]:
-            self.add_good_producer(token)
+            if self.owner:
+                building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name='{0} maker'.format(token), category='commoner')], inhabitants=[], tax_status='commoner')
+                building.linked_economy_agent = agent
+                agent.linked_economy_building = building
 
 
     def get_possible_resource_slots(self, restrict_based_on_available_resource_slots):
@@ -1453,11 +929,13 @@ class Economy:
     def run_simulation(self):
         ''' Run a simulation '''
         # First, each agent does what they do
-        for resource_gatherer in self.resource_gatherers[:]:
-            resource_gatherer.take_turn()
-
-        for producer in self.good_producers[:]:
-            producer.take_turn()
+        # for resource_gatherer in self.resource_gatherers[:]:
+        #     resource_gatherer.take_turn()
+        #
+        # for producer in self.good_producers[:]:
+        #     producer.take_turn()
+        for agent in self.all_agents:
+            agent.take_turn()
 
         for merchant in self.buy_merchants[:]:
             merchant.last_turn = []
@@ -1470,10 +948,11 @@ class Economy:
                     # Government bailout
                     merchant.gold += 1500
                 break
-            merchant.consume_food()
-            merchant.eval_need()
+
+            merchant.evauluate_needs_and_place_bids()
+            #merchant.eval_need()
             merchant.pay_taxes(self)
-            merchant.place_bid(economy=self, token_to_bid=merchant.traded_item) # <- will bid max amt we can
+            merchant.place_bid(economy=self, token_to_bid=merchant.sold_commodity_name) # <- will bid max amt we can
             merchant.turns_alive += 1
 
         for merchant in self.sell_merchants[:]:
@@ -1485,11 +964,12 @@ class Economy:
             #merchant.consume_food()
             #merchant.eval_need()
             #merchant.pay_taxes(self)
-            merchant.create_sell(economy=self, sell_item=merchant.traded_item)
+            merchant.create_sell(economy=self, sell_commodity=merchant.sold_commodity_name)
             #merchant.turns_alive += 1
 
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
+            print commodity, len(auction.bids), len(auction.sells)
             auction.iterations += 1
             ## Sort the bids by price (highest to lowest) ##
             auction.bids = sorted(auction.bids, key=lambda attr: attr.price, reverse=True)
@@ -1533,8 +1013,8 @@ class Economy:
                         seller.owner.eval_trade_accepted(self, buyer.commodity, price)
 
                         ## Update inventories and gold counts
-                        buyer.owner.take_bought_item(buyer.commodity, quantity)
-                        seller.owner.remove_sold_item(seller.commodity, quantity)
+                        buyer.owner.take_bought_commodity(buyer.commodity, quantity)
+                        seller.owner.remove_sold_commodity(seller.commodity, quantity)
 
                         buyer.owner.adjust_gold(-price*quantity)
                         seller.owner.adjust_gold(price*quantity)
@@ -1543,6 +1023,8 @@ class Economy:
                         buyer.owner.last_turn.append('Bought {0} {1} from {2} at {3}'.format(quantity, commodity, seller.owner.name, price))
                         seller.owner.sells += quantity
                         seller.owner.last_turn.append('Sold {0} {1} to {2} at {3}'.format(quantity, commodity, buyer.owner.name, price))
+
+                        print ' *** {0} bought {1} {2} from {3} for {4} ***'.format(buyer.owner.name, quantity, commodity, seller.owner.name, price)
 
                         # Add to running tally of prices this turn
                         self.prices[commodity].append(price)
@@ -1588,7 +1070,6 @@ class Economy:
             self.owner.food_demand.append(self.auctions['food'].demand)
 
         #auction.check_auction_health()
-
 
     def graph_results(self, solid, dot):
         # Spit out some useful info	about the economy
