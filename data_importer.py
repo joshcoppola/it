@@ -41,24 +41,17 @@ class FinishedGood(object):
         self.out_amt = out_amt
 
 class Reaction:
-    def __init__(self, is_raw, commodity_input, commodities_consumed, commodity_produced, commodities_required):
+    def __init__(self, is_raw, input_commodity_name, input_amount, output_commodity_name, output_amount, commodities_consumed, commodities_required):
         self.is_raw = is_raw
-        self.commodity_input = commodity_input if commodity_input else {}
+
+        self.input_commodity_name = input_commodity_name if input_commodity_name else None
+        self.input_amount = input_amount if input_amount else None
+
+        self.output_commodity_name = output_commodity_name
+        self.output_amount = output_amount
+
         self.commodities_consumed = commodities_consumed if commodities_consumed else {}
-        self.commodity_produced = commodity_produced  if commodity_produced else {}
         self.commodities_required = commodities_required if commodities_required else {}
-
-        # Cache list of all possible commodities needed for this reaction, and their relative amounts. Will be used later
-        # by each agent when checking how many times the reaction can be run
-        self.all_commodities_required_for_reaction = defaultdict(int)
-
-        for commodity, amount in self.commodity_input.iteritems():
-            self.all_commodities_required_for_reaction[commodity] += amount
-        for commodity, amount in self.commodities_consumed.iteritems():
-            self.all_commodities_required_for_reaction[commodity] += amount
-        for commodity, amount in self.commodities_required.iteritems():
-            self.all_commodities_required_for_reaction[commodity] += amount
-
 
 
 ######## FOR PHYSICS ##########
@@ -130,9 +123,9 @@ class CommodityManager:
             self.resources.append(resource)
 
             self.reactions[rname] = Reaction(is_raw=1,
-                                commodity_input={},
+                                input_commodity_name=None, input_amount=None,
+                                output_commodity_name=rname, output_amount=resource_info[rname]['harvest']['number_output'],
                                 commodities_consumed=resource_info[rname]['harvest']['commodities_consumed'],
-                                commodity_produced={rname: resource_info[rname]['harvest']['number_output']},
                                 commodities_required=resource_info[rname]['harvest']['commodities_required'])
 
             # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
@@ -143,9 +136,9 @@ class CommodityManager:
                 ### Saving those reactions ###
                 reaction_name = '{0} {1}'.format(rname, reaction_type)
                 self.reactions[reaction_name] = Reaction(is_raw=0,
-                                commodity_input={rname: resource_info[rname]['reactions'][reaction_type]['number_input']},
+                                input_commodity_name=rname, input_amount=resource_info[rname]['reactions'][reaction_type]['number_input'],
+                                output_commodity_name=reaction_name, output_amount=resource_info[rname]['reactions'][reaction_type]['number_output'],
                                 commodities_consumed=resource_info[rname]['reactions'][reaction_type]['commodities_consumed'],
-                                commodity_produced={reaction_name: resource_info[rname]['reactions'][reaction_type]['number_output']},
                                 commodities_required=resource_info[rname]['reactions'][reaction_type]['commodities_required'])
 
 
