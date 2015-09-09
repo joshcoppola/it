@@ -57,7 +57,6 @@ bronze:
             commodities_consumed:
                 woods: 1
             commodities_required:
-                tools: 1
         weapons:
             number_input: 1
             number_output: 1
@@ -102,7 +101,6 @@ iron:
             commodities_consumed:
                 woods: 1
             commodities_required:
-                tools: 1
         weapons:
             number_input: 1
             number_output: 1
@@ -218,7 +216,7 @@ flax:
     resource_class: strategic
     break_chance: 300
     harvest:
-        number_output: 3
+        number_output: 2
         commodities_consumed:
         commodities_required:
             tools: 1
@@ -248,7 +246,7 @@ food:
     resource_class: strategic
     break_chance: 1
     harvest:
-        number_output: 3
+        number_output: 2
         commodities_consumed:
         commodities_required:
             tools: 1
