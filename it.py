@@ -2461,8 +2461,8 @@ class City(Site):
                 ## It's coming up with good in the import list...
                 if item in goods_by_resource_token:
                     ## Add merchants to the other city, who sell stuff in this city
-                    city.create_merchant(sell_economy=self.econ, traded_item=item)
-                    city.create_merchant(sell_economy=self.econ, traded_item=item)
+                    city.create_merchant(sell_economy=self.econ, sold_commodity_name=item)
+                    city.create_merchant(sell_economy=self.econ, sold_commodity_name=item)
                     ## Add extra resource gatherers in the other city
                     #city.econ.add_agent_based_on_token(item)
                     #city.econ.add_agent_based_on_token(item)
@@ -2483,8 +2483,8 @@ class City(Site):
 
                     ## Add some merchants who will sell whatever good is created from those resources
                     for good_class in goods_by_resource_token[item]:
-                        city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
-                        city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
+                        city.create_merchant(sell_economy=self.econ, sold_commodity_name=good_class.name)
+                        city.create_merchant(sell_economy=self.econ, sold_commodity_name=good_class.name)
                         #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                         #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                         self.add_import(city, good_class.name)
@@ -2512,7 +2512,7 @@ class City(Site):
             old_x, old_y = x, y
             x, y = libtcod.path_walk(g.WORLD.rook_path_map, True)
 
-    def create_merchant(self, sell_economy, traded_item):
+    def create_merchant(self, sell_economy, sold_commodity_name):
         ## Create a human to attach an economic agent to
         born = g.WORLD.time_cycle.years_ago(roll(20, 60))
         human = self.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None, world_char=g.CARAVAN_CHAR)
@@ -2520,10 +2520,10 @@ class City(Site):
 
         ## Actually give profession to the person ##
         market = self.get_building('Market')
-        market.add_profession(Profession(name=traded_item + ' Merchant', category='merchant'))
+        market.add_profession(Profession(name=sold_commodity_name + ' Merchant', category='merchant'))
         market.professions[-1].give_profession_to(human)
 
-        merchant = self.econ.add_merchant(sell_economy=sell_economy, traded_item=traded_item, attached_to=human)
+        merchant = self.econ.add_merchant(sell_economy=sell_economy, sold_commodity_name=sold_commodity_name, attached_to=human)
         location = merchant.current_location.owner
 
         # A bit of a hack to make sure the merchant starts in the appropriate city
