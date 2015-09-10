@@ -1036,18 +1036,17 @@ def economy_tab(world, city):
             libtcod.console_print(0, 5, y + 2, '{0} buys'.format(agent.buys))
             libtcod.console_print(0, 5, y + 3, '{0} sells'.format(agent.sells))
             libtcod.console_print(0, 5, y + 4, 'Alive: {0}'.format(agent.turns_alive))
-            libtcod.console_print(0, 5, y + 5, '{0} since food'.format(agent.turns_since_food))
+            #libtcod.console_print(0, 5, y + 5, '{0} since food'.format(agent.turns_since_food))
 
-            inventory = Counter(agent.inventory)
             iy = y
-            for item, amount in inventory.iteritems():
+            for item, amount in agent.buy_inventory.iteritems():
                 libtcod.console_print(0, 25, iy, '{0} ({1})'.format(item, amount))
                 iy += 1
                 if iy > 70: break
 
             cy, ly = y, y
             if agent in city.econ.all_agents:
-                for commodity, value in agent.perceived_values.iteritems():
+                for commodity, value in agent.perceived_values[agent.buy_economy].iteritems():
                     libtcod.console_print(0, 45, cy, '{0}: {1} ({2})'.format(commodity, value.center, value.uncertainty))
                     cy += 1
                     if cy > 70: break
@@ -1058,11 +1057,11 @@ def economy_tab(world, city):
                     if ly > 70: break
 
             elif agent in city.econ.buy_merchants + city.econ.sell_merchants and agent.current_location == city.econ:
-                for commodity, value in agent.buy_perceived_values.iteritems():
+                for commodity, value in agent.perceived_values[agent.buy_economy].iteritems():
                     libtcod.console_print(0, 45, cy, '{0} - {1}: {2} ({3})'.format(agent.buy_economy.owner.name, commodity, value.center, value.uncertainty))
                     cy += 1
                     if cy > 70: break
-                for commodity, value in agent.sell_perceived_values.iteritems():
+                for commodity, value in agent.perceived_values[agent.sell_economy].iteritems():
                     libtcod.console_print(0, 45, cy, '{0} - {1}: {2} ({3})'.format(agent.sell_economy.owner.name, commodity, value.center, value.uncertainty))
                     cy += 1
                     if cy > 70: break
