@@ -2384,7 +2384,7 @@ class City(Site):
         self.object_to_agents_dict = defaultdict(list)
 
         already_checked = []
-        for agent in self.econ.good_producers:
+        for agent in [a for a in self.econ.all_agents if a.reaction.is_finished_good]:
             if agent.name in already_checked:
                 continue
 
@@ -2399,8 +2399,7 @@ class City(Site):
         other_city.connected_to.append(self)
 
     def get_population(self):
-        return (len(self.econ.resource_gatherers) * 100) + (len(self.econ.good_producers) * 20) + (
-            len(self.econ.buy_merchants) * 20)
+        return sum([agent.population_number for agent in self.econ.all_agents])
 
     def add_import(self, city, good):
         # Add other city as an importer if it's not already

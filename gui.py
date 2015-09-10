@@ -715,7 +715,6 @@ def show_civs(world):
             libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
 
-            #all_agents = (city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants)
             all_agents = (city.econ.all_agents + city.econ.buy_merchants + city.econ.sell_merchants)
             merchants = city.econ.buy_merchants + city.econ.sell_merchants
 
@@ -829,7 +828,7 @@ def show_civs(world):
 
 
             # Prepare agent counts for a summary table
-            agents_condensed = [a.name for a in city.econ.resource_gatherers + city.econ.good_producers]
+            agents_condensed = [a.name for a in city.econ.all_agents]
             for m in city.econ.sell_merchants:
                 agents_condensed.append('{0} (sell)'.format(m.name))
             for m in city.econ.buy_merchants:
@@ -1023,9 +1022,9 @@ def economy_tab(world, city):
         libtcod.console_print(0, 45, y, 'Beliefs')
 
         libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
-        #for agent in city.econ.resource_gatherers + city.econ.good_producers + city.econ.buy_merchants + city.econ.sell_merchants:
+
         iy, cy, ly = y, y, y
-        agent_list = city.econ.resource_gatherers + city.econ.good_producers #+ city.econ.buy_merchants + city.econ.sell_merchants
+        agent_list = city.econ.all_agents
         if agent_index > len(agent_list) - 6:
             agent_index = len(agent_list) - 6
         for agent in agent_list[agent_index:agent_index + 6]:
@@ -1047,7 +1046,7 @@ def economy_tab(world, city):
                 if iy > 70: break
 
             cy, ly = y, y
-            if agent in city.econ.resource_gatherers + city.econ.good_producers:
+            if agent in city.econ.all_agents:
                 for commodity, value in agent.perceived_values.iteritems():
                     libtcod.console_print(0, 45, cy, '{0}: {1} ({2})'.format(commodity, value.center, value.uncertainty))
                     cy += 1
