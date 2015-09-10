@@ -177,6 +177,7 @@ class Agent(object):
         self.gold = GOOD_PRODUCER_STARTING_GOLD
 
         self.buy_inventory = {commodity: 0 for commodity in data.commodity_manager.all_commodity_names}
+        self.input_product_inventory = {self.reaction.input_commodity_name: 0} if self.reaction.input_commodity_name else {}
         self.sell_inventory = {commodity: 0 for commodity in data.commodity_manager.all_commodity_names}
 
         self.merchant_travel_inventory = defaultdict(int)
@@ -212,8 +213,8 @@ class Agent(object):
 
         self.sell_inventory[self.sold_commodity_name] = 2 * self.population_number
 
-        if not self.reaction.is_raw:
-            self.buy_inventory[self.reaction.input_commodity_name] += self.population_number * roll(2, 5)
+        if self.reaction.is_finished_good:
+            self.input_product_inventory[self.reaction.input_commodity_name] += self.population_number * roll(2, 5)
 
         for commodity_category in self.reaction.commodities_consumed:
             self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
@@ -252,7 +253,10 @@ class Agent(object):
             self.attached_to.creature.net_money += amount
 
     def take_bought_commodity(self, commodity, amount):
-        self.buy_inventory[commodity] += amount
+        if self.reaction.is_finished_good and commodity == self.reaction.input_commodity_name:
+            self.input_product_inventory[commodity] += amount
+        else:
+            self.buy_inventory[commodity] += amount
 
     def remove_sold_commodity(self, commodity, amount):
         self.sell_inventory[commodity] -= amount
@@ -412,11 +416,11 @@ class Agent(object):
         print ''
         print self.name
         # Start by setting the # of reactions we can produce to the size of the population
-        if self.reaction.is_raw:
+        if not self.reaction.is_finished_good:
             available_reaction_amount = self.population_number
             print ' Based off of pop:', available_reaction_amount
         else:
-            available_reaction_amount = min(self.population_number, self.buy_inventory[self.reaction.input_commodity_name])
+            available_reaction_amount = min(self.population_number, self.input_product_inventory[self.reaction.input_commodity_name])
             print ' Based off of input:', available_reaction_amount
 
 
@@ -438,8 +442,8 @@ class Agent(object):
             print ''
 
             # If we need to Remove from buy inventory
-            if not self.reaction.is_raw:
-                self.buy_inventory[self.reaction.input_commodity_name] -= self.reaction.output_amount * available_reaction_amount
+            if self.reaction.is_finished_good:
+                self.input_product_inventory[self.reaction.input_commodity_name] -= self.reaction.output_amount * available_reaction_amount
 
             # Also consume other needed goods
             for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
@@ -452,7 +456,7 @@ class Agent(object):
         else:
             self.sell_inventory[self.reaction.output_commodity_name] += int(self.population_number / 5)
 
-            print self.name, 'COULD NOT DO AVAILABLE REACTION', [(k, self.buy_inventory[k]) for k in self.buy_inventory if self.buy_inventory[k] > 0]
+            print self.name, 'COULD NOT DO AVAILABLE REACTION', [(k, self.buy_inventory[k]) for k in self.buy_inventory if self.buy_inventory[k] > 0], self.input_product_inventory
             print ''
         ########################################################
 
@@ -516,15 +520,15 @@ class Agent(object):
                 self.attached_to.creature.economy_agent = None
                 self.attached_to = None
 
-                self.buy_economy.add_new_agent_to_economy()
+            self.buy_economy.add_new_agent_to_economy()
 
 
     def get_sold_objects(self):
         ''' Return the names of the objects sold by this agent '''
         sold_objects = []
-        if self.economy.owner:
-            for obj in self.economy.owner.faction.unique_object_dict:
-                for tag in self.economy.owner.faction.unique_object_dict[obj]['tags']:
+        if self.buy_economy.owner:
+            for obj in self.buy_economy.owner.faction.unique_object_dict:
+                for tag in self.buy_economy.owner.faction.unique_object_dict[obj]['tags']:
                     if tag in data.AGENT_INFO['producers'][self.sold_commodity_name]['sold_object_tags']:
                         sold_objects.append(obj)
                         break
@@ -589,7 +593,7 @@ class Agent(object):
                 self.buy_inventory['food'] -= min(self.population_number, self.buy_inventory['food'])
 
             # For every other commodity, if it's not one we use in our input...
-            elif self.reaction.is_raw or ((not self.reaction.is_raw) and commodity_name != self.reaction.input_commodity_name):
+            elif (not self.reaction.is_finished_good) or (self.reaction.is_finished_good and commodity_name != self.reaction.input_commodity_name):
                 # Certain amount of an item breaks
                 amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance / 100, 1) * roll(0, 3))
                 self.buy_inventory[commodity_name] = \
@@ -644,7 +648,7 @@ class Agent(object):
 
 
         # If there is an input to the reaction we generate, bid on it
-        if not self.reaction.is_raw:
+        if self.reaction.is_finished_good:
             self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=self.get_available_inventory_space())
 
         # # TODO - needs to be smarter
@@ -796,8 +800,6 @@ class Economy:
         self.owner = owner
 
         # Agents belonging to this economy
-        self.resource_gatherers = []
-        self.good_producers = []
         self.buy_merchants = []
         self.sell_merchants = []
 
@@ -971,28 +973,23 @@ class Economy:
         # key = commodity, value = [gold, #_of_agents]
         available_resource_slots = self.get_possible_resource_slots(restrict_based_on_available_resource_slots=restrict_based_on_available_resource_slots)
 
-        tokens_of_commodity = {}
-        for agent in self.resource_gatherers:
-            if agent.resource in available_resource_slots:
-                if agent.resource in tokens_of_commodity:
-                    tokens_of_commodity[agent.resource][0] += agent.gold
-                    tokens_of_commodity[agent.resource][1] += 1
-                else:
-                    tokens_of_commodity[agent.resource] = [agent.gold, 1]
+        gold_per_commodity = defaultdict(int)
+        agents_per_commodity = defaultdict(int)
 
-        for agent in self.good_producers:
-            if agent.output in tokens_of_commodity:
-                tokens_of_commodity[agent.output][0] += agent.gold
-                tokens_of_commodity[agent.output][1] += 1
-            else:
-                tokens_of_commodity[agent.output] = [agent.gold, 1]
+        for agent in self.all_agents:
+            # If it's a finished good, or it's a raw material that is available for us to use...
+            if agent.reaction.is_finished_good or ( (not agent.reaction.is_finished_good) and agent.sold_commodity_name in available_resource_slots):
+                gold_per_commodity[agent.sold_commodity_name] += agent.gold / agent.population_number
+                agents_per_commodity[agent.sold_commodity_name] += 1
 
         ### Now choose the best one based off of the ratio of gold to agents
         best_ratio = 0
         best_commodity = None
-        for commodity, [gold, agent_num] in tokens_of_commodity.iteritems():
-            if gold/agent_num > best_ratio:
-                best_commodity, best_ratio = commodity, gold/agent_num
+        for commodity in gold_per_commodity:
+            # If the gold to agent ratio is high, then keep track of it
+            current_gold_to_agent_ratio = gold_per_commodity[commodity] / agents_per_commodity[commodity]
+            if current_gold_to_agent_ratio > best_ratio:
+                best_commodity, best_ratio = commodity, current_gold_to_agent_ratio
 
         return best_commodity
 
@@ -1012,7 +1009,7 @@ class Economy:
         # For instance, copper miners won't be produced in a city with no access to copper
         for commodity in self.get_valid_agent_types():
             if (restrict_based_on_available_resource_slots and commodity in [r.name for r in data.commodity_manager.resources] and commodity in available_resource_slots) or not restrict_based_on_available_resource_slots:
-                current_ratio = self.auctions[commodity].demand/ max(self.auctions[commodity].supply, 1) # no div/0
+                current_ratio = self.auctions[commodity].demand  / max(self.auctions[commodity].supply, 1) # no div/0
                 if current_ratio > greatest_demand_ratio:
                     greatest_demand_ratio = current_ratio
                     best_commodity = commodity
