@@ -192,8 +192,8 @@ def import_data():
     with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
         AGENT_INFO = yaml.load(a)
 
-    CITY_RESOURCE_SLOTS = {'foods':20, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
-    CITY_INDUSTRY_SLOTS = {'tools':10, 'clothing':12, 'pottery':10, 'furniture':8, 'armor':2, 'weapons':2}
+    CITY_RESOURCE_SLOTS = {'foods':10, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
+    CITY_INDUSTRY_SLOTS = {'tools':12, 'clothing':14, 'pottery':12, 'furniture':10, 'armor':2, 'weapons':2}
 
     commodity_manager = CommodityManager()
     commodity_manager.load_yaml()
