@@ -789,9 +789,19 @@ def show_civs(world):
 
             y += 2
 
-            for commodity, auction in city.econ.auctions.iteritems():
-                if auction.supply is not None and auction.demand is not None:
-                    libtcod.console_print(0, 60, y, commodity)
+            for type_of_commodity, auctions in city.econ.auctions_by_category.iteritems():
+                print type_of_commodity, auctions
+                libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .6)
+                libtcod.console_print(0, 60, y, type_of_commodity)
+                libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
+                y+= 1
+                sorted_auctions = sorted(auctions, key=lambda i: i.mean_price, reverse=True)
+                for auction in sorted_auctions:
+                    commodity = auction.commodity
+
+            #for commodity, auction in city.econ.auctions.iteritems():
+                #if auction.supply is not None and auction.demand is not None:
+                    libtcod.console_print(0, 62, y, commodity)
                     libtcod.console_print(0, 78, y, str(auction.mean_price))
 
                     # Color trades - green means price last round was > than avg, red means < than avg
@@ -825,7 +835,7 @@ def show_civs(world):
                     # Iteration in economy
                     libtcod.console_print(0, 108, y, str(auction.iterations))
                     y += 1
-
+                # y += 1
 
             # Prepare agent counts for a summary table
             agents_condensed = [a.name for a in city.econ.all_agents]
