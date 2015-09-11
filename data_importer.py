@@ -187,13 +187,18 @@ class CommodityManager:
 
 
 def import_data():
-    global AGENT_INFO, CITY_INDUSTRY_SLOTS, CITY_RESOURCE_SLOTS, commodity_manager, materials
+    global AGENT_INFO, CITY_INDUSTRY_SLOTS, CITY_RESOURCE_SLOTS, COMMODITY_TO_PRODUCER_NAMES, commodity_manager, materials
 
     with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
         AGENT_INFO = yaml.load(a)
 
     CITY_RESOURCE_SLOTS = {'foods':10, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
     CITY_INDUSTRY_SLOTS = {'tools':12, 'clothing':14, 'pottery':12, 'furniture':10, 'armor':2, 'weapons':2}
+
+    COMMODITY_TO_PRODUCER_NAMES = {'food': 'Food Farmer', 'flax': 'Flax farmer', 'clay': 'Clay Gatherer', 'wood': 'Woodcutter',
+                                   'copper': 'Copper Miner', 'bronze': 'Bronze Miner', 'iron': 'Iron Miner',
+                                   'copper tools': 'Coppersmith', 'bronze tools': 'Bronzesmith', 'iron tools': 'Ironsmith',
+                                   'flax clothing': 'Clothier', 'clay pottery': 'Potter', 'wood furniture': 'Carpenter'}
 
     commodity_manager = CommodityManager()
     commodity_manager.load_yaml()
