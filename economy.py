@@ -31,8 +31,8 @@ PREFERRED_ITEM_MIN_GOLD = 100000
 MIN_CERTAINTY_VALUE = 2 ## Within what range traders are limited to estimating the market price
 BID_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when our bid is rejected
 ASK_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when nobody buys our stuff
-REJECTED_UNCERTAINTY_AMOUNT = 2 # We get this much more uncertain about a price when an offer is rejected
-ACCEPTED_CERTAINTY_AMOUNT = 2  # Out uncertainty about a price decreases by this amount when an offer is accepted
+REJECTED_UNCERTAINTY_PERCENT = .05 # We get this much more uncertain about a price when an offer is rejected
+ACCEPTED_CERTAINTY_PERCENT = .05  # Out uncertainty about a price decreases by this amount when an offer is accepted
 
 MAX_UNCERTAINTY_PERCENT = .25 # Uncertainty maxes out this percentage of the average price (.35 means  avg price - 35% to avg price + 35%)
 
@@ -252,7 +252,9 @@ class Agent(object):
             self.attached_to.creature.net_money += amount
 
     def take_bought_commodity(self, commodity, amount):
-        if self.reaction.is_finished_good and commodity == self.reaction.input_commodity_name:
+        ''' Placing a bought commodity in the right inventory '''
+        # If this is the particular procduct we need as an input, or we are a merchant and this is the item we trade, put it in our special product inventory
+        if (self.reaction.is_finished_good and commodity == self.reaction.input_commodity_name) or (self.is_merchant and commodity == self.sold_commodity_name):
             self.input_product_inventory[commodity] += amount
         else:
             self.buy_inventory[commodity] += amount
@@ -266,11 +268,11 @@ class Agent(object):
         destination = None
         ## if it's part of the game, add to a list of departing merchants so they can create a caravan
         if self.time_here >= 2 and self.current_location.owner:
-            if self.current_location == self.buy_economy and self.buy_inventory[self.sold_commodity_name] >= 2 * self.population_number:
+            if self.current_location == self.buy_economy and self.input_product_inventory[self.sold_commodity_name] >= 2 * self.population_number:
                 destination = self.sell_economy.owner
 
-                amount = self.buy_inventory[self.sold_commodity_name]
-                self.buy_inventory[self.sold_commodity_name] -= amount
+                amount = self.input_product_inventory[self.sold_commodity_name]
+                self.input_product_inventory[self.sold_commodity_name] -= amount
                 self.merchant_travel_inventory[self.sold_commodity_name] += amount
 
             elif self.current_location == self.sell_economy:
@@ -301,7 +303,7 @@ class Agent(object):
         return False
 
     def get_available_inventory_space(self, inventory):
-        return self.inventory_size - (sum(inventory.values()) + 1)
+        return max(self.inventory_size - sum(inventory.values() ), 0)
 
     def get_all_commodities_of_type(self, type_of_commodity, inventory):
         ''' Return a dict of all commodities in our inventory which match the type of commodity '''
@@ -332,14 +334,20 @@ class Agent(object):
 
         bid_price = roll(est_price - uncertainty, est_price + uncertainty)
 
+        # Favorability is the ratio of how well it has done in the past HIST_WINDOW_SIZE rounds to what we believe the current price is
+        # This means a lower price than the historical average is likely to make us want to bid on more items
+        if token_to_bid != 'food':
+            favorability = economy.auctions[token_to_bid].mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) / 2)
+            quantity = int(round(quantity * favorability))
 
-        if quantity is None and self.is_merchant and token_to_bid == self.sold_commodity_name:
-            quantity = self.get_available_inventory_space(inventory=self.buy_inventory)
-        elif quantity is None:
-             quantity = roll(1, 2) * self.population_number
+        # if token_to_bid == 'food':
+        #     print token_to_bid, quantity, favorability
+        # print self.name, 'original quantity', old_quantity, 'favorability', round(favorability, 2), 'new quantity', quantity
+        # print ' - our perceived center', self.perceived_values[economy][token_to_bid].center, 'actual last price', economy.auctions[token_to_bid].last_price
+        # print ' - our weighted val', round(((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) / 2), 2)
+
 
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
-        #print self.name, 'bidding for', quantity, token_to_bid
         if quantity > 0:
             self.last_turn.append('Bid on {0} {1} for {2}'.format(quantity, token_to_bid, bid_price))
             economy.auctions[token_to_bid].bids.append(Offer(owner=self, commodity=token_to_bid, price=bid_price, quantity=quantity))
@@ -379,9 +387,9 @@ class Agent(object):
     def eval_trade_accepted(self, economy, type_of_commodity, price):
         # Then, adjust our belief in the price
         if self.perceived_values[economy][type_of_commodity].uncertainty >= MIN_CERTAINTY_VALUE:
-            self.perceived_values[economy][type_of_commodity].uncertainty -= ACCEPTED_CERTAINTY_AMOUNT
+            self.perceived_values[economy][type_of_commodity].uncertainty -= int(self.perceived_values[economy][type_of_commodity].uncertainty * ACCEPTED_CERTAINTY_PERCENT)
 
-        our_mean = (self.perceived_values[economy][type_of_commodity].center)
+        our_mean = self.perceived_values[economy][type_of_commodity].center
 
         if price > our_mean * P_DIF_THRESH:
             self.perceived_values[economy][type_of_commodity].center += P_DIF_ADJ
@@ -394,19 +402,22 @@ class Agent(object):
     def adjust_uncertainty(self, economy, type_of_commodity):
         ''' Ensures that the uncertainty value is never adjusted to be too wide '''
         uncertainty_limit = int(max(economy.auctions[type_of_commodity].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
-        self.perceived_values[economy][type_of_commodity].uncertainty = min(self.perceived_values[economy][type_of_commodity].uncertainty + REJECTED_UNCERTAINTY_AMOUNT, uncertainty_limit)
+        self.perceived_values[economy][type_of_commodity].uncertainty += \
+            min( int(self.perceived_values[economy][type_of_commodity].uncertainty * REJECTED_UNCERTAINTY_PERCENT), uncertainty_limit)
 
 
     def eval_bid_rejected(self, economy, type_of_commodity, price=None):
         # What to do when we've bid on something and didn't get it
-        if economy.auctions[type_of_commodity].supply:
-            if price is None:
-                self.perceived_values[economy][type_of_commodity].center += BID_REJECTED_ADJUSTMENT
-                self.adjust_uncertainty(economy, type_of_commodity)
-            else:
-                # Radical re-evaluation of the price
-                self.perceived_values[economy][type_of_commodity].center = price + self.perceived_values[economy][type_of_commodity].uncertainty
-                self.adjust_uncertainty(economy, type_of_commodity)
+
+        assert economy.auctions[type_of_commodity].supply
+
+        if price is None:
+            self.perceived_values[economy][type_of_commodity].center += BID_REJECTED_ADJUSTMENT
+            self.adjust_uncertainty(economy, type_of_commodity)
+        else:
+            # Radical re-evaluation of the price
+            self.perceived_values[economy][type_of_commodity].center = price + self.perceived_values[economy][type_of_commodity].uncertainty
+            self.adjust_uncertainty(economy, type_of_commodity)
 
 
     def produce_sold_commodity(self):
@@ -497,8 +508,9 @@ class Agent(object):
             # min_sale_price = int(round(production_cost*PROFIT_MARGIN))
 
             #self.perceived_values[type_of_commodity].center = max(self.perceived_values[type_of_commodity].center - ASK_REJECTED_ADJUSTMENT, min_sale_price + self.perceived_values[type_of_commodity].uncertainty)
-            self.perceived_values[economy][type_of_commodity].center -= ASK_REJECTED_ADJUSTMENT
             self.adjust_uncertainty(economy, type_of_commodity)
+            self.perceived_values[economy][type_of_commodity].center = \
+                max(self.perceived_values[economy][type_of_commodity].center - ASK_REJECTED_ADJUSTMENT, self.perceived_values[economy][type_of_commodity].uncertainty + 1)
 
 
     def bankrupt(self):
@@ -655,21 +667,6 @@ class Agent(object):
         if self.reaction.is_finished_good:
             self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
 
-        # # TODO - needs to be smarter
-        # for commodity_type in self.reaction.commodities_consumed:
-        #     commodity_token = random.choice(self.buy_economy.available_types[commodity_type])
-        #     self.place_bid(economy=self.buy_economy, token_to_bid=commodity_token)
-        #
-        # # TODO - better
-        # self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['furniture']))
-        # self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['pottery']))
-        # self.place_bid(economy=self.buy_economy, token_to_bid=random.choice(self.buy_economy.available_types['tools']))
-        #
-        # # TODO - needs to be smarter
-        #for commodity_type in self.reaction.commodities_required:
-        #    if
-        #    self.buy_economy.available_types[commodity_type]
-
 
     #def handle_bidding(self):
         #if self.future_bids == {}:
@@ -747,17 +744,23 @@ class AuctionHouse:
         # How many sells have existed each round
         self.sell_history= [0]
 
+        self.last_price = START_VAL
         self.mean_price = START_VAL
+
         self.iterations = 0
 
         self.supply = None
         self.demand = None
 
-    def update_historical_data(self, mean_price, num_bids, num_sells):
+    def update_historical_data(self, mean_price_last_round, num_bids, num_sells):
         # Updates the history for this auction
-        self.price_history.append(mean_price)
+        self.price_history.append(mean_price_last_round)
         self.bid_history.append(num_bids)
         self.sell_history.append(num_sells)
+
+        # This tracks the last price paid for the item, used when figuring Favorability ratings for agents
+        if mean_price_last_round is not None:
+            self.last_price = mean_price_last_round
 
     def update_mean_price(self):
         # update the mean price for this commodity by averaging over the last HIST_WINDOW_SIZE items
@@ -862,7 +865,6 @@ class Economy:
 
     def add_new_agent_to_economy(self):
         ''' Flip between adding the most profitable commodity, or the most demanded commodity '''
-
         if roll(0, 1):
             token = self.find_most_profitable_agent_token(restrict_based_on_available_resource_slots=1)
             self.add_agent_based_on_token( token )
@@ -872,14 +874,6 @@ class Economy:
             self.add_agent_based_on_token( token )
             #print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
 
-
-    def add_random_agent(self):
-        if roll(0, 1):
-            commodity = random.choice(data.commodity_manager.resources)
-            self.add_resource_gatherer(commodity.name)
-        else:
-            commodity = random.choice(data.commodity_manager.goods)
-            self.add_good_producer(commodity.name)
 
     def add_merchant(self, sell_economy, sold_commodity_name, attached_to=None):
         name = '{0} merchant'.format(sold_commodity_name)
@@ -909,12 +903,14 @@ class Economy:
 
         if token == 'food':
             population_number = 200
-        if token in [r.name for r in data.commodity_manager.resources]:
+        elif token in [r.name for r in data.commodity_manager.resources]:
             population_number = 100
         else:
             population_number = 20
 
-        agent = Agent(id_=self.agent_num, name='{0} maker'.format(token), population_number=population_number, buy_economy=self, sell_economy=self, sold_commodity_name=token)
+        name = data.COMMODITY_TO_PRODUCER_NAMES[token] if token in data.COMMODITY_TO_PRODUCER_NAMES else '{0} maker'.format(token)
+
+        agent = Agent(id_=self.agent_num, name=name, population_number=population_number, buy_economy=self, sell_economy=self, sold_commodity_name=token)
 
         self.agent_num += 1
 
@@ -1013,7 +1009,9 @@ class Economy:
         # Returns a list of valid commodities in this economy that can be used to create agents
         # For instance, copper miners won't be produced in a city with no access to copper
         for commodity in self.get_valid_agent_types():
-            if (restrict_based_on_available_resource_slots and commodity in [r.name for r in data.commodity_manager.resources] and commodity in available_resource_slots) or not restrict_based_on_available_resource_slots:
+            is_resource = commodity in [r.name for r in data.commodity_manager.resources]
+            if (restrict_based_on_available_resource_slots and is_resource and commodity in available_resource_slots) or \
+                    (not is_resource) or (not restrict_based_on_available_resource_slots):
                 current_ratio = self.auctions[commodity].demand  / max(self.auctions[commodity].supply, 1) # no div/0
                 if current_ratio > greatest_demand_ratio:
                     greatest_demand_ratio = current_ratio
@@ -1051,7 +1049,7 @@ class Economy:
 
             merchant.evaluate_needs_and_place_bids()
             merchant.pay_taxes(self)
-            merchant.place_bid(economy=self, token_to_bid=merchant.sold_commodity_name) # <- will bid max amt we can
+            merchant.place_bid(economy=self, token_to_bid=merchant.sold_commodity_name, quantity=merchant.get_available_inventory_space(inventory=merchant.input_product_inventory))
             merchant.turns_alive += 1
 
         for merchant in self.sell_merchants[:]:
@@ -1075,7 +1073,7 @@ class Economy:
             ## Sort the sells by price (lowest to hghest) ##
             auction.sells = sorted(auction.sells, key=lambda attr: attr.price)
 
-            self.prices[commodity] = []
+            commodity_sell_prices = []
 
             num_bids = len(auction.bids)
             num_sells = len(auction.sells)
@@ -1126,7 +1124,7 @@ class Economy:
                         #print ' *** {0} bought {1} {2} from {3} for {4} ***'.format(buyer.owner.name, quantity, commodity, seller.owner.name, price)
 
                         # Add to running tally of prices this turn
-                        self.prices[commodity].append(price)
+                        commodity_sell_prices.append(price)
 
                 # Now that a transaction has occurred, bump out the buyer or seller if either is satisfied
                 if seller.quantity == 0: del auction.sells[0]
@@ -1149,12 +1147,12 @@ class Economy:
                 self.auctions[commodity].sells = []
 
             ## Average prices
-            if len(self.prices[commodity]) > 0:
-                mean_price = int(round(sum(self.prices[commodity])/len(self.prices[commodity])))
+            if commodity_sell_prices:
+                mean_price_last_round = int(round(sum(commodity_sell_prices)/len(commodity_sell_prices)))
             else:
-                mean_price = None
+                mean_price_last_round = None
             #auction.update_historical_data(mean_price, num_bids, num_sells)
-            auction.update_historical_data(mean_price, auction.demand, auction.supply)
+            auction.update_historical_data(mean_price_last_round, auction.demand, auction.supply)
             # Track mean price for last N turns
             auction.update_mean_price()
 
