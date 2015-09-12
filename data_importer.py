@@ -184,6 +184,9 @@ class CommodityManager:
 
         return goods_by_material_token
 
+    def get_material_from_commodity_name(self, commodity_name):
+        return self.materials[self.get_actual_commodity_from_name(commodity_name).material.name]
+
 
 
 def import_data():
