@@ -17,7 +17,8 @@ except:
 
 
 HIST_WINDOW_SIZE = 5 # Amount of trades auctions keep in memory to determine avg price (used by agents)
-MAX_INVENTORY_SIZE = 15 # A not-really-enforced max inventory limit
+INVENTORY_SIZE = 20 # How much stuff we can fit in our inventory, per unit of population
+MERCHANT_INVENTORY_SIZE_BOOST = 1.5
 
 PROFIT_MARGIN = 1.1 # Won't sell an item for lower than this * normalized production cost
 
@@ -181,7 +182,8 @@ class Agent(object):
 
         self.merchant_travel_inventory = defaultdict(int)
 
-        self.inventory_size = 20 * self.population_number ## TODO - evaluate
+        # how much stuff we can hold in each of our inventories - merchants get a slight boost
+        self.inventory_size = self.population_number * INVENTORY_SIZE * MERCHANT_INVENTORY_SIZE_BOOST if self.is_merchant else self.population_number * INVENTORY_SIZE
 
         self.last_turn = []
 
@@ -264,16 +266,21 @@ class Agent(object):
 
 
     def increment_cycle(self):
+        ''' Increment the time spent at this economy, and if it has goods, add to a list of departing merchants so they can create a caravan '''
         self.time_here += 1
-        destination = None
-        ## if it's part of the game, add to a list of departing merchants so they can create a caravan
-        if self.time_here >= 2 and self.current_location.owner:
+
+        if self.current_location.owner:
+            destination = None
+            # If we have returned home to the city where we buy things, and have filled our inventory (either it's full,
+            # or we've been here a few turns and have a reasonable amount), ship out to the destination
             if self.current_location == self.buy_economy and self.input_product_inventory[self.sold_commodity_name] >= 2 * self.population_number:
                 destination = self.sell_economy.owner
 
+                # Load the goods onto the caravan
                 amount = self.input_product_inventory[self.sold_commodity_name]
                 self.input_product_inventory[self.sold_commodity_name] -= amount
                 self.merchant_travel_inventory[self.sold_commodity_name] += amount
+                # print self.name, 'departing with', amount, self.sold_commodity_name
 
             elif self.current_location == self.sell_economy:
                 destination = self.buy_economy.owner
@@ -357,7 +364,7 @@ class Agent(object):
             self.last_turn.append('Tried to bid on {0} but quantity not > 0'.format(token_to_bid))
             #print '{0} tried to bid on {1} {2} at {3}'.format(self.name, quantity, token_to_bid, bid_price)
 
-    def create_sell(self, economy, sell_commodity):
+    def create_sell(self, economy, sell_commodity, quantity):
         # Determines how many commoditys to sell, and at what cost
         # production_cost = self.check_min_sell_price()
         # min_sale_price = int(round( production_cost*PROFIT_MARGIN ) )
@@ -371,12 +378,16 @@ class Agent(object):
         uncertainty = self.perceived_values[self.sell_economy][sell_commodity].uncertainty
         sell_price = roll(est_price - uncertainty, est_price + uncertainty)
 
-        quantity_to_sell = self.sell_inventory[sell_commodity]
+        # If the last price of the item is lower than the mean price, we may be inclined to offer less for sale
+        favorability = ((self.perceived_values[economy][sell_commodity].center + economy.auctions[sell_commodity].last_price) / 2) / economy.auctions[sell_commodity].mean_price
+        # However, we can never offer more than the original amount
+        quantity = min(int(round(quantity * favorability)), quantity)
+
         #print self.name, 'selling', quantity_to_sell, sell_commodity
-        if quantity_to_sell > 0:
+        if quantity > 0:
             #print self.name, 'selling', quantity_to_sell, sell_commodity, 'for', sell_price, 'at', self.current_location.owner.name
-            self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity_to_sell, sell_commodity, sell_price))
-            economy.auctions[sell_commodity].sells.append( Offer(owner=self, commodity=sell_commodity, price=sell_price, quantity=quantity_to_sell) )
+            self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity, sell_commodity, sell_price))
+            economy.auctions[sell_commodity].sells.append( Offer(owner=self, commodity=sell_commodity, price=sell_price, quantity=quantity) )
 
             #print '{0} offered to sell {1} {2} at {3}'.format(self.name, quantity_to_sell, self.sold_commodity_name, sell_price)
         else:
@@ -573,7 +584,7 @@ class Agent(object):
             #self.handle_bidding()
             self.pay_taxes(self.buy_economy)
             #self.handle_sells()
-            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name)
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=self.sell_inventory[self.sold_commodity_name])
         self.turns_alive += 1
 
     def count_commodities_of_type(self, type_of_commodity, inventory):
@@ -611,7 +622,7 @@ class Agent(object):
             # For every other commodity, if it's not one we use in our input...
             elif (not self.reaction.is_finished_good) or (self.reaction.is_finished_good and commodity_name != self.reaction.input_commodity_name):
                 # Certain amount of an item breaks
-                amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance / 100, 1) * roll(0, 3))
+                amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance / 100, 1) * roll(1, 10))
                 self.buy_inventory[commodity_name] = \
                     max(self.buy_inventory[commodity_name] - amount_to_break, 0)
 
@@ -644,29 +655,14 @@ class Agent(object):
                 amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
                 self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
 
-        # ### Don't need to get food if we are a farmer
-        # if 'food' != self.sold_commodity_name:
-        #     ## Eat food
-        #     total_food_to_consume = self.population_number
-        #     foods = self.get_all_commodities_of_type(type_of_commodity='foods', inventory=self.buy_inventory)
-        #     #print foods, self.buy_inventory['food']
-        #     #print ''
-        #     for commodity, amount in foods.iteritems():
-        #         consumed = min(amount, total_food_to_consume)
-        #         self.buy_inventory[commodity] -= consumed
-        #         # Adjust remaining food to consume and set breakpoint
-        #         total_food_to_consume =- consumed
-        #         if total_food_to_consume <= 0:
-        #             break
-        #     ########################
-        #
-        #     if sum(self.get_all_commodities_of_type(type_of_commodity='foods', inventory=self.buy_inventory).values()) <= 2 * self.population_number:
-
 
         # If there is an input to the reaction we generate, bid on it
         if self.reaction.is_finished_good:
             self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
 
+        # Or, if we're a merchant, bid on the items we trade
+        if self.is_merchant and self.sell_inventory[self.sold_commodity_name] < self.inventory_size:
+            self.place_bid(economy=self.buy_economy, token_to_bid=self.sold_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
 
     #def handle_bidding(self):
         #if self.future_bids == {}:
@@ -879,7 +875,7 @@ class Economy:
         name = '{0} merchant'.format(sold_commodity_name)
 
         # TODO - merchants will get default Reaction based on their traded item - should find a way around this
-        merchant = Agent(id_=self.agent_num, name=name, population_number=20, buy_economy=self, sell_economy=sell_economy, sold_commodity_name=sold_commodity_name,
+        merchant = Agent(id_=self.agent_num, name=name, population_number=40, buy_economy=self, sell_economy=sell_economy, sold_commodity_name=sold_commodity_name,
                          is_merchant=1, attached_to=attached_to)
 
         self.buy_merchants.append(merchant)
@@ -1049,7 +1045,6 @@ class Economy:
 
             merchant.evaluate_needs_and_place_bids()
             merchant.pay_taxes(self)
-            merchant.place_bid(economy=self, token_to_bid=merchant.sold_commodity_name, quantity=merchant.get_available_inventory_space(inventory=merchant.input_product_inventory))
             merchant.turns_alive += 1
 
         for merchant in self.sell_merchants[:]:
@@ -1061,7 +1056,8 @@ class Economy:
             #merchant.consume_food()
             #merchant.eval_need()
             #merchant.pay_taxes(self)
-            merchant.create_sell(economy=self, sell_commodity=merchant.sold_commodity_name)
+            # Merchants only offer to sell half of what's in their inventory, to help spread out the supply of this item until the next shipment arrives
+            merchant.create_sell(economy=self, sell_commodity=merchant.sold_commodity_name, quantity=int(merchant.sell_inventory[merchant.sold_commodity_name] / 2))
             #merchant.turns_alive += 1
 
         ## Run the auction
