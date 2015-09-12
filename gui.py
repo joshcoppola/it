@@ -792,8 +792,8 @@ def show_civs(world):
             for type_of_commodity, auctions in city.econ.auctions_by_category.iteritems():
                 sorted_auctions = sorted(auctions, key=lambda i: i.mean_price, reverse=True)
 
-                total_supply_for_this_type = sum([auct.supply for auct in auctions])
-                total_demand_for_this_type = sum([auct.demand for auct in auctions])
+                total_supply_for_this_type = sum(auct.supply for auct in auctions)
+                total_demand_for_this_type = sum(auct.demand for auct in auctions)
                 d_s_ratio = total_demand_for_this_type / max(total_supply_for_this_type, 1)
 
 
