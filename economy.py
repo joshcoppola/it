@@ -45,9 +45,6 @@ N_DIF_THRESH = 2.5 #Threshhold at which adjustment of P_DIF_ADJ is subtracted fr
 START_VAL = 40 # Arbitrary value that sets the starting price of good (in gold)
 START_UNCERT = 10 # Arbitrary uncertainty value (agent believes price is somewhere between (mean-this, mean+this)
 
-FOOD_BID_THRESHHOLD = 4 # Will bid on food when lower than this amount
-GRANARY_THRESH = 5 # # of turns before we can get free food from the granary
-STARVATION_THRESH = 10 # # of turns before we starve
 ########################### New stuff ###########################
 
 # Used for calculating cost of living - how heavily to weight each type of commodity
@@ -60,7 +57,7 @@ TOOLS_WEIGHT_PERC = .25
 COMMODITY_BID_THRESHHOLDS = {
     'foods': (0, 2),
     'clothing': (1, 1),
-    'pottery': (1.5, 1),
+    'pottery': (1.5, .5),
     'furniture': (2, 1)
 }
 
@@ -635,7 +632,7 @@ class Agent(object):
         our_standard_of_living = normalized_gold / self.buy_economy.cost_of_living
 
         for commodity_category, (standard_of_living_threshhold, ideal_number_per_person) in COMMODITY_BID_THRESHHOLDS.iteritems():
-            amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+            amount_of_commodity_to_bid = int(self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
             # We will consider bidding on commodities if they don't match the type of commodity we output, and if
             # we have a high enough standard of living
             if commodity_category != self.sold_commodity_category and our_standard_of_living > standard_of_living_threshhold and amount_of_commodity_to_bid > 0:
@@ -684,23 +681,23 @@ class Agent(object):
         #    self.future_sells = {}
 
 
-    def player_auto_manage(self):
-        tokens_to_bid = self.eval_need()
-
-        for token in tokens_to_bid:
-            bid_price, bid_quantity = self.eval_bid(token)
-            self.future_bids[token] = [bid_price, bid_quantity]
-
-        # Straight from food bidding code, except subtract one because we'll be consuming it next turn
-        if self.need_food and self.inventory['food'] <= (FOOD_BID_THRESHHOLD * self.population_number):
-            token = random.choice(self.economy.available_types['foods'])
-            bid_price, bid_quantity = self.eval_bid(token)
-
-            self.future_bids[token] = [bid_price, bid_quantity]
-
-        sell_price, quantity_to_sell = self.check_sell()
-        if quantity_to_sell > 0:
-            self.future_sells[self.sold_commodity_name] = [sell_price, quantity_to_sell]
+    # def player_auto_manage(self):
+    #     tokens_to_bid = self.eval_need()
+    #
+    #     for token in tokens_to_bid:
+    #         bid_price, bid_quantity = self.eval_bid(token)
+    #         self.future_bids[token] = [bid_price, bid_quantity]
+    #
+    #     # Straight from food bidding code, except subtract one because we'll be consuming it next turn
+    #     if self.need_food and self.inventory['food'] <= (FOOD_BID_THRESHHOLD * self.population_number):
+    #         token = random.choice(self.economy.available_types['foods'])
+    #         bid_price, bid_quantity = self.eval_bid(token)
+    #
+    #         self.future_bids[token] = [bid_price, bid_quantity]
+    #
+    #     sell_price, quantity_to_sell = self.check_sell()
+    #     if quantity_to_sell > 0:
+    #         self.future_sells[self.sold_commodity_name] = [sell_price, quantity_to_sell]
 
 
     #### For use with player only for now ####
@@ -939,7 +936,7 @@ class Economy:
         ###### IF GOOD PRODUCER #############
         elif token in [g.name for g in data.commodity_manager.goods]:
             if self.owner:
-                building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name='{0} maker'.format(token), category='commoner')], inhabitants=[], tax_status='commoner')
+                building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name, category='commoner')], inhabitants=[], tax_status='commoner')
                 building.linked_economy_agent = agent
                 agent.linked_economy_building = building
 
@@ -1048,17 +1045,12 @@ class Economy:
             merchant.turns_alive += 1
 
         for merchant in self.sell_merchants[:]:
-            #merchant.last_turn = []
-            #if merchant.current_location == self:
             #if merchant.gold < 0:
             #    merchant.bankrupt()
             #    break
-            #merchant.consume_food()
-            #merchant.eval_need()
             #merchant.pay_taxes(self)
             # Merchants only offer to sell half of what's in their inventory, to help spread out the supply of this item until the next shipment arrives
             merchant.create_sell(economy=self, sell_commodity=merchant.sold_commodity_name, quantity=int(merchant.sell_inventory[merchant.sold_commodity_name] / 2))
-            #merchant.turns_alive += 1
 
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
