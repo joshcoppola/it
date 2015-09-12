@@ -811,6 +811,11 @@ def show_civs(world):
                 for auction in sorted_auctions:
                     commodity = auction.commodity
 
+                    if commodity in city.get_all_imports():
+                        libtcod.console_print(0, 60, y, chr(25))
+                    elif commodity in city.get_all_exports():
+                        libtcod.console_print(0, 60, y, chr(26))
+
             #for commodity, auction in city.econ.auctions.iteritems():
                 #if auction.supply is not None and auction.demand is not None:
                     libtcod.console_print(0, 62, y, commodity)
