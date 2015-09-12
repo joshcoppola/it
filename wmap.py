@@ -1668,20 +1668,21 @@ class CityMap:
                             building.linked_economy_agent.update_holder(figure=entity)
 
                         # Additionally, add the building's inventory as objects
-                        sold_good = building.linked_economy_agent.finished_good
-                        amount = building.linked_economy_agent.inventory[sold_good.name]
+                        amount = building.linked_economy_agent.sell_inventory[building.linked_economy_agent.sold_commodity_name]
 
                         # Placeholder way to show agent's inventory on the map
                         if amount:
-                            obj = it.assemble_object(object_blueprint=phys.object_dict['crate'], force_material=data.commodity_manager.materials[building.linked_economy_agent.finished_good.material.name], wx=self.usemap.wx, wy=self.usemap.wy)
-                            obj.name = 'Stack of {0} {1}'.format(amount, sold_good.name)
-                            obj.description = 'This is a stack of {0} {1}'.format(amount, sold_good.name)
+                            sold_commodity_name = building.linked_economy_agent.sold_commodity_name
+                            material = data.commodity_manager.get_material_from_commodity_name(commodity_name=sold_commodity_name)
+                            obj = it.assemble_object(object_blueprint=phys.object_dict['crate'], force_material=material, wx=self.usemap.wx, wy=self.usemap.wy)
+                            obj.name = 'Stack of {0} {1}'.format(amount, sold_commodity_name)
+                            obj.description = 'This is a stack of {0} {1}'.format(amount, sold_commodity_name)
 
                             building.place_within(obj)
 
                             # Place some dummy example objects for now
                             for n_obj in building.linked_economy_agent.get_sold_objects():
-                                n_obj = it.assemble_object(object_blueprint=phys.object_dict[n_obj], force_material=data.commodity_manager.materials[building.linked_economy_agent.finished_good.material.name], wx=self.usemap.wx, wy=self.usemap.wy)
+                                n_obj = it.assemble_object(object_blueprint=phys.object_dict[n_obj], force_material=material, wx=self.usemap.wx, wy=self.usemap.wy)
                                 building.place_within(n_obj)
 
 
