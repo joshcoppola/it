@@ -2399,7 +2399,7 @@ class City(Site):
         other_city.connected_to.append(self)
 
     def get_population(self):
-        return sum([agent.population_number for agent in self.econ.all_agents])
+        return sum(agent.population_number for agent in self.econ.all_agents)
 
     def add_import(self, city, good):
         # Add other city as an importer if it's not already
