@@ -790,12 +790,24 @@ def show_civs(world):
             y += 2
 
             for type_of_commodity, auctions in city.econ.auctions_by_category.iteritems():
-                print type_of_commodity, auctions
-                libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .6)
+                sorted_auctions = sorted(auctions, key=lambda i: i.mean_price, reverse=True)
+
+                total_supply_for_this_type = sum([auct.supply for auct in auctions])
+                total_demand_for_this_type = sum([auct.demand for auct in auctions])
+                d_s_ratio = total_demand_for_this_type / max(total_supply_for_this_type, 1)
+
+
+                libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .5)
                 libtcod.console_print(0, 60, y, type_of_commodity)
+
+                libtcod.console_print(0, 90, y, str(total_supply_for_this_type))
+                libtcod.console_print(0, 96, y, str(total_demand_for_this_type))
+                libtcod.console_print(0, 102, y, "{0:.2f}".format(round(d_s_ratio, 2)))
+
                 libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
                 y+= 1
-                sorted_auctions = sorted(auctions, key=lambda i: i.mean_price, reverse=True)
+
+
                 for auction in sorted_auctions:
                     commodity = auction.commodity
 
