@@ -19,13 +19,11 @@ copper:
 #            number_input: 1
 #            number_output: 2
 #            commodities_consumed:
-#                woods: 1
 #            commodities_required:
 #        armor:
 #            number_input: 1
 #            number_output: 2
 #            commodities_consumed:
-#                woods: 1
 #            commodities_required:
     app_amount: 2000
     app_chances:
@@ -61,16 +59,12 @@ bronze:
 #            number_input: 1
 #            number_output: 1
 #            commodities_consumed:
-#                woods: 1
 #            commodities_required:
-#                tools: 1
 #        armor:
 #            number_input: 1
 #            number_output: 1
 #            commodities_consumed:
-#                woods: 1
 #            commodities_required:
-#                tools: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -105,16 +99,12 @@ iron:
 #            number_input: 1
 #            number_output: 1
 #            commodities_consumed:
-#                woods: 1
 #            commodities_required:
-#                tools: 1
 #        armor:
 #            number_input: 1
 #            number_output: 1
 #            commodities_consumed:
-#                woods: 1
 #            commodities_required:
-#                tools: 1
     app_amount: 2000
     app_chances:
         mountain: 0
