@@ -1376,7 +1376,7 @@ class World(Map):
         ## Add appropriate imports and exports (can be re-written to be much more efficient...)
         for city in created_cities:
             # At this point, we should have no imports, but just in case... flatten the list
-            flattened_import_list = [item for sublist in city.imports.values() for item in sublist]
+            flattened_import_list = city.get_all_imports()
             ## Make a list of other cities by distance, so you can import from the closer cities first
             # cities_and_distances = [(city.distance_to(c), c) for c in created_cities if c != city]
             cities_and_distances = [(self.get_astar_distance_to(city.x, city.y, c.x, c.y), c) for c in created_cities if c != city]
@@ -2423,6 +2423,11 @@ class City(Site):
         if self.exports[city] == []:
             del self.exports[city]
 
+    def get_all_imports(self):
+        return [item for sublist in self.imports.values() for item in sublist]
+
+    def get_all_exports(self):
+        return [item for sublist in self.exports.values() for item in sublist]
 
     def prepare_native_economy(self):
         # Add economy to city
