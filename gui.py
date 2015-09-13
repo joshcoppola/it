@@ -789,8 +789,8 @@ def show_civs(world):
 
             y += 2
 
-            for type_of_commodity, auctions in city.econ.auctions_by_category.iteritems():
-                sorted_auctions = sorted(auctions, key=lambda i: i.mean_price, reverse=True)
+            # Loop through each type of commodity, show overall supply / demand, and then print out all items of that type
+            for type_of_commodity, auctions in sorted(city.econ.auctions_by_category.iteritems()):
 
                 total_supply_for_this_type = sum(auct.supply for auct in auctions)
                 total_demand_for_this_type = sum(auct.demand for auct in auctions)
@@ -800,24 +800,22 @@ def show_civs(world):
                 libtcod.console_set_default_foreground(0, g.PANEL_FRONT * .5)
                 libtcod.console_print(0, 60, y, type_of_commodity)
 
-                libtcod.console_print(0, 90, y, str(total_supply_for_this_type))
-                libtcod.console_print(0, 96, y, str(total_demand_for_this_type))
-                libtcod.console_print(0, 102, y, "{0:.2f}".format(round(d_s_ratio, 2)))
+                if len(auctions) > 1:
+                    libtcod.console_print(0, 90, y, str(total_supply_for_this_type))
+                    libtcod.console_print(0, 96, y, str(total_demand_for_this_type))
+                    libtcod.console_print(0, 102, y, "{0:.2f}".format(round(d_s_ratio, 2)))
 
                 libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
                 y+= 1
 
-
-                for auction in sorted_auctions:
+                # Display info about each printed commodity
+                for auction in sorted(auctions, key=lambda auct: auct.mean_price, reverse=True):
                     commodity = auction.commodity
+                    # Mark whether it's imported / exported
+                    if   commodity in city.get_all_imports():  libtcod.console_print(0, 60, y, chr(25))
+                    elif commodity in city.get_all_exports():  libtcod.console_print(0, 60, y, chr(26))
 
-                    if commodity in city.get_all_imports():
-                        libtcod.console_print(0, 60, y, chr(25))
-                    elif commodity in city.get_all_exports():
-                        libtcod.console_print(0, 60, y, chr(26))
-
-            #for commodity, auction in city.econ.auctions.iteritems():
-                #if auction.supply is not None and auction.demand is not None:
+                    # Name of commodity / mean price
                     libtcod.console_print(0, 62, y, commodity)
                     libtcod.console_print(0, 78, y, str(auction.mean_price))
 
