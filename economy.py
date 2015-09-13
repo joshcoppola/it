@@ -1,8 +1,8 @@
 from __future__ import division
 import random
 from random import randint as roll
-#import cProfile
-#import pstats
+import cProfile
+import pstats
 import os
 import yaml
 from collections import defaultdict
@@ -27,7 +27,6 @@ RESOURCE_GATHERER_STARTING_GOLD = 100000
 GOOD_PRODUCER_STARTING_GOLD = 150000
 MERCHANT_STARTING_GOLD = 1000000
 
-PREFERRED_ITEM_MIN_GOLD = 100000
 
 MIN_CERTAINTY_VALUE = 2 ## Within what range traders are limited to estimating the market price
 BID_REJECTED_ADJUSTMENT = 5 # Adjust prices by this much when our bid is rejected
@@ -36,6 +35,9 @@ REJECTED_UNCERTAINTY_PERCENT = .05 # We get this much more uncertain about a pri
 ACCEPTED_CERTAINTY_PERCENT = .05  # Out uncertainty about a price decreases by this amount when an offer is accepted
 
 MAX_UNCERTAINTY_PERCENT = .25 # Uncertainty maxes out this percentage of the average price (.35 means  avg price - 35% to avg price + 35%)
+
+BUY_LEAST_EXPENSIVE_COMMODITY_MODIFIER = 1
+BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER = 100
 
 P_DIF_ADJ = 3  # When offer is accepted and exceeds what we thought the price value was, adjust it upward by this amount
 N_DIF_ADJ = 3  # When offer is accepted and is lower than what we thought the price value was, adjust it downward by this amount
@@ -171,7 +173,8 @@ class Agent(object):
         self.buys = 0
         self.sells = 0
 
-        self.gold = GOOD_PRODUCER_STARTING_GOLD
+        self.gold = 0
+        self.adjust_gold(GOOD_PRODUCER_STARTING_GOLD)
 
         self.buy_inventory = defaultdict(int)
         self.input_product_inventory = defaultdict(int)
@@ -259,6 +262,7 @@ class Agent(object):
             self.buy_inventory[commodity] += amount
 
     def remove_sold_commodity(self, commodity, amount):
+        ''' Proper handling for removing a commodity once we've sold it '''
         self.sell_inventory[commodity] -= amount
 
 
@@ -293,20 +297,14 @@ class Agent(object):
             elif self.current_location == self.sell_economy: self.current_location = self.buy_economy
 
     def pay_taxes(self, economy):
-        # Pay taxes. If the economy has an owner, pay the taxes to that treasury
-        self.gold -= economy.local_taxes
+        ''' Pay taxes. If the economy has an owner, pay the taxes to that treasury '''
+        self.adjust_gold(-economy.local_taxes)
         # economy owner - should be the city
         if economy.owner:
             economy.owner.treasury += economy.local_taxes
 
-    def has_token(self, type_of_commodity):
-        # Test whether or not we have a token of an commodity
-        for token_of_commodity in data.commodity_manager.get_names_of_commodities_of_type(type_of_commodity):
-            if self.buy_inventory[token_of_commodity]:
-                return True
-        return False
-
     def get_available_inventory_space(self, inventory):
+        ''' Return how much space is available in a given inventory '''
         return max(self.inventory_size - sum(inventory.values() ), 0)
 
     def get_all_commodities_of_type(self, type_of_commodity, inventory):
@@ -319,20 +317,45 @@ class Agent(object):
 
         return matching_commodities
 
-    # def starve(self):
-    #     '''What happens when we run out of food'''
-    #     self.buy_economy.buy_merchants.remove(self)
-    #     self.sell_economy.sell_merchants.remove(self)
-    #     if self.buy_economy.owner: self.buy_economy.owner.former_agents.append(self)
-
 
     def find_token_and_place_bid(self, economy, type_of_commodity, quantity):
-        token_to_bid = random.choice(self.buy_economy.available_types[type_of_commodity])
+        ''' Given an particular type of commodity that we need (e.g. tools), figure out what to bid on based on our income and what's available '''
+        commodities_with_supply = [c for c in self.buy_economy.available_types[type_of_commodity] if self.buy_economy.auctions[c].supply]
+
+        # If there's only one type of commodity with supply, offered, we will must buy it
+        if len(commodities_with_supply) == 1:
+            token_to_bid = commodities_with_supply[0]
+
+        # What to bid on if we have options
+        ## NOTE ##   This also includes cases where there are no commodities with supply - but we will still preserve the bidding behavior
+        elif len(commodities_with_supply) != 1:
+            # Calculate the gold per population and the commodity: price dict
+            gold_per_population = self.gold / self.population_number
+            prices = defaultdict(int)
+            # If there are none of the commodity available, agents will preserve the same bidding behavior -
+            # but we must first open up the commodities list to all commodities of that type
+            valid_commodities = commodities_with_supply if commodities_with_supply else self.buy_economy.available_types[type_of_commodity]
+            for commodity in valid_commodities:
+                prices[commodity] = self.buy_economy.auctions[commodity].get_last_valid_price()
+
+            # Buy the cheapest stuff if we're poor
+            if gold_per_population < self.buy_economy.cost_of_living * BUY_LEAST_EXPENSIVE_COMMODITY_MODIFIER:
+                token_to_bid = min(prices, key=prices.get)
+
+            # Buy the most expensive stuff if we're rich
+            elif gold_per_population > self.buy_economy.cost_of_living * BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER:
+                token_to_bid = max(prices, key=prices.get)
+                #print self.name, 'bidding max on', token_to_bid, ', gold =', gold_per_population, '; modifier =', self.buy_economy.cost_of_living * BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER
+
+            # If we're in the middle, pick a random commodity
+            else:
+                token_to_bid = random.choice(valid_commodities)
+
 
         self.place_bid(economy=economy, token_to_bid=token_to_bid, quantity=quantity)
 
     def place_bid(self, economy, token_to_bid, quantity=None):
-        ## Place a bid in the economy
+        ''' Place a bid in the economy '''
         est_price = self.perceived_values[economy][token_to_bid].center
         uncertainty = self.perceived_values[economy][token_to_bid].uncertainty
 
@@ -344,25 +367,15 @@ class Agent(object):
             favorability = economy.auctions[token_to_bid].mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) / 2)
             quantity = int(round(quantity * favorability))
 
-        # if token_to_bid == 'food':
-        #     print token_to_bid, quantity, favorability
-        # print self.name, 'original quantity', old_quantity, 'favorability', round(favorability, 2), 'new quantity', quantity
-        # print ' - our perceived center', self.perceived_values[economy][token_to_bid].center, 'actual last price', economy.auctions[token_to_bid].last_price
-        # print ' - our weighted val', round(((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) / 2), 2)
-
-
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         if quantity > 0:
             self.last_turn.append('Bid on {0} {1} for {2}'.format(quantity, token_to_bid, bid_price))
             economy.auctions[token_to_bid].bids.append(Offer(owner=self, commodity=token_to_bid, price=bid_price, quantity=quantity))
-
-            #print '{0} offered to buy {1} {2} at {3}'.format(self.name, quantity, token_to_bid, bid_price)
         else:
             self.last_turn.append('Tried to bid on {0} but quantity not > 0'.format(token_to_bid))
-            #print '{0} tried to bid on {1} {2} at {3}'.format(self.name, quantity, token_to_bid, bid_price)
 
     def create_sell(self, economy, sell_commodity, quantity):
-        # Determines how many commoditys to sell, and at what cost
+        ''' Determines how many commoditys to sell, and at what cost '''
         # production_cost = self.check_min_sell_price()
         # min_sale_price = int(round( production_cost*PROFIT_MARGIN ) )
         #
@@ -393,7 +406,7 @@ class Agent(object):
 
 
     def eval_trade_accepted(self, economy, type_of_commodity, price):
-        # Then, adjust our belief in the price
+        ''' Adjust our belief in the price of a commodity after accepting a trade '''
         if self.perceived_values[economy][type_of_commodity].uncertainty >= MIN_CERTAINTY_VALUE:
             self.perceived_values[economy][type_of_commodity].uncertainty -= int(self.perceived_values[economy][type_of_commodity].uncertainty * ACCEPTED_CERTAINTY_PERCENT)
 
@@ -415,7 +428,7 @@ class Agent(object):
 
 
     def eval_bid_rejected(self, economy, type_of_commodity, price=None):
-        # What to do when we've bid on something and didn't get it
+        ''' What to do when we've bid on something and didn't get it '''
 
         assert economy.auctions[type_of_commodity].supply
 
@@ -429,41 +442,30 @@ class Agent(object):
 
 
     def produce_sold_commodity(self):
-        # Gather resources, consume commodities, and account for breaking stuff
+        ''' Gather resources, consume commodities, and account for breaking stuff '''
 
-        #print ''
-        #print self.name
         # Start by setting the # of reactions we can produce to the size of the population
         if not self.reaction.is_finished_good:
             available_reaction_amount = self.population_number
-            #print ' Based off of pop:', available_reaction_amount
         else:
             available_reaction_amount = min(self.population_number, self.input_product_inventory[self.reaction.input_commodity_name])
-            #print ' Based off of input:', available_reaction_amount
-
 
         # For every consumed commodity, check how many we have in inventory, and keep track of the minimum number of times
         # we can run the reaction
         for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
             total_consumed_commodities = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
             available_reaction_amount = min(int(total_consumed_commodities / amount), available_reaction_amount)
-            #print commodity_type, ' Based off of consumed:', available_reaction_amount
 
         for commodity_type, amount in self.reaction.commodities_required.iteritems():
             total_required_commodities = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
             available_reaction_amount = min(int(total_required_commodities / amount), available_reaction_amount)
-            #print commodity_type, ' Based off of required:', available_reaction_amount
 
         # Reaction limited by how much output space we have available
         available_space = self.get_available_inventory_space(inventory=self.sell_inventory)
         available_reaction_amount = min( int(available_space / self.reaction.output_amount), available_reaction_amount)
-        #print ' Based off of inventory space', available_reaction_amount
 
         ##### Run the reaction however many times we can #####
         if available_reaction_amount:
-            #print self.name, 'doing reaction', available_reaction_amount
-            #print ''
-
             # If we need to Remove from buy inventory
             if self.reaction.is_finished_good:
                 self.input_product_inventory[self.reaction.input_commodity_name] -= self.reaction.output_amount * available_reaction_amount
@@ -475,25 +477,12 @@ class Agent(object):
             # Add to sell inventory
             self.sell_inventory[self.reaction.output_commodity_name] += self.reaction.output_amount * available_reaction_amount
 
-        ## Produce a little bit just for something to have
+        ## If we cannot officially run the reaction, still produce a little bit, simulating working in poor conditions with broken tools, etc
         else:
             self.sell_inventory[self.reaction.output_commodity_name] += int(self.population_number / 5)
 
-            #print self.name, 'COULD NOT DO AVAILABLE REACTION', [(k, self.buy_inventory[k]) for k in self.buy_inventory if self.buy_inventory[k] > 0], self.input_product_inventory
-            #print ''
-        ########################################################
-
-
-        ### ITEMS BREAKING - TODO - need to be set by actual values from data
-        for commodity, amount in self.buy_inventory.iteritems():
-            ## roll(1, 1000) <= data.commodity_manager.get_actual_commodity_from_name(token_of_commodity).break_chance
-            # TODO - need to exclude unused production items
-            self.buy_inventory[commodity] = max(self.buy_inventory[commodity] - roll(5, 10), 0)
-
 
         self.last_turn.append('Produced {0} reactions for {1}'.format(available_reaction_amount, self.sold_commodity_name))
-
-        #print '{0} produced {1} reactions for {2}'.format(self.name, available_reaction_amount, self.sold_commodity_name)
 
 
     # def check_min_sell_price(self):
@@ -510,7 +499,7 @@ class Agent(object):
 
 
     def eval_sell_rejected(self, economy, type_of_commodity):
-        # What to do when we put something up for sale and nobody bought it
+        ''' What to do when we put something up for sale and nobody bought it '''
         if economy.auctions[type_of_commodity].demand:
             # production_cost = self.check_min_sell_price()
             # min_sale_price = int(round(production_cost*PROFIT_MARGIN))
@@ -522,11 +511,19 @@ class Agent(object):
 
 
     def bankrupt(self):
-
+        ''' Figure out what to do when we run out of money '''
         if self.is_merchant:
-            self.gold += MERCHANT_STARTING_GOLD
+            self.adjust_gold(MERCHANT_STARTING_GOLD)
+            return
 
-        else:
+        all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.name == self.name]
+
+        if len(all_agents_of_this_type_in_this_economy) == 1:
+            # Government bailout
+            self.adjust_gold(RESOURCE_GATHERER_STARTING_GOLD)
+
+        # Main action - remove agent from economy, etc
+        elif len(all_agents_of_this_type_in_this_economy) > 1:
             # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
             self.buy_economy.all_agents.remove(self)
 
@@ -560,32 +557,36 @@ class Agent(object):
         return sold_objects
 
 
-    def take_turn(self):
+    def create_sells_for_turn(self):
+        ''' Beginning of the turn - produce items and create sells '''
         self.last_turn = []
 
         if self.gold < 0:
-            all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.name == self.name]
+            self.bankrupt()
 
-            if len(all_agents_of_this_type_in_this_economy) > 1:
-                self.bankrupt()
-                return
-            elif len(all_agents_of_this_type_in_this_economy) == 1:
-                # print 'bailing out {0} in {1}'.format(self.name, self.economy.owner.name)## DEBUG
-                # Government bailout
-                self.gold += RESOURCE_GATHERER_STARTING_GOLD
+        elif self.is_merchant:
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .5))
+
+        elif not self.activity_is_blocked:
+            self.produce_sold_commodity()
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .5))
+
+    def create_bids_for_turn(self):
+        ''' Second part of the turn - consume stuff, place bids, pay taxes '''
 
         if not self.activity_is_blocked:
-            self.produce_sold_commodity()
             self.consume_food_and_break_commodities()
             self.evaluate_needs_and_place_bids()
             self.pay_taxes(self.buy_economy)
-            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=self.sell_inventory[self.sold_commodity_name])
+
         self.turns_alive += 1
 
     def count_commodities_of_type(self, type_of_commodity, inventory):
+        ''' In one of our inventories, find all commodities of a given type '''
         return sum(self.get_all_commodities_of_type(type_of_commodity=type_of_commodity, inventory=inventory).values())
 
     def remove_commodities_of_type(self, type_of_commodity, inventory, amount_to_remove):
+        ''' In the case where we consume or break a type of item, this method will remove the appropriate tokens in our inventory '''
         commodities = self.get_all_commodities_of_type(type_of_commodity=type_of_commodity, inventory=inventory)
 
         remaining_amount_to_remove = amount_to_remove
@@ -638,27 +639,28 @@ class Agent(object):
             if commodity_category != self.sold_commodity_category and our_standard_of_living > standard_of_living_threshhold and amount_of_commodity_to_bid > 0:
                 self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
 
+        # Non-merchants will check for commodities input and consumed by their reactions
+        if not self.is_merchant:
+            ## For goods like wood to be burned by a blacksmith; which we need to consume in order to make our output
+            ideal_number_per_person = 2
+            for commodity_category in self.reaction.commodities_consumed:
+                if inventory_by_type[commodity_category] < self.population_number * ideal_number_per_person:
+                    amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+                    self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
 
-        ## For goods like wood to be burned by a blacksmith; which we need to consume in order to make our output
-        ideal_number_per_person = 2
-        for commodity_category in self.reaction.commodities_consumed:
-            if inventory_by_type[commodity_category] < self.population_number * ideal_number_per_person:
-                amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
-                self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
-
-        ## For goods like tools, which we need in order to make our output
-        for commodity_category in self.reaction.commodities_required:
-            if inventory_by_type[commodity_category] < self.population_number * ideal_number_per_person:
-                amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
-                self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
+            ## For goods like tools, which we need in order to make our output
+            for commodity_category in self.reaction.commodities_required:
+                if inventory_by_type[commodity_category] < self.population_number * ideal_number_per_person:
+                    amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+                    self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
 
 
-        # If there is an input to the reaction we generate, bid on it
-        if self.reaction.is_finished_good:
-            self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
+            # If there is an input to the reaction we generate, bid on it
+            if self.reaction.is_finished_good:
+                self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
 
         # Or, if we're a merchant, bid on the items we trade
-        if self.is_merchant and self.sell_inventory[self.sold_commodity_name] < self.inventory_size:
+        elif self.is_merchant and self.sell_inventory[self.sold_commodity_name] < self.inventory_size:
             self.place_bid(economy=self.buy_economy, token_to_bid=self.sold_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
 
     #def handle_bidding(self):
@@ -1029,25 +1031,12 @@ class Economy:
 
     def run_simulation(self):
         ''' Run a simulation '''
-        # First, each agent does what they do
-        for agent in self.all_agents[:]:
-            agent.take_turn()
-
-        for merchant in self.buy_merchants[:]:
-            merchant.last_turn = []
-            #if merchant.current_location == self:
-            if merchant.gold < 0:
-                # Government bailout
-                merchant.gold += MERCHANT_STARTING_GOLD
-
-            merchant.consume_food_and_break_commodities()
-            merchant.evaluate_needs_and_place_bids()
-            merchant.pay_taxes(self)
-            merchant.turns_alive += 1
-
-        for merchant in self.sell_merchants[:]:
-            # Merchants only offer to sell half of what's in their inventory, to help spread out the supply of this item until the next shipment arrives
-            merchant.create_sell(economy=self, sell_commodity=merchant.sold_commodity_name, quantity=int(merchant.sell_inventory[merchant.sold_commodity_name] / 2))
+        # First, each agent produces items and puts them for sale
+        for agent in self.all_agents[:] + self.sell_merchants[:]:
+            agent.create_sells_for_turn()
+        # Next, agents place bids based on what's available
+        for agent in self.all_agents[:] + self.buy_merchants[:]:
+            agent.create_bids_for_turn()
 
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
@@ -1239,6 +1228,11 @@ class Economy:
         ## Show graph
         plt.subplot(311)
         plt.legend(glegend, loc=2, prop={'size':7})
+
+        # Zoom in
+        wm = plt.get_current_fig_manager()
+        wm.window.state('zoomed')
+
         plt.show()
 
 
