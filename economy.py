@@ -564,7 +564,7 @@ class Agent(object):
         self.last_turn = []
 
         if self.gold < 0:
-            all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.sold_commodity_name == self.sold_commodity_name]
+            all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.name == self.name]
 
             if len(all_agents_of_this_type_in_this_economy) > 1:
                 self.bankrupt()
@@ -575,12 +575,10 @@ class Agent(object):
                 self.gold += RESOURCE_GATHERER_STARTING_GOLD
 
         if not self.activity_is_blocked:
-            #self.check_production_ability() # <- will gather resources
             self.produce_sold_commodity()
+            self.consume_food_and_break_commodities()
             self.evaluate_needs_and_place_bids()
-            #self.handle_bidding()
             self.pay_taxes(self.buy_economy)
-            #self.handle_sells()
             self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=self.sell_inventory[self.sold_commodity_name])
         self.turns_alive += 1
 
@@ -607,9 +605,9 @@ class Agent(object):
 
         return inventory_by_type
 
-    def evaluate_needs_and_place_bids(self):
 
-
+    def consume_food_and_break_commodities(self):
+        ''' Here is where an agent consumes food, (potentially) breaks some items '''
         #### Roll through everything - consume food, and have stuff break ####
         for commodity_name, amount in self.buy_inventory.iteritems():
             # If we're not a farmer, each population eats a food
@@ -623,6 +621,8 @@ class Agent(object):
                 self.buy_inventory[commodity_name] = \
                     max(self.buy_inventory[commodity_name] - amount_to_break, 0)
 
+    def evaluate_needs_and_place_bids(self):
+        ''' Here, agents see what they need and bid on it '''
 
         #### Roll through cost-of-living stuff, and bid on whatever we need ####
         inventory_by_type = self.get_all_inventory_by_type()
@@ -1040,15 +1040,12 @@ class Economy:
                 # Government bailout
                 merchant.gold += MERCHANT_STARTING_GOLD
 
+            merchant.consume_food_and_break_commodities()
             merchant.evaluate_needs_and_place_bids()
             merchant.pay_taxes(self)
             merchant.turns_alive += 1
 
         for merchant in self.sell_merchants[:]:
-            #if merchant.gold < 0:
-            #    merchant.bankrupt()
-            #    break
-            #merchant.pay_taxes(self)
             # Merchants only offer to sell half of what's in their inventory, to help spread out the supply of this item until the next shipment arrives
             merchant.create_sell(economy=self, sell_commodity=merchant.sold_commodity_name, quantity=int(merchant.sell_inventory[merchant.sold_commodity_name] / 2))
 
