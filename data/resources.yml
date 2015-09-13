@@ -122,7 +122,7 @@ iron:
 clay:
     category: clays
     resource_class: strategic
-    break_chance: 300
+    break_chance: 150
     harvest:
         number_output: 4
         commodities_consumed:
@@ -173,7 +173,7 @@ clay:
 wood:
     category: woods
     resource_class: strategic
-    break_chance: 300
+    break_chance: 150
     harvest:
         number_output: 4
         commodities_consumed:
@@ -203,7 +203,7 @@ wood:
 flax:
     category: cloths
     resource_class: strategic
-    break_chance: 300
+    break_chance: 150
     harvest:
         number_output: 4
         commodities_consumed:
