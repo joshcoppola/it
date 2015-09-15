@@ -785,7 +785,7 @@ def show_civs(world):
             libtcod.console_print(0, 90, y, 'Sply')
             libtcod.console_print(0, 96, y, 'Dmnd')
             libtcod.console_print(0, 102, y, 'D:S')
-            libtcod.console_print(0, 108, y, '#')
+            libtcod.console_print(0, 108, y, 'G')
 
             y += 2
 
@@ -848,7 +848,8 @@ def show_civs(world):
                     libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
                     # Iteration in economy
-                    libtcod.console_print(0, 108, y, str(auction.iterations))
+                    # libtcod.console_print(0, 108, y, str(auction.iterations))
+                    libtcod.console_print(0, 108, y, str(city.econ.collected_taxes[commodity]) )
                     y += 1
                 # y += 1
 
@@ -1064,6 +1065,10 @@ def economy_tab(world, city):
             #libtcod.console_print(0, 5, y + 5, '{0} since food'.format(agent.turns_since_food))
 
             iy = y
+            for item, amount in agent.input_product_inventory.iteritems():
+                libtcod.console_print(0, 25, iy, '{0} ({1})'.format(item, amount))
+                iy += 1
+                if iy > 70: break
             for item, amount in agent.buy_inventory.iteritems():
                 libtcod.console_print(0, 25, iy, '{0} ({1})'.format(item, amount))
                 iy += 1
