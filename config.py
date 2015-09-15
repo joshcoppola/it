@@ -73,12 +73,12 @@ MIN_SITE_DIST = 5
 # There can be this much space between cities when starting an economy
 MAX_ECONOMY_DISTANCE = 25
 # Total number of economy agents which can work a tile at once
-MAX_ECONOMY_AGENTS_PER_TILE = 6
+MAX_ECONOMY_AGENTS_PER_TILE = 10
 
 # If distance from one city to another is below this amount, a new road will be built
 NEW_ROAD_PATH_RATIO = .65
 
-DEFAULT_TAX_AMOUNT = 50 # gold / turn of economy simulation
+DEFAULT_TAX_AMOUNT = 2 # gold / population / turn of economy simulation
 
 FOV_ALGO = 0  #default FOV algorithm
 FOV_LIGHT_WALLS = 1  #light walls or not
