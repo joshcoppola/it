@@ -1395,7 +1395,6 @@ class World(Map):
 
         ## Ugly ugly road code for now
         for city in created_cities:
-
             closest_ucity = self.get_closest_city(city.x, city.y, 100)[0]
             if closest_ucity not in city.connected_to:
                 city.build_road_to(closest_ucity.x, closest_ucity.y)
@@ -1487,26 +1486,12 @@ class World(Map):
 
         ## Now setup the economy since we have all import/export info
         for city in created_cities:
-            mine_added = 0
-            shrine_added = 0
-            # This doesn't necessaryily have to be done here, but we should add farms around the city
+            # This doesn't necessarily have to be done here, but we should add farms around the city
             for x in xrange(city.x-5, city.x+6):
                 for y in xrange(city.y-5, city.y+6):
-                    # Try to add a mine somewhere near the city
-                    #if not mine_added and g.MOUNTAIN_HEIGHT-20 < self.tiles[x][y].height < g.MOUNTAIN_HEIGHT and self.is_valid_site(x=x, y=y, civ=city) and self.get_astar_distance_to(city.x, city.y, x, y) < 8:
-                    #    self.add_mine(x, y, city)
-                    #    mine_added = 1
-                    #    continue
-
                     # Loop should only get here if no site is added, due to the continue syntax
-                    if not shrine_added and self.is_valid_site(x=x, y=y, civ=city) and roll(1, 100) >= 97:
+                    if self.is_valid_site(x=x, y=y, civ=city) and roll(1, 100) >= 97:
                         self.add_shrine(x, y, city)
-                        shrine_added = 1
-
-            #for region in city.territory:
-                # Add farms around the city
-            #    if self.is_valid_site(region.x, region.y, city) and not len(g.WORLD.tiles[region.x][region.y].minor_sites):
-            #        self.add_farm(region.x, region.y, city)
 
             ### v original real reason for this loop - I thought it would make sense to add farms and mines before the economy stuff
             city.prepare_native_economy()
@@ -2461,35 +2446,37 @@ class City(Site):
         goods_by_resource_token = data.commodity_manager.get_goods_by_resource_token()
 
         for city, import_list in self.imports.iteritems():
+            for commodity in import_list:
 
-            for item in import_list:
+                # Make sure to add it to the economy's import tax rates
+                if commodity not in self.econ.imported_commodity_tax_rates:
+                    self.econ.imported_commodity_tax_rates[commodity] = economy.DEFAULT_IMPORT_TAX_RATE
+
                 ## It's coming up with good in the import list...
-                if item in goods_by_resource_token:
+                if commodity in goods_by_resource_token:
                     ## Add merchants to the other city, who sell stuff in this city
-                    city.create_merchant(sell_economy=self.econ, sold_commodity_name=item)
-                    city.create_merchant(sell_economy=self.econ, sold_commodity_name=item)
+                    city.create_merchant(sell_economy=self.econ, sold_commodity_name=commodity)
+                    city.create_merchant(sell_economy=self.econ, sold_commodity_name=commodity)
                     ## Add extra resource gatherers in the other city
-                    #city.econ.add_agent_based_on_token(item)
-                    #city.econ.add_agent_based_on_token(item)
-                    #city.econ.add_agent_based_on_token(item)
                     #city.econ.add_agent_based_on_token(item)
 
                     ## Add some specialists who can now make use of the imported goods
-                    good_tokens_this_resource_can_produce = economy.list_goods_from_strategic([item])
+                    good_tokens_this_resource_can_produce = economy.list_goods_from_strategic([commodity])
                     for good in good_tokens_this_resource_can_produce:
                         self.econ.add_agent_based_on_token(good)
-                        self.econ.add_agent_based_on_token(good)
+                        # self.econ.add_agent_based_on_token(good)
 
                         # Other city too!
                         city.econ.add_agent_based_on_token(good)
                         city.econ.add_agent_based_on_token(good)
                         city.econ.add_agent_based_on_token(good)
-                        city.econ.add_agent_based_on_token(good)
+                        # city.econ.add_agent_based_on_token(good)
 
                     ## Add some merchants who will sell whatever good is created from those resources
-                    for good_class in goods_by_resource_token[item]:
+                    for good_class in goods_by_resource_token[commodity]:
                         city.create_merchant(sell_economy=self.econ, sold_commodity_name=good_class.name)
                         city.create_merchant(sell_economy=self.econ, sold_commodity_name=good_class.name)
+
                         #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                         #city.create_merchant(sell_economy=self.econ, traded_item=good_class.name)
                         self.add_import(city, good_class.name)
@@ -2574,10 +2561,7 @@ class City(Site):
 
         # Unload the goods
         if self.econ == caravan_leader.creature.economy_agent.sell_economy:
-            amount_to_unload = caravan_leader.creature.economy_agent.merchant_travel_inventory[caravan_leader.creature.economy_agent.sold_commodity_name]
-
-            caravan_leader.creature.economy_agent.merchant_travel_inventory[caravan_leader.creature.economy_agent.sold_commodity_name] -= amount_to_unload
-            caravan_leader.creature.economy_agent.sell_inventory[caravan_leader.creature.economy_agent.sold_commodity_name] += amount_to_unload
+            caravan_leader.creature.economy_agent.unload_goods(caravan_leader.creature.economy_agent.sell_economy)
 
         # Add workers to the market
         for figure in caravan_leader.creature.commanded_figures + [caravan_leader]:
