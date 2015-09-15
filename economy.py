@@ -10,6 +10,8 @@ from collections import defaultdict
 from it import Profession
 import data_importer as data
 
+import config as g
+
 try:
     import matplotlib.pyplot as plt
 except:
@@ -18,10 +20,9 @@ except:
 
 HIST_WINDOW_SIZE = 5 # Amount of trades auctions keep in memory to determine avg price (used by agents)
 INVENTORY_SIZE = 20 # How much stuff we can fit in our inventory, per unit of population
-MERCHANT_INVENTORY_SIZE_BOOST = 1.5
+MERCHANT_INVENTORY_SIZE_BOOST = 1.2
 
 PROFIT_MARGIN = 1.1 # Won't sell an item for lower than this * normalized production cost
-
 # How much gold each agent starts with
 RESOURCE_GATHERER_STARTING_GOLD = 100000
 GOOD_PRODUCER_STARTING_GOLD = 150000
@@ -38,6 +39,9 @@ MAX_UNCERTAINTY_PERCENT = .25 # Uncertainty maxes out this percentage of the ave
 
 BUY_LEAST_EXPENSIVE_COMMODITY_MODIFIER = 1
 BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER = 100
+
+DEFAULT_IMPORT_TAX_RATE = .1
+DEFAULT_DOMESTIC_TAX_RATE = .05
 
 P_DIF_ADJ = 3  # When offer is accepted and exceeds what we thought the price value was, adjust it upward by this amount
 N_DIF_ADJ = 3  # When offer is accepted and is lower than what we thought the price value was, adjust it downward by this amount
@@ -183,7 +187,7 @@ class Agent(object):
         self.merchant_travel_inventory = defaultdict(int)
 
         # how much stuff we can hold in each of our inventories - merchants get a slight boost
-        self.inventory_size = self.population_number * INVENTORY_SIZE * MERCHANT_INVENTORY_SIZE_BOOST if self.is_merchant else self.population_number * INVENTORY_SIZE
+        self.inventory_size = int(self.population_number * INVENTORY_SIZE * MERCHANT_INVENTORY_SIZE_BOOST) if self.is_merchant else self.population_number * INVENTORY_SIZE
 
         self.last_turn = []
 
@@ -192,6 +196,7 @@ class Agent(object):
 
         self.current_location = buy_economy
         self.linked_economy_building = None
+        self.resource_gathering_regions = None
 
         self.time_here = roll(0, 3)
         self.cycle_length = 4
@@ -214,14 +219,15 @@ class Agent(object):
 
         self.sell_inventory[self.sold_commodity_name] = 2 * self.population_number
 
-        if self.reaction.is_finished_good:
+        if self.reaction.is_finished_good and not self.is_merchant:
             self.input_product_inventory[self.reaction.input_commodity_name] += self.population_number * roll(2, 5)
 
-        for commodity_category in self.reaction.commodities_consumed:
-            self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
+        if not self.is_merchant:
+            for commodity_category in self.reaction.commodities_consumed:
+                self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
 
-        for commodity_category in self.reaction.commodities_required:
-            self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
+            for commodity_category in self.reaction.commodities_required:
+                self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
 
         self.buy_inventory['food'] = self.population_number * roll(2, 5)
         self.buy_inventory['flax clothing'] = self.population_number * roll(0, 2)
@@ -263,7 +269,7 @@ class Agent(object):
 
     def remove_sold_commodity(self, commodity, amount):
         ''' Proper handling for removing a commodity once we've sold it '''
-        self.sell_inventory[commodity] -= amount
+        self.sell_inventory[commodity] = max(0, self.sell_inventory[commodity] - amount)
 
 
     def increment_cycle(self):
@@ -296,9 +302,28 @@ class Agent(object):
             if self.current_location == self.buy_economy:    self.current_location = self.sell_economy
             elif self.current_location == self.sell_economy: self.current_location = self.buy_economy
 
+    def unload_goods(self, economy):
+        ''' Merchants unloading their goods in a city must pay a percentage as import tax '''
+        amount_to_unload = self.merchant_travel_inventory[self.sold_commodity_name]
+
+        # Pay taxes on import to the city government
+        tax_amount = int(amount_to_unload * economy.imported_commodity_tax_rates[self.sold_commodity_name])
+        if tax_amount:
+            economy.collected_taxes[self.sold_commodity_name] += tax_amount
+            amount_to_unload -= tax_amount
+
+        self.merchant_travel_inventory[self.sold_commodity_name] -= amount_to_unload
+        self.sell_inventory[self.sold_commodity_name] += amount_to_unload
+
     def pay_taxes(self, economy):
         ''' Pay taxes. If the economy has an owner, pay the taxes to that treasury '''
-        self.adjust_gold(-economy.local_taxes)
+        self.adjust_gold( -int(economy.local_taxes * self.population_number) )
+
+        if not self.is_merchant:
+            tax_amount = int(self.sell_inventory[self.sold_commodity_name] * economy.commodity_tax_rates[self.sold_commodity_name])
+            if tax_amount:
+                self.sell_inventory[self.sold_commodity_name] -= tax_amount
+                economy.collected_taxes[self.sold_commodity_name] += tax_amount
         # economy owner - should be the city
         if economy.owner:
             economy.owner.treasury += economy.local_taxes
@@ -468,7 +493,7 @@ class Agent(object):
         if available_reaction_amount:
             # If we need to Remove from buy inventory
             if self.reaction.is_finished_good:
-                self.input_product_inventory[self.reaction.input_commodity_name] -= self.reaction.output_amount * available_reaction_amount
+                self.input_product_inventory[self.reaction.input_commodity_name] = max(self.reaction.input_amount * available_reaction_amount, 0)
 
             # Also consume other needed goods
             for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
@@ -479,7 +504,7 @@ class Agent(object):
 
         ## If we cannot officially run the reaction, still produce a little bit, simulating working in poor conditions with broken tools, etc
         else:
-            self.sell_inventory[self.reaction.output_commodity_name] += int(self.population_number / 5)
+            self.sell_inventory[self.reaction.output_commodity_name] = min( int(self.population_number / 5) + self.sell_inventory[self.reaction.output_commodity_name], self.inventory_size )
 
 
         self.last_turn.append('Produced {0} reactions for {1}'.format(available_reaction_amount, self.sold_commodity_name))
@@ -514,6 +539,7 @@ class Agent(object):
         ''' Figure out what to do when we run out of money '''
         if self.is_merchant:
             self.adjust_gold(MERCHANT_STARTING_GOLD)
+            g.game.add_message('{0} in {1} has gone bankrupt, but was reimpursed'.format(self.name, self.buy_economy.owner.name))
             return
 
         all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.name == self.name]
@@ -521,11 +547,16 @@ class Agent(object):
         if len(all_agents_of_this_type_in_this_economy) == 1:
             # Government bailout
             self.adjust_gold(RESOURCE_GATHERER_STARTING_GOLD)
+            g.game.add_message('{0} in {1} has gone bankrupt, but was reimpursed'.format(self.name, self.buy_economy.owner.name))
 
         # Main action - remove agent from economy, etc
         elif len(all_agents_of_this_type_in_this_economy) > 1:
             # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
+            g.game.add_message('{0} in {1} has gone bankrupt'.format(self.name, self.buy_economy.owner.name))
             self.buy_economy.all_agents.remove(self)
+            if self.resource_gathering_regions:
+                resource_name = 'land' if self.sold_commodity_name == 'food' else self.sold_commodity_name
+                self.resource_gathering_region.remove_resource_gatherer_from_region(resource_name=resource_name, agent=self)
 
             # Unset linked economy building from building list, if necessary
             ## TODO - Ensure that when the building is already generated, and when cities are saved / loaded, that the buildings open up for future use
@@ -560,16 +591,19 @@ class Agent(object):
     def create_sells_for_turn(self):
         ''' Beginning of the turn - produce items and create sells '''
         self.last_turn = []
+        self.pay_taxes(self.buy_economy)
 
         if self.gold < 0:
             self.bankrupt()
 
-        elif self.is_merchant:
-            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .5))
+        if self.is_merchant:
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .8))
 
         elif not self.activity_is_blocked:
             self.produce_sold_commodity()
-            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .5))
+            #quantity = min(self.population_number, int(self.sell_inventory[self.sold_commodity_name] * 1.0) )
+            quantity = self.sell_inventory[self.sold_commodity_name]
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=quantity)
 
     def create_bids_for_turn(self):
         ''' Second part of the turn - consume stuff, place bids, pay taxes '''
@@ -577,7 +611,6 @@ class Agent(object):
         if not self.activity_is_blocked:
             self.consume_food_and_break_commodities()
             self.evaluate_needs_and_place_bids()
-            self.pay_taxes(self.buy_economy)
 
         self.turns_alive += 1
 
@@ -618,7 +651,7 @@ class Agent(object):
             # For every other commodity, if it's not one we use in our input...
             elif (not self.reaction.is_finished_good) or (self.reaction.is_finished_good and commodity_name != self.reaction.input_commodity_name):
                 # Certain amount of an item breaks
-                amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance / 100, 1) * roll(1, 10))
+                amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance * .01, 1) * roll(0, 8))
                 self.buy_inventory[commodity_name] = \
                     max(self.buy_inventory[commodity_name] - amount_to_break, 0)
 
@@ -661,7 +694,8 @@ class Agent(object):
 
         # Or, if we're a merchant, bid on the items we trade
         elif self.is_merchant and self.sell_inventory[self.sold_commodity_name] < self.inventory_size:
-            self.place_bid(economy=self.buy_economy, token_to_bid=self.sold_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
+            quantity = min(self.get_available_inventory_space(inventory=self.input_product_inventory), self.get_available_inventory_space(inventory=self.sell_inventory))
+            self.place_bid(economy=self.buy_economy, token_to_bid=self.sold_commodity_name, quantity=quantity)
 
     #def handle_bidding(self):
         #if self.future_bids == {}:
@@ -744,8 +778,8 @@ class AuctionHouse:
 
         self.iterations = 0
 
-        self.supply = None
-        self.demand = None
+        self.supply = 0
+        self.demand = 0
 
     def update_historical_data(self, mean_price_last_round, num_bids, num_sells):
         # Updates the history for this auction
@@ -768,6 +802,11 @@ class AuctionHouse:
         for price in reversed(self.price_history):
             if price is not None:
                 return price
+
+    def get_recent_ds_ratio(self):
+        ''' Return the demand to supply ratio for recent turns '''
+        return sum(self.bid_history[-HIST_WINDOW_SIZE:]) / sum(self.sell_history[-HIST_WINDOW_SIZE:])
+
 
     def check_auction_health(self):
         ''' Find how many times this item was requested, but was not available to buy '''
@@ -819,6 +858,13 @@ class Economy:
 
         # Amount of gold paid in taxes each turn
         self.local_taxes = local_taxes
+        # Percentage of agent yields the government collects
+        self.commodity_tax_rates = defaultdict(int)
+
+        self.imported_commodity_tax_rates = defaultdict(int)
+
+        # The actual commoditied we've collected from agents
+        self.collected_taxes = defaultdict(int)
 
         # Counter to be appended to agent names
         self.agent_num = 1
@@ -854,19 +900,23 @@ class Economy:
             if commodity not in self.available_types[category]:
                 self.available_types[category].append(commodity)
                 self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
+                self.commodity_tax_rates[commodity] = DEFAULT_DOMESTIC_TAX_RATE
         else:
             self.available_types[category] = [commodity]
             self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
+            self.commodity_tax_rates[commodity] = DEFAULT_DOMESTIC_TAX_RATE
 
     def add_new_agent_to_economy(self):
         ''' Flip between adding the most profitable commodity, or the most demanded commodity '''
         if roll(0, 1):
             token = self.find_most_profitable_agent_token(restrict_based_on_available_resource_slots=1)
             self.add_agent_based_on_token( token )
+            # g.game.add_message('Adding a new {0} in {1} (based on profit)'.format(token, self.owner.name))
             # print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
         else:
             token = self.find_most_demanded_commodity(restrict_based_on_available_resource_slots=1)
             self.add_agent_based_on_token( token )
+            # g.game.add_message('Adding a new {0} in {1} (based on demand)'.format(token, self.owner.name))
             #print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
 
 
@@ -874,7 +924,7 @@ class Economy:
         name = '{0} merchant'.format(sold_commodity_name)
 
         # TODO - merchants will get default Reaction based on their traded item - should find a way around this
-        merchant = Agent(id_=self.agent_num, name=name, population_number=40, buy_economy=self, sell_economy=sell_economy, sold_commodity_name=sold_commodity_name,
+        merchant = Agent(id_=self.agent_num, name=name, population_number=20, buy_economy=self, sell_economy=sell_economy, sold_commodity_name=sold_commodity_name,
                          is_merchant=1, attached_to=attached_to)
 
         self.buy_merchants.append(merchant)
@@ -897,7 +947,7 @@ class Economy:
         #    self.add_good_producer(token)
 
         if token == 'food':
-            population_number = 200
+            population_number = 100
         elif token in [r.name for r in data.commodity_manager.resources]:
             population_number = 100
         else:
@@ -994,7 +1044,6 @@ class Economy:
 
         available_resource_slots = self.get_possible_resource_slots(restrict_based_on_available_resource_slots=restrict_based_on_available_resource_slots)
 
-
         ### Find the item in highest demand
         greatest_demand_ratio = 0
         # Switched this to string, so that it can display in the city screen
@@ -1007,7 +1056,7 @@ class Economy:
             is_resource = commodity in [r.name for r in data.commodity_manager.resources]
             if (restrict_based_on_available_resource_slots and is_resource and commodity in available_resource_slots) or \
                     (not is_resource) or (not restrict_based_on_available_resource_slots):
-                current_ratio = self.auctions[commodity].demand  / max(self.auctions[commodity].supply, 1) # no div/0
+                current_ratio = self.auctions[commodity].get_recent_ds_ratio()
                 if current_ratio > greatest_demand_ratio:
                     greatest_demand_ratio = current_ratio
                     best_commodity = commodity
