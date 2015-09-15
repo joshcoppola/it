@@ -81,6 +81,8 @@ class CommodityManager:
         self.all_commodities = []
         self.all_commodity_names = []
 
+        self.all_commodity_names_to_category = {}
+
         # These are dicts of category --> list of matching commodities
         self.commodity_type_to_actual_tokens = defaultdict(list)
         self.commodity_type_to_token_names = defaultdict(list)
@@ -102,6 +104,7 @@ class CommodityManager:
     def add_commodity(self, commodity):
         self.all_commodities.append(commodity)
         self.all_commodity_names.append(commodity.name)
+        self.all_commodity_names_to_category[commodity.name] = commodity.category
         self.commodity_type_to_actual_tokens[commodity.category].append(commodity)
         self.commodity_type_to_token_names[commodity.category].append(commodity.name)
         self.commodity_name_to_actual_tokens[commodity.name] = commodity
@@ -195,8 +198,8 @@ def import_data():
     with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
         AGENT_INFO = yaml.load(a)
 
-    CITY_RESOURCE_SLOTS = {'foods':10, 'cloths':6, 'clays':4, 'ores':6, 'woods':6}
-    CITY_INDUSTRY_SLOTS = {'tools':12, 'clothing':14, 'pottery':12, 'furniture':10, 'armor':2, 'weapons':2}
+    CITY_RESOURCE_SLOTS = {'foods':8, 'cloths':8, 'clays':6, 'ores':8, 'woods':6}
+    CITY_INDUSTRY_SLOTS = {'tools':12, 'clothing':10, 'pottery':10, 'furniture':14, 'armor':2, 'weapons':2}
 
     COMMODITY_TO_PRODUCER_NAMES = {'food': 'Food Farmer', 'flax': 'Flax farmer', 'clay': 'Clay Gatherer', 'wood': 'Woodcutter',
                                    'copper': 'Copper Miner', 'bronze': 'Bronze Miner', 'iron': 'Iron Miner',
