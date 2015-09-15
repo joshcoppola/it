@@ -4,14 +4,14 @@ copper:
     resource_class: strategic
     break_chance: 225
     harvest:
-        number_output: 4
+        number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         tools:
             number_input: 1
-            number_output: 10
+            number_output: 6
             commodities_consumed:
                 woods: 1
             commodities_required:
@@ -44,14 +44,14 @@ bronze:
     resource_class: strategic
     break_chance: 150
     harvest:
-        number_output: 4
+        number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         tools:
             number_input: 1
-            number_output: 10
+            number_output: 6
             commodities_consumed:
                 woods: 1
             commodities_required:
@@ -84,7 +84,7 @@ iron:
     resource_class: strategic
     break_chance: 75
     harvest:
-        number_output: 4
+        number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
@@ -122,15 +122,15 @@ iron:
 clay:
     category: clays
     resource_class: strategic
-    break_chance: 150
+    break_chance: 250
     harvest:
-        number_output: 4
+        number_output: 10
         commodities_consumed:
         commodities_required:
     reactions:
         pottery:
             number_input: 1
-            number_output: 10
+            number_output: 8
             commodities_consumed:
             commodities_required:
     app_amount: 2000
@@ -173,9 +173,9 @@ clay:
 wood:
     category: woods
     resource_class: strategic
-    break_chance: 150
+    break_chance: 160
     harvest:
-        number_output: 4
+        number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
@@ -203,9 +203,9 @@ wood:
 flax:
     category: cloths
     resource_class: strategic
-    break_chance: 150
+    break_chance: 300
     harvest:
-        number_output: 4
+        number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
@@ -235,7 +235,7 @@ food:
     resource_class: strategic
     break_chance: 1
     harvest:
-        number_output: 2
+        number_output: 4
         commodities_consumed:
         commodities_required:
             tools: 1
