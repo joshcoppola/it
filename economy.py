@@ -9,6 +9,7 @@ from collections import defaultdict
 
 from it import Profession
 import data_importer as data
+from helpers import weighted_dict_choice
 
 import config as g
 
@@ -217,10 +218,10 @@ class Agent(object):
                 self.perceived_values[self.sell_economy][token_of_commodity] = PriceBelief(START_VAL, START_UNCERT)
 
 
-        self.sell_inventory[self.sold_commodity_name] = 2 * self.population_number
+        self.sell_inventory[self.sold_commodity_name] = self.population_number * roll(0, 3)
 
         if self.reaction.is_finished_good and not self.is_merchant:
-            self.input_product_inventory[self.reaction.input_commodity_name] += self.population_number * roll(2, 5)
+            self.input_product_inventory[self.reaction.input_commodity_name] += self.population_number * roll(1, 3)
 
         if not self.is_merchant:
             for commodity_category in self.reaction.commodities_consumed:
@@ -356,30 +357,32 @@ class Agent(object):
         elif len(commodities_with_supply) != 1:
             # Calculate the gold per population and the commodity: price dict
             gold_per_population = self.gold / self.population_number
-            prices = defaultdict(int)
             # If there are none of the commodity available, agents will preserve the same bidding behavior -
             # but we must first open up the commodities list to all commodities of that type
             valid_commodities = commodities_with_supply if commodities_with_supply else self.buy_economy.available_types[type_of_commodity]
-            for commodity in valid_commodities:
-                prices[commodity] = self.buy_economy.auctions[commodity].get_last_valid_price()
+            prices = {commodity: self.buy_economy.auctions[commodity].get_last_valid_price() for commodity in valid_commodities}
 
-            # Buy the cheapest stuff if we're poor
-            if gold_per_population < self.buy_economy.cost_of_living * BUY_LEAST_EXPENSIVE_COMMODITY_MODIFIER:
-                token_to_bid = min(prices, key=prices.get)
+            cheapest_commodity = min(prices, key=prices.get)
+            # Buy the cheapest stuff if we're poor  -- but only if it's plentiful (supply / demand > 1)
+            if gold_per_population < self.buy_economy.cost_of_living * BUY_LEAST_EXPENSIVE_COMMODITY_MODIFIER and \
+                    self.buy_economy.auctions[cheapest_commodity].supply / max(1, self.buy_economy.auctions[cheapest_commodity].demand) >= 1:
+                        token_to_bid = cheapest_commodity
 
             # Buy the most expensive stuff if we're rich
-            elif gold_per_population > self.buy_economy.cost_of_living * BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER:
-                token_to_bid = max(prices, key=prices.get)
+            #elif gold_per_population > self.buy_economy.cost_of_living * BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER:
+            #    token_to_bid = max(prices, key=prices.get)
                 #print self.name, 'bidding max on', token_to_bid, ', gold =', gold_per_population, '; modifier =', self.buy_economy.cost_of_living * BUY_MOST_EXPENSIVE_COMMODITY_MODIFIER
 
-            # If we're in the middle, pick a random commodity
+            # If we're in the middle, pick a random commodity weighted by its supply
             else:
-                token_to_bid = random.choice(valid_commodities)
+                choices = {c: self.buy_economy.auctions[c].supply for c in valid_commodities}
+                token_to_bid = weighted_dict_choice(choices)
+                #token_to_bid = random.choice(valid_commodities)
 
 
         self.place_bid(economy=economy, token_to_bid=token_to_bid, quantity=quantity)
 
-    def place_bid(self, economy, token_to_bid, quantity=None):
+    def place_bid(self, economy, token_to_bid, quantity, minimum=0):
         ''' Place a bid in the economy '''
         est_price = self.perceived_values[economy][token_to_bid].center
         uncertainty = self.perceived_values[economy][token_to_bid].uncertainty
@@ -390,7 +393,8 @@ class Agent(object):
         # This means a lower price than the historical average is likely to make us want to bid on more items
         if token_to_bid != 'food':
             favorability = economy.auctions[token_to_bid].mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) / 2)
-            quantity = int(round(quantity * favorability))
+            # If a minimum has been set, never bid less quantity than that minimum
+            quantity = max(minimum, int(round(quantity * favorability)) )
 
         #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         if quantity > 0:
@@ -651,7 +655,7 @@ class Agent(object):
             # For every other commodity, if it's not one we use in our input...
             elif (not self.reaction.is_finished_good) or (self.reaction.is_finished_good and commodity_name != self.reaction.input_commodity_name):
                 # Certain amount of an item breaks
-                amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance * .01, 1) * roll(0, 8))
+                amount_to_break =  int( max(data.commodity_manager.get_actual_commodity_from_name(commodity_name).break_chance * .01, 1) * roll(1, 10))
                 self.buy_inventory[commodity_name] = \
                     max(self.buy_inventory[commodity_name] - amount_to_break, 0)
 
@@ -690,7 +694,17 @@ class Agent(object):
 
             # If there is an input to the reaction we generate, bid on it
             if self.reaction.is_finished_good:
-                self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=self.get_available_inventory_space(inventory=self.input_product_inventory))
+                if normalized_gold < self.buy_economy.cost_of_living * 1000:
+                    # At minimum, try to maintain just enough so we can perform the max reactions
+                    quantity_to_bid = self.population_number - self.input_product_inventory[self.reaction.input_commodity_name]
+                else:
+                    # Otherwise, we're feeling bold enough to bid a bigger amount
+                    quantity_to_bid = self.get_available_inventory_space(inventory=self.input_product_inventory)
+
+                # If we have acheived a base quantity to bid, execute it
+                if quantity_to_bid:
+                    self.place_bid(economy=self.buy_economy, token_to_bid=self.reaction.input_commodity_name, quantity=quantity_to_bid, minimum=quantity_to_bid)
+
 
         # Or, if we're a merchant, bid on the items we trade
         elif self.is_merchant and self.sell_inventory[self.sold_commodity_name] < self.inventory_size:
