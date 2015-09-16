@@ -2,7 +2,7 @@
 copper:
     category: ores
     resource_class: strategic
-    break_chance: 225
+    break_chance: 300
     harvest:
         number_output: 6
         commodities_consumed:
@@ -42,7 +42,7 @@ copper:
 bronze:
     category: ores
     resource_class: strategic
-    break_chance: 150
+    break_chance: 200
     harvest:
         number_output: 6
         commodities_consumed:
@@ -82,7 +82,7 @@ bronze:
 iron:
     category: ores
     resource_class: strategic
-    break_chance: 75
+    break_chance: 100
     harvest:
         number_output: 6
         commodities_consumed:
@@ -122,15 +122,15 @@ iron:
 clay:
     category: clays
     resource_class: strategic
-    break_chance: 250
+    break_chance: 300
     harvest:
-        number_output: 10
+        number_output: 5
         commodities_consumed:
         commodities_required:
     reactions:
         pottery:
             number_input: 1
-            number_output: 8
+            number_output: 5
             commodities_consumed:
             commodities_required:
     app_amount: 2000
@@ -173,16 +173,16 @@ clay:
 wood:
     category: woods
     resource_class: strategic
-    break_chance: 160
+    break_chance: 215
     harvest:
-        number_output: 6
+        number_output: 4
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         furniture:
             number_input: 1
-            number_output: 5
+            number_output: 4
             commodities_consumed:
             commodities_required:
                 tools: 1
@@ -203,19 +203,20 @@ wood:
 flax:
     category: cloths
     resource_class: strategic
-    break_chance: 300
+    break_chance: 350
     harvest:
-        number_output: 6
+        number_output: 3
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         clothing:
             number_input: 1
-            number_output: 5
+            number_output: 4
             commodities_consumed:
             commodities_required:
                 tools: 1
+                woods: 1
     app_amount: 2000
     app_chances:
         mountain: 0
@@ -235,10 +236,11 @@ food:
     resource_class: strategic
     break_chance: 1
     harvest:
-        number_output: 4
+        number_output: 3
         commodities_consumed:
         commodities_required:
             tools: 1
+            woods: 1
     reactions: {}
     
     app_amount: 2000
