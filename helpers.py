@@ -283,6 +283,17 @@ def weighted_choice(choices):
     assert False, "Weighted choice: shouldn't get here"
 
 
+def weighted_dict_choice(d):
+    ''' http://stackoverflow.com/questions/2570690/python-algorithm-to-randomly-select-a-key-based-on-proportionality-weight '''
+    # Takes a dict of choice:weight pairs as input
+    r = random.uniform(0, sum(d.itervalues()))
+    s = 0.0
+    for k, w in d.iteritems():
+        s += w
+        if r < s: return k
+    return k
+
+
 def floodfill(fmap, x, y, do_fill, do_fill_args, is_border, max_tiles=-1):
     ''' Adapted from 1st comment http://stackoverflow.com/questions/11746766/flood-fill-algorithm-python '''
     to_fill = set([(x, y)])
