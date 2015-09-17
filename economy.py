@@ -425,8 +425,8 @@ class Agent(object):
 
         # If the last price of the item is lower than the mean price, we may be inclined to offer less for sale
         favorability = ((self.perceived_values[economy][sell_commodity].center + economy.auctions[sell_commodity].last_price) / 2) / economy.auctions[sell_commodity].mean_price
-        # However, we can never offer more than the original amount
-        quantity = min(int(round(quantity * favorability)), quantity)
+        # However, we can never offer more than what we have in inventory
+        quantity = min(int(round(quantity * favorability)), self.sell_inventory[sell_commodity])
 
         #print self.name, 'selling', quantity_to_sell, sell_commodity
         if quantity > 0:
