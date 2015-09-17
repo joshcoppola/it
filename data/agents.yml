@@ -44,7 +44,7 @@ gatherers:
         consumed: []
         essential: [tools]
         preferred: [clothing, furniture, pottery]
-        
+
 # Good producers
 producers:
     copper tools: 
@@ -137,6 +137,14 @@ producers:
         essential: [tools]
         preferred: [furniture, pottery]
         sold_object_tags: [clothing]
+    stone cons materials:
+        name: Flax Clothier
+        finished_good: stone cons materials
+        consumed: []
+        essential: [tools]
+        preferred: [furniture, pottery]
+        sold_object_tags: []
+
 
 merchants:
     merchant: 
