@@ -52,25 +52,28 @@ N_DIF_THRESH = 2.5 #Threshhold at which adjustment of P_DIF_ADJ is subtracted fr
 START_VAL = 40 # Arbitrary value that sets the starting price of good (in gold)
 START_UNCERT = 10 # Arbitrary uncertainty value (agent believes price is somewhere between (mean-this, mean+this)
 
-########################### New stuff ###########################
 
 # Used for calculating cost of living - how heavily to weight each type of commodity
 FOOD_WEIGHT_PERC = 1
 FURNITURE_WEIGHT_PERC = .2
 CLOTHING_WEIGHT_PERC = .3
-TOOLS_WEIGHT_PERC = .25
+TOOLS_WEIGHT_PERC = .5
 
 # Used for determining at what ratio of agent.gold / economy.cost_of_living an agent will bid for certain items
+# 1st number is the threshold (how many times above cost of living we need to be before we bid on it),
+# and 2nd number is the ratio of # of goods / our population that we aim for
 COMMODITY_BID_THRESHHOLDS = {
     'foods': (0, 2),
-    'clothing': (1, 1),
-    'pottery': (1.5, .5),
-    'furniture': (2, 1)
+    'clothing': (10, 1),
+    'pottery': (25, .5),
+    'furniture': (30, 1),
+    'cons materials': (45, 1)
 }
 
 
 plot_colors = {'food':(.3, .8, .3), 'flax':(1, .5, 1), 'clay':(.25, 0, .5), 'wood':(.2, .2, .8),
                'flax clothing':(1, .2, 1), 'clay pottery':(.3, .1, .6), 'wood furniture':(.1, .1, 1),
+               'stone':(.5, .5, .5), 'stone cons materials':(.5, .5, .5),
 
                'copper':(.9, .5, .1), 'bronze':(0, .5, .5), 'iron':(.3, .3, .3),
                'copper tools':(.7, .3, 0), 'bronze tools':(.1, .6, .6), 'iron tools':(.1, .1, .1),
@@ -316,18 +319,21 @@ class Agent(object):
         self.merchant_travel_inventory[self.sold_commodity_name] -= amount_to_unload
         self.sell_inventory[self.sold_commodity_name] += amount_to_unload
 
-    def pay_taxes(self, economy):
+    def pay_taxes(self):
         ''' Pay taxes. If the economy has an owner, pay the taxes to that treasury '''
-        self.adjust_gold( -int(economy.local_taxes * self.population_number) )
+        self.adjust_gold( -int(self.buy_economy.local_taxes * self.population_number) )
 
-        if not self.is_merchant:
-            tax_amount = int(self.sell_inventory[self.sold_commodity_name] * economy.commodity_tax_rates[self.sold_commodity_name])
-            if tax_amount:
-                self.sell_inventory[self.sold_commodity_name] -= tax_amount
-                economy.collected_taxes[self.sold_commodity_name] += tax_amount
         # economy owner - should be the city
-        if economy.owner:
-            economy.owner.treasury += economy.local_taxes
+        if self.buy_economy.owner:
+            self.buy_economy.owner.treasury += self.buy_economy.local_taxes
+
+    def pay_production_taxes(self, commodity_name, amount_to_be_taxed):
+        ''' Each agent also gets taxed based on the goods they produce '''
+        tax_amount = int(amount_to_be_taxed * self.buy_economy.commodity_tax_rates[commodity_name])
+        self.buy_economy.collected_taxes[self.sold_commodity_name] += tax_amount
+
+        # Return how much of the item is left after taxes
+        return amount_to_be_taxed - tax_amount
 
     def get_available_inventory_space(self, inventory):
         ''' Return how much space is available in a given inventory '''
@@ -503,8 +509,12 @@ class Agent(object):
             for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
                 self.remove_commodities_of_type(type_of_commodity=commodity_type, inventory=self.buy_inventory, amount_to_remove=available_reaction_amount * amount)
 
+            # Tax the production
+            pre_tax_amount = self.reaction.output_amount * available_reaction_amount
+            after_tax_amount = self.pay_production_taxes(commodity_name=self.reaction.output_commodity_name, amount_to_be_taxed=pre_tax_amount)
+
             # Add to sell inventory
-            self.sell_inventory[self.reaction.output_commodity_name] += self.reaction.output_amount * available_reaction_amount
+            self.sell_inventory[self.reaction.output_commodity_name] += after_tax_amount
 
         ## If we cannot officially run the reaction, still produce a little bit, simulating working in poor conditions with broken tools, etc
         else:
@@ -595,18 +605,18 @@ class Agent(object):
     def create_sells_for_turn(self):
         ''' Beginning of the turn - produce items and create sells '''
         self.last_turn = []
-        self.pay_taxes(self.buy_economy)
+        self.pay_taxes()
 
         if self.gold < 0:
             self.bankrupt()
 
         if self.is_merchant:
-            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .8))
+            self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .75))
 
         elif not self.activity_is_blocked:
             self.produce_sold_commodity()
             #quantity = min(self.population_number, int(self.sell_inventory[self.sold_commodity_name] * 1.0) )
-            quantity = self.sell_inventory[self.sold_commodity_name]
+            quantity = int(self.sell_inventory[self.sold_commodity_name] * .75)
             self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=quantity)
 
     def create_bids_for_turn(self):
