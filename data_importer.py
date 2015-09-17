@@ -198,11 +198,12 @@ def import_data():
     with open(os.path.join(YAML_DIRECTORY, 'agents.yml')) as a:
         AGENT_INFO = yaml.load(a)
 
-    CITY_RESOURCE_SLOTS = {'foods':8, 'cloths':8, 'clays':6, 'ores':8, 'woods':6}
-    CITY_INDUSTRY_SLOTS = {'tools':12, 'clothing':10, 'pottery':10, 'furniture':14, 'armor':2, 'weapons':2}
+    CITY_RESOURCE_SLOTS = {'foods':8, 'cloths':8, 'clays':6, 'ores':8, 'woods':6, 'stones':6}
+    CITY_INDUSTRY_SLOTS = {'tools':12, 'clothing':10, 'pottery':10, 'furniture':14, 'cons materials':10, 'armor':2, 'weapons':2}
 
     COMMODITY_TO_PRODUCER_NAMES = {'food': 'Food Farmer', 'flax': 'Flax farmer', 'clay': 'Clay Gatherer', 'wood': 'Woodcutter',
                                    'copper': 'Copper Miner', 'bronze': 'Bronze Miner', 'iron': 'Iron Miner',
+                                   'stone':'Quarryman', 'stone cons materials': 'Mason',
                                    'copper tools': 'Coppersmith', 'bronze tools': 'Bronzesmith', 'iron tools': 'Ironsmith',
                                    'flax clothing': 'Clothier', 'clay pottery': 'Potter', 'wood furniture': 'Carpenter'}
 
