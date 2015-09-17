@@ -200,6 +200,36 @@ wood:
         semi-arid desert: 0
         arid desert: 0
         river: 0
+stone:
+    category: stones
+    resource_class: strategic
+    break_chance: 75
+    harvest:
+        number_output: 2
+        commodities_consumed:
+        commodities_required:
+            tools: 1
+    reactions:
+        cons materials:
+            number_input: 1
+            number_output: 2
+            commodities_consumed:
+            commodities_required:
+                tools: 1
+    app_amount: 2000
+    app_chances:
+        mountain: 0
+        tundra: 0
+        taiga: 10
+        temperate forest: 10
+        temperate steppe: 10
+        rain forest: 10
+        tree savanna: 10
+        grass savanna: 10
+        dry steppe: 10
+        semi-arid desert: 10
+        arid desert: 10
+        river: 0
 flax:
     category: cloths
     resource_class: strategic
