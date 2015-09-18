@@ -850,6 +850,7 @@ def show_civs(world):
                     # Iteration in economy
                     # libtcod.console_print(0, 108, y, str(auction.iterations))
                     libtcod.console_print(0, 108, y, str(city.econ.collected_taxes[commodity]) )
+                    libtcod.console_print(0, 114, y, '+{0}'.format(city.econ.collected_taxes_history[commodity][-1]) )
                     y += 1
                 # y += 1
 
