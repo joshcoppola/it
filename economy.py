@@ -899,7 +899,9 @@ class Economy:
         self.imported_commodity_tax_rates = defaultdict(int)
 
         # The actual commoditied we've collected from agents
-        self.collected_taxes = defaultdict(int)
+        self.collected_taxes = {}
+        # A running history of the amounts of taxes collected
+        self.collected_taxes_history = {}
 
         # Counter to be appended to agent names
         self.agent_num = 1
@@ -936,10 +938,14 @@ class Economy:
                 self.available_types[category].append(commodity)
                 self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
                 self.commodity_tax_rates[commodity] = DEFAULT_DOMESTIC_TAX_RATE
+                self.collected_taxes[commodity] = 0
+                self.collected_taxes_history[commodity] = [0]
         else:
             self.available_types[category] = [commodity]
             self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
             self.commodity_tax_rates[commodity] = DEFAULT_DOMESTIC_TAX_RATE
+            self.collected_taxes[commodity] = 0
+            self.collected_taxes_history[commodity] = [0]
 
     def add_new_agent_to_economy(self):
         ''' Flip between adding the most profitable commodity, or the most demanded commodity '''
@@ -1115,12 +1121,20 @@ class Economy:
 
     def run_simulation(self):
         ''' Run a simulation '''
+
+        # Start off by making a tmp variable holding all the commoditiy amounts we have created from taxes
+        collected_taxes_tmp = {c: self.collected_taxes[c] for c in self.collected_taxes}
+
         # First, each agent produces items and puts them for sale
         for agent in self.all_agents[:] + self.sell_merchants[:]:
             agent.create_sells_for_turn()
         # Next, agents place bids based on what's available
         for agent in self.all_agents[:] + self.buy_merchants[:]:
             agent.create_bids_for_turn()
+
+        # Append the difference in taxed commodities (which occured this turn) to the history
+        for commodity_name, collected_taxes_total in self.collected_taxes.iteritems():
+            self.collected_taxes_history[commodity_name].append(collected_taxes_total - collected_taxes_tmp[commodity_name])
 
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
