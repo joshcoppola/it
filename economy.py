@@ -127,7 +127,7 @@ def economy_test_run():
 
 
 def check_strategic_resources(nearby_resources):
-    # Checks a set of resources to see if there's enough types of strategic resources
+    ''' Checks a set of resources to see if there's enough types of strategic resources '''
     unavailable_types = []
     for resource_type, resource_token_list in data.commodity_manager.strategic_types.iteritems():
         has_token = False
@@ -140,6 +140,7 @@ def check_strategic_resources(nearby_resources):
     return unavailable_types
 
 def list_goods_from_strategic(strategic_resources):
+    ''' Returns goods that can be made, given a set of resources '''
     goods_we_can_make = []
 
     goods_by_resource_token = data.commodity_manager.get_goods_by_resource_token()
@@ -180,22 +181,23 @@ class Agent(object):
         self.turns_alive = 0
         self.buys = 0
         self.sells = 0
+        self.last_turn = []
 
         self.gold = 0
         self.adjust_gold(GOOD_PRODUCER_STARTING_GOLD)
 
+        ### Inventory info ###
         self.buy_inventory = defaultdict(int)
         self.input_product_inventory = defaultdict(int)
         self.sell_inventory = defaultdict(int)
 
         self.merchant_travel_inventory = defaultdict(int)
-
         # how much stuff we can hold in each of our inventories - merchants get a slight boost
         self.inventory_size = int(self.population_number * INVENTORY_SIZE * MERCHANT_INVENTORY_SIZE_BOOST) if self.is_merchant else self.population_number * INVENTORY_SIZE
 
-        self.last_turn = []
+        self.setup_initial_inventories()
 
-
+        # Flag which tracks whether or not we are available to act
         self.activity_is_blocked = 0
 
         self.current_location = buy_economy
@@ -206,21 +208,39 @@ class Agent(object):
         self.cycle_length = 4
 
 
-        ## ============ TODO - clean up ++++++++++++ ##
         self.perceived_values = {}
+        self.setup_initial_perceived_item_values()
 
-        self.perceived_values[self.buy_economy] = {sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
+        self.setup_initial_inventories()
+
+
+        # Building up a personalized list of commodity bid threshholds, so we don't waste time checking
+        # valid categories to bid on later on
+        self.personalized_commodity_bid_threshholds = OrderedDict()
+        for commodity_category, threshhold_info in COMMODITY_BID_THRESHHOLDS.iteritems():
+            # Don't worry about categories for which we produce a good - we're assumed to have those commodities no matter what
+            if commodity_category != self.sold_commodity_category:
+                self.personalized_commodity_bid_threshholds[commodity_category] = threshhold_info
+
+
+        self.future_bids = {}
+        self.future_sells = {}
+
+
+    def setup_initial_perceived_item_values(self):
+        ''' Setting up the initial values for perceived items, when this agent is created '''
+        self.perceived_values[self.buy_economy] = {self.sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
 
         for token_of_commodity in data.commodity_manager.all_commodity_names:
             self.perceived_values[self.buy_economy][token_of_commodity]  = PriceBelief(START_VAL, START_UNCERT)
 
         if self.is_merchant:
-            self.perceived_values[self.sell_economy] = {sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
+            self.perceived_values[self.sell_economy] = {self.sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
 
             for token_of_commodity in data.commodity_manager.all_commodity_names:
                 self.perceived_values[self.sell_economy][token_of_commodity] = PriceBelief(START_VAL, START_UNCERT)
 
-
+    def setup_initial_inventories(self):
         self.sell_inventory[self.sold_commodity_name] = self.population_number * roll(0, 3)
 
         if self.reaction.is_finished_good and not self.is_merchant:
@@ -240,18 +260,6 @@ class Agent(object):
         if self.sold_commodity_category == 'tools':
             self.buy_inventory['wood'] += self.population_number * roll(1, 5)
 
-
-        # Building up a personalized list of commodity bid threshholds, so we don't waste time checking
-        # valid categories to bid on later on
-        self.personalized_commodity_bid_threshholds = OrderedDict()
-        for commodity_category, threshhold_info in COMMODITY_BID_THRESHHOLDS.iteritems():
-            # Don't worry about categories for which we produce a good - we're assumed to have those commodities no matter what
-            if commodity_category != self.sold_commodity_category:
-                self.personalized_commodity_bid_threshholds[commodity_category] = threshhold_info
-
-
-        self.future_bids = {}
-        self.future_sells = {}
 
     def update_holder(self, figure):
         '''If the original holder we're attached to dies, we can be passed on to others'''
@@ -300,7 +308,6 @@ class Agent(object):
                 amount = self.input_product_inventory[self.sold_commodity_name]
                 self.input_product_inventory[self.sold_commodity_name] -= amount
                 self.merchant_travel_inventory[self.sold_commodity_name] += amount
-                # print self.name, 'departing with', amount, self.sold_commodity_name
 
             elif self.current_location == self.sell_economy:
                 destination = self.buy_economy.owner
@@ -407,7 +414,7 @@ class Agent(object):
         # Favorability is the ratio of how well it has done in the past HIST_WINDOW_SIZE rounds to what we believe the current price is
         # This means a lower price than the historical average is likely to make us want to bid on more items
         if token_to_bid != 'food':
-            favorability = economy.auctions[token_to_bid].mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) * .5)
+            favorability = economy.auctions[token_to_bid].recent_mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) * .5)
             # If a minimum has been set, never bid less quantity than that minimum
             quantity = max(minimum, int(round(quantity * favorability)) )
 
@@ -432,13 +439,11 @@ class Agent(object):
         sell_price = roll(est_price - uncertainty, est_price + uncertainty)
 
         # If the last price of the item is lower than the mean price, we may be inclined to offer less for sale
-        favorability = ((self.perceived_values[economy][sell_commodity].center + economy.auctions[sell_commodity].last_price) * .5) / economy.auctions[sell_commodity].mean_price
+        favorability = ((self.perceived_values[economy][sell_commodity].center + economy.auctions[sell_commodity].last_price) * .5) / economy.auctions[sell_commodity].recent_mean_price
         # However, we can never offer more than what we have in inventory
         quantity = min(int(round(quantity * favorability)), self.sell_inventory[sell_commodity])
 
-        #print self.name, 'selling', quantity_to_sell, sell_commodity
         if quantity > 0:
-            #print self.name, 'selling', quantity_to_sell, sell_commodity, 'for', sell_price, 'at', self.current_location.owner.name
             self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity, sell_commodity, sell_price))
             economy.auctions[sell_commodity].sells.append( Offer(owner=self, commodity=sell_commodity, price=sell_price, quantity=quantity) )
 
@@ -463,7 +468,7 @@ class Agent(object):
 
     def adjust_uncertainty(self, economy, type_of_commodity):
         ''' Ensures that the uncertainty value is never adjusted to be too wide '''
-        uncertainty_limit = int(max(economy.auctions[type_of_commodity].mean_price * MAX_UNCERTAINTY_PERCENT, 1))
+        uncertainty_limit = int(max(economy.auctions[type_of_commodity].recent_mean_price * MAX_UNCERTAINTY_PERCENT, 1))
         self.perceived_values[economy][type_of_commodity].uncertainty += \
             min( int(self.perceived_values[economy][type_of_commodity].uncertainty * REJECTED_UNCERTAINTY_PERCENT), uncertainty_limit)
 
@@ -536,7 +541,7 @@ class Agent(object):
     #     for type_of_commodity in self.consumed + self.essential + self.preferred:
     #         for token_of_commodity in data.commodity_manager.get_commodities_of_type(type_of_commodity):
     #             if self.buy_inventory[token_of_commodity]:
-    #                 production_cost += int(round(self.buy_economy.auctions[token_of_commodity].mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_commodity).break_chance/1000)))
+    #                 production_cost += int(round(self.buy_economy.auctions[token_of_commodity].recent_mean_price * (data.commodity_manager.get_actual_commodity_from_name(token_of_commodity).break_chance/1000)))
     #                 break
     #     # Take into account the taxes we pay
     #     production_cost += self.buy_economy.local_taxes
@@ -571,7 +576,6 @@ class Agent(object):
 
         # Main action - remove agent from economy, etc
         elif len(all_agents_of_this_type_in_this_economy) > 1:
-            # print 'Removing {0} in {1}'.format(self.name, self.economy.owner.name)  ## DEBUG
             g.game.add_message('{0} in {1} has gone bankrupt'.format(self.name, self.buy_economy.owner.name))
             self.buy_economy.all_agents.remove(self)
             if self.resource_gathering_regions:
@@ -809,7 +813,7 @@ class AuctionHouse:
         self.sell_history= [0]
 
         self.last_price = START_VAL
-        self.mean_price = START_VAL
+        self.recent_mean_price = START_VAL
 
         self.iterations = 0
 
@@ -826,11 +830,10 @@ class AuctionHouse:
         if mean_price_last_round is not None:
             self.last_price = mean_price_last_round
 
-    def update_mean_price(self):
-        # update the mean price for this commodity by averaging over the last HIST_WINDOW_SIZE items
+        # Update the mean price for this commodity by averaging over the last HIST_WINDOW_SIZE items
         recent_prices = filter(lambda price: price is not None, self.price_history[-HIST_WINDOW_SIZE:])
         if recent_prices:
-            self.mean_price = int(round(sum(recent_prices)/len(recent_prices)))
+            self.recent_mean_price = int(round(sum(recent_prices)/len(recent_prices)))
 
     def get_last_valid_price(self):
         # Naive way to get the last non-None price in our history
@@ -842,22 +845,6 @@ class AuctionHouse:
         ''' Return the demand to supply ratio for recent turns '''
         return sum(self.bid_history[-HIST_WINDOW_SIZE:]) / sum(self.sell_history[-HIST_WINDOW_SIZE:])
 
-
-    def check_auction_health(self):
-        ''' Find how many times this item was requested, but was not available to buy '''
-        # Get the most recent 10 entries of the auction
-        recent_bids = self.bid_history[-10:]
-        recent_bids.reverse()
-        recent_sells = self.sell_history[-10:]
-        recent_sells.reverse()
-
-        num_times_commodity_not_present = 0
-        for i, num_sells in enumerate(recent_sells):
-            if num_sells == 0 and recent_bids[i] > 0:
-                num_times_commodity_not_present += 1
-
-        #if num_times_commodity_not_present > 0:
-        #    print '{0}: {1} bid on in {2} out of 10 latest rounds, but was not available'.format(self.economy.owner.name, self.commodity, num_times_commodity_not_present)
 
 class Offer:
     # An offer that goes into the auction's "bids" or "sells".
@@ -919,11 +906,11 @@ class Economy:
 
     def calculate_cost_of_living(self):
         ''' Intended as a rough measure of the cost of living; used in agents' evaluations of how well they're doing '''
-        cost_of_food = min(self.auctions_by_category['foods'], key=lambda auction: auction.mean_price).mean_price
+        cost_of_food = min(self.auctions_by_category['foods'], key=lambda auction: auction.recent_mean_price).recent_mean_price
 
-        cost_of_furniture = min(self.auctions_by_category['furniture'], key=lambda auction: auction.mean_price).mean_price
-        cost_of_clothing = min(self.auctions_by_category['clothing'], key=lambda auction: auction.mean_price).mean_price
-        cost_of_tools = min(self.auctions_by_category['tools'], key=lambda auction: auction.mean_price).mean_price
+        cost_of_furniture = min(self.auctions_by_category['furniture'], key=lambda auction: auction.recent_mean_price).recent_mean_price
+        cost_of_clothing = min(self.auctions_by_category['clothing'], key=lambda auction: auction.recent_mean_price).recent_mean_price
+        cost_of_tools = min(self.auctions_by_category['tools'], key=lambda auction: auction.recent_mean_price).recent_mean_price
 
         # Perform the calculation
         self.cost_of_living = int( (cost_of_food * FOOD_WEIGHT_PERC) + (cost_of_furniture * FURNITURE_WEIGHT_PERC) +
@@ -953,12 +940,10 @@ class Economy:
             token = self.find_most_profitable_agent_token(restrict_based_on_available_resource_slots=1)
             self.add_agent_based_on_token( token )
             # g.game.add_message('Adding a new {0} in {1} (based on profit)'.format(token, self.owner.name))
-            # print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
         else:
             token = self.find_most_demanded_commodity(restrict_based_on_available_resource_slots=1)
             self.add_agent_based_on_token( token )
             # g.game.add_message('Adding a new {0} in {1} (based on demand)'.format(token, self.owner.name))
-            #print 'Adding {0} in {1}'.format(token, self.economy.owner.name)## DEBUG
 
 
     def add_merchant(self, sell_economy, sold_commodity_name, attached_to=None):
@@ -1009,7 +994,6 @@ class Economy:
             ## Assign the agent to a physical slot somewhere by the city
             resource = 'land' if token == 'food' else token
 
-            #print '----'
             for region in self.owner.territory:
                 ## Special case - land!
                 if resource == 'land' and region.has_open_slot('land'):
@@ -1021,7 +1005,6 @@ class Economy:
                     for tile_resource, amount in region.res.iteritems():
                         if resource == tile_resource and region.has_open_slot(resource):
                             region.add_resource_gatherer_to_region(resource_name=resource, agent=agent)
-                            #print '{0} sucessfully added to {1}'.format(resource, self.owner.name)
                             return
 
             print 'ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name)
@@ -1138,7 +1121,6 @@ class Economy:
 
         ## Run the auction
         for commodity, auction in self.auctions.iteritems():
-            #print commodity, len(auction.bids), len(auction.sells)
             auction.iterations += 1
             ## Sort the bids by price (highest to lowest) ##
             auction.bids = sorted(auction.bids, key=lambda attr: attr.price, reverse=True)
@@ -1158,10 +1140,6 @@ class Economy:
             while not len(auction.bids) == 0 and not len(auction.sells) == 0:
                 buyer = auction.bids[0]
                 seller = auction.sells[0]
-                ## Allow the buyer to make some radical readjustments the first few turns it's alive
-                #if buyer.price < seller.price and (buyer.owner.turns_alive < 10 or (commodity == 'food' and buyer.owner.turns_since_food > 2)):
-                #    buyer.price = int(round(seller.price * 1.5))
-                #    buyer.owner.eval_bid_rejected(self, commodity, int(round(seller.price * 1.5)))
 
                 ## If the price is still lower than the seller
                 if buyer.price < seller.price:
@@ -1193,8 +1171,6 @@ class Economy:
                         seller.owner.sells += quantity
                         seller.owner.last_turn.append('Sold {0} {1} to {2} at {3}'.format(quantity, commodity, buyer.owner.name, price))
 
-                        #print ' *** {0} bought {1} {2} from {3} for {4} ***'.format(buyer.owner.name, quantity, commodity, seller.owner.name, price)
-
                         # Add to running tally of prices this turn
                         commodity_sell_prices.append(price)
 
@@ -1202,44 +1178,31 @@ class Economy:
                 if seller.quantity == 0: del auction.sells[0]
                 if buyer.quantity == 0: del auction.bids[0]
 
-            # All bidders re-evaluate prices
-            # Added 12/13/14- only re-evaluate prices when some quantity was being offered
+            # All bidders re-evaluate prices, if some quantity was being offered
             if len(auction.bids) > 0:
                 if num_sells > 0:
                     for buyer in auction.bids:
                         buyer.owner.eval_bid_rejected(self, buyer.commodity)
                 self.auctions[commodity].bids = []
 
-            # All sellers re-evaluate prices
-            # Added 12/13/14- only re-evaluate prices when some quantity was being offered
+            # All sellers re-evaluate prices, if some quantity was being offered
             elif len(auction.sells) > 0:
                 if num_bids > 0:
                     for seller in auction.sells:
                         seller.owner.eval_sell_rejected(self, seller.commodity)
                 self.auctions[commodity].sells = []
 
-            ## Average prices
-            if commodity_sell_prices:
-                mean_price_last_round = int(round(sum(commodity_sell_prices)/len(commodity_sell_prices)))
-            else:
-                mean_price_last_round = None
-            #auction.update_historical_data(mean_price, num_bids, num_sells)
+            ## Average prices if there were some, else set as None (so position is maintained in historical averages)
+            mean_price_last_round = int(round(sum(commodity_sell_prices)/len(commodity_sell_prices))) if commodity_sell_prices else None
+            # Update historical data including
             auction.update_historical_data(mean_price_last_round, auction.demand, auction.supply)
-            # Track mean price for last N turns
-            auction.update_mean_price()
+
 
         ## Merchants evaluate whether or not to move on to the next city
         for merchant in self.buy_merchants + self.sell_merchants:
             if merchant.current_location == self:
                 merchant.increment_cycle()
-        ## Add some information to the city's food supply/demand
-        if self.owner:
-            del self.owner.food_supply[0]
-            del self.owner.food_demand[0]
-            self.owner.food_supply.append(self.auctions['food'].supply)
-            self.owner.food_demand.append(self.auctions['food'].demand)
 
-        #auction.check_auction_health()
         self.calculate_cost_of_living()
 
     def graph_results(self, solid, dot):
@@ -1259,9 +1222,6 @@ class Economy:
 
         # Split in half so graph is easier to read
         if len(dot) == 0:
-            #half_items = int(round(len(solid)/2))
-            #dot = solid[:-half_items]
-            #solid = solid[-half_items:]
             new_solid = []
             dot = []
             for item in solid:
@@ -1335,7 +1295,6 @@ class Economy:
 
 
 def main():
-    #setup_resources()
     economy_test_run()
 
 if __name__ == '__main__':
