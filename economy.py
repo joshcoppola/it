@@ -5,7 +5,7 @@ import cProfile
 import pstats
 import os
 import yaml
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from it import Profession
 import data_importer as data
@@ -62,13 +62,13 @@ TOOLS_WEIGHT_PERC = .5
 # Used for determining at what ratio of agent.gold / economy.cost_of_living an agent will bid for certain items
 # 1st number is the threshold (how many times above cost of living we need to be before we bid on it),
 # and 2nd number is the ratio of # of goods / our population that we aim for
-COMMODITY_BID_THRESHHOLDS = {
-    'foods': (0, 2),
-    'clothing': (10, 1),
-    'pottery': (25, .5),
-    'furniture': (30, 1),
-    'cons materials': (45, 1)
-}
+COMMODITY_BID_THRESHHOLDS = OrderedDict()
+COMMODITY_BID_THRESHHOLDS['foods'] = (0, 2)
+COMMODITY_BID_THRESHHOLDS['clothing'] = (10, 1)
+COMMODITY_BID_THRESHHOLDS['pottery'] = (25, .5)
+COMMODITY_BID_THRESHHOLDS['furniture'] = (30, 1)
+COMMODITY_BID_THRESHHOLDS['cons materials'] = (45, 1)
+
 
 
 plot_colors = {'food':(.3, .8, .3), 'flax':(1, .5, 1), 'clay':(.25, 0, .5), 'wood':(.2, .2, .8),
@@ -241,6 +241,15 @@ class Agent(object):
             self.buy_inventory['wood'] += self.population_number * roll(1, 5)
 
 
+        # Building up a personalized list of commodity bid threshholds, so we don't waste time checking
+        # valid categories to bid on later on
+        self.personalized_commodity_bid_threshholds = OrderedDict()
+        for commodity_category, threshhold_info in COMMODITY_BID_THRESHHOLDS.iteritems():
+            # Don't worry about categories for which we produce a good - we're assumed to have those commodities no matter what
+            if commodity_category != self.sold_commodity_category:
+                self.personalized_commodity_bid_threshholds[commodity_category] = threshhold_info
+
+
         self.future_bids = {}
         self.future_sells = {}
 
@@ -398,11 +407,10 @@ class Agent(object):
         # Favorability is the ratio of how well it has done in the past HIST_WINDOW_SIZE rounds to what we believe the current price is
         # This means a lower price than the historical average is likely to make us want to bid on more items
         if token_to_bid != 'food':
-            favorability = economy.auctions[token_to_bid].mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) / 2)
+            favorability = economy.auctions[token_to_bid].mean_price / ((self.perceived_values[economy][token_to_bid].center + economy.auctions[token_to_bid].last_price) * .5)
             # If a minimum has been set, never bid less quantity than that minimum
             quantity = max(minimum, int(round(quantity * favorability)) )
 
-        #print self.name, 'bidding on', quantity, token_to_bid, 'for', bid_price, 'at', self.current_location.owner.name
         if quantity > 0:
             self.last_turn.append('Bid on {0} {1} for {2}'.format(quantity, token_to_bid, bid_price))
             economy.auctions[token_to_bid].bids.append(Offer(owner=self, commodity=token_to_bid, price=bid_price, quantity=quantity))
@@ -424,7 +432,7 @@ class Agent(object):
         sell_price = roll(est_price - uncertainty, est_price + uncertainty)
 
         # If the last price of the item is lower than the mean price, we may be inclined to offer less for sale
-        favorability = ((self.perceived_values[economy][sell_commodity].center + economy.auctions[sell_commodity].last_price) / 2) / economy.auctions[sell_commodity].mean_price
+        favorability = ((self.perceived_values[economy][sell_commodity].center + economy.auctions[sell_commodity].last_price) * .5) / economy.auctions[sell_commodity].mean_price
         # However, we can never offer more than what we have in inventory
         quantity = min(int(round(quantity * favorability)), self.sell_inventory[sell_commodity])
 
@@ -434,10 +442,8 @@ class Agent(object):
             self.last_turn.append('Offered to sell {0} {1} for {2}'.format(quantity, sell_commodity, sell_price))
             economy.auctions[sell_commodity].sells.append( Offer(owner=self, commodity=sell_commodity, price=sell_price, quantity=quantity) )
 
-            #print '{0} offered to sell {1} {2} at {3}'.format(self.name, quantity_to_sell, self.sold_commodity_name, sell_price)
         else:
             self.last_turn.append('Tried to sell {0} but inventory was empty'.format(sell_commodity))
-            #print '{0} did not have any {1} to sell'.format(self.name, self.sold_commodity_name)
 
 
     def eval_trade_accepted(self, economy, type_of_commodity, price):
@@ -452,7 +458,7 @@ class Agent(object):
         elif price < our_mean * N_DIF_THRESH:
             # We never let it's worth drop under a certain % of tax money.
             self.perceived_values[economy][type_of_commodity].center = \
-                max(self.perceived_values[economy][type_of_commodity].center - N_DIF_ADJ, (self.buy_economy.local_taxes) + self.perceived_values[economy][type_of_commodity].uncertainty)
+                max(self.perceived_values[economy][type_of_commodity].center - N_DIF_ADJ, self.buy_economy.local_taxes + self.perceived_values[economy][type_of_commodity].uncertainty)
 
 
     def adjust_uncertainty(self, economy, type_of_commodity):
@@ -679,12 +685,17 @@ class Agent(object):
         # Our standard of living is a ratio of how much gold we have per person, to the cost of living in the economy
         our_standard_of_living = normalized_gold / self.buy_economy.cost_of_living
 
-        for commodity_category, (standard_of_living_threshhold, ideal_number_per_person) in COMMODITY_BID_THRESHHOLDS.iteritems():
-            amount_of_commodity_to_bid = int(self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
-            # We will consider bidding on commodities if they don't match the type of commodity we output, and if
-            # we have a high enough standard of living
-            if commodity_category != self.sold_commodity_category and our_standard_of_living > standard_of_living_threshhold and amount_of_commodity_to_bid > 0:
-                self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
+        for commodity_category, (standard_of_living_threshhold, ideal_number_per_person) in self.personalized_commodity_bid_threshholds.iteritems():
+            # Only bid on items which are above our standard of living ratio
+            if our_standard_of_living > standard_of_living_threshhold:
+                amount_of_commodity_to_bid = int(self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+                # We will consider bidding on commodities if they don't match the type of commodity we output, and if
+                # we have a high enough standard of living
+                if amount_of_commodity_to_bid > 0:
+                    self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
+            # If it is not above our standard of living ratio, break (since this OrderedDict is ordered by the threshhold)
+            else:
+                break
 
         # Non-merchants will check for commodities input and consumed by their reactions
         if not self.is_merchant:
@@ -1146,7 +1157,7 @@ class Economy:
                 else:
                     # Determine price/amount
                     quantity = min(buyer.quantity, seller.quantity)
-                    price = int(round((buyer.price + seller.price)/2))
+                    price = int(round((buyer.price + seller.price) *.5))
 
                     if quantity > 0:
                         # Adjust buyer/seller requested amounts
