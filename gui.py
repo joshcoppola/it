@@ -809,7 +809,7 @@ def show_civs(world):
                 y+= 1
 
                 # Display info about each printed commodity
-                for auction in sorted(auctions, key=lambda auct: auct.mean_price, reverse=True):
+                for auction in sorted(auctions, key=lambda auct: auct.recent_mean_price, reverse=True):
                     commodity = auction.commodity
                     # Mark whether it's imported / exported
                     if   commodity in city.get_all_imports():  libtcod.console_print(0, 60, y, chr(25))
@@ -817,13 +817,13 @@ def show_civs(world):
 
                     # Name of commodity / mean price
                     libtcod.console_print(0, 62, y, commodity)
-                    libtcod.console_print(0, 78, y, str(auction.mean_price))
+                    libtcod.console_print(0, 78, y, str(auction.recent_mean_price))
 
                     # Color trades - green means price last round was > than avg, red means < than avg
-                    if auction.mean_price <= auction.get_last_valid_price():
-                        color = libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, auction.mean_price / max(1, auction.get_last_valid_price()) ) #prevent division by 0
+                    if auction.recent_mean_price <= auction.get_last_valid_price():
+                        color = libtcod.color_lerp(libtcod.green, g.PANEL_FRONT, auction.recent_mean_price / max(1, auction.get_last_valid_price()) ) #prevent division by 0
                     else:
-                        color = libtcod.color_lerp(libtcod.red, g.PANEL_FRONT, auction.get_last_valid_price() / max(1, auction.mean_price) ) #prevent division by 0
+                        color = libtcod.color_lerp(libtcod.red, g.PANEL_FRONT, auction.get_last_valid_price() / max(1, auction.recent_mean_price) ) #prevent division by 0
                     libtcod.console_set_default_foreground(0, color)
                     libtcod.console_print(0, 84, y, str(auction.get_last_valid_price()))
                     ## /color trades

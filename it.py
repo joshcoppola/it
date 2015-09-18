@@ -2327,11 +2327,6 @@ class City(Site):
         self.former_agents = []
         self.treasury = 500
 
-        # For tracking how well food is being produced in the city
-        self.food_supply = [0, 0, 0, 0, 0]
-        self.food_demand = [0, 0, 0, 0, 0]
-        self.granary_supply = [0, 0, 0, 0, 0]
-
         # Start with radius 3, gets immediately expanded to 4
         self.territory = []
         self.old_territory = [] # formerly owned tiles added here
