@@ -1120,12 +1120,15 @@ class Economy:
             self.collected_taxes_history[commodity_name].append(collected_taxes_total - collected_taxes_tmp[commodity_name])
 
         ## Run the auction
+        # Bids / sells should be sorted by price to match the lowest seller with the highest buyer
+        # For performance reasons, the lists are sorted opposite as they should be, so that buyers / sellers can be popped
+        #  from the end of the list moving backwards (instead of at the front of the list moving forwards)
         for commodity, auction in self.auctions.iteritems():
             auction.iterations += 1
-            ## Sort the bids by price (highest to lowest) ##
-            auction.bids = sorted(auction.bids, key=lambda attr: attr.price, reverse=True)
-            ## Sort the sells by price (lowest to hghest) ##
-            auction.sells = sorted(auction.sells, key=lambda attr: attr.price)
+            ## Sort the bids by price (should be highest to lowest, but sorting opposite here as mentioned above) ##
+            auction.bids = sorted(auction.bids, key=lambda attr: attr.price)
+            ## Sort the sells by price (should be lowest to hghest, but sorting opposite here as mentioned above) ##
+            auction.sells = sorted(auction.sells, key=lambda attr: attr.price, reverse=True)
 
             commodity_sell_prices = []
 
@@ -1136,10 +1139,14 @@ class Economy:
                 auction.supply = sum(offer.quantity for offer in auction.sells)
                 auction.demand = sum(offer.quantity for offer in auction.bids)
 
+            if num_bids > 0:  buyer = auction.bids.pop()
+            if num_sells > 0: seller = auction.sells.pop()
+
             # Match bidders with sellers
             while not len(auction.bids) == 0 and not len(auction.sells) == 0:
-                buyer = auction.bids[0]
-                seller = auction.sells[0]
+                # Once transactions have occured, leaving traders without anymore desired quantity, pop out the next one
+                if buyer.quantity == 0:  buyer = auction.bids.pop()
+                if seller.quantity == 0: seller = auction.sells.pop()
 
                 ## If the price is still lower than the seller
                 if buyer.price < seller.price:
@@ -1149,7 +1156,7 @@ class Economy:
                 else:
                     # Determine price/amount
                     quantity = min(buyer.quantity, seller.quantity)
-                    price = int(round((buyer.price + seller.price) *.5))
+                    price = int((buyer.price + seller.price) *.5)
 
                     if quantity > 0:
                         # Adjust buyer/seller requested amounts
@@ -1173,10 +1180,6 @@ class Economy:
 
                         # Add to running tally of prices this turn
                         commodity_sell_prices.append(price)
-
-                # Now that a transaction has occurred, bump out the buyer or seller if either is satisfied
-                if seller.quantity == 0: del auction.sells[0]
-                if buyer.quantity == 0: del auction.bids[0]
 
             # All bidders re-evaluate prices, if some quantity was being offered
             if len(auction.bids) > 0:
