@@ -1,17 +1,9 @@
 from __future__ import division
+import random
+from random import randint as roll
 
-
-
-
-
-
-
-
-
-
-
-
-
+import libtcodpy as libtcod
+import config as g
 
 
 
@@ -179,7 +171,7 @@ class Building:
         g.M.make_door(x=door_coords[0], y=door_coords[1], floor_type='dirt')
         '''
         bx, by = building_center[0], building_center[1]
-        for i, row in enumerate(building_templates.buildings[self.template]):
+        for i, row in enumerate(BUILDINGS[self.template]):
             for j, tile in enumerate(row):
                 x, y = bx+j, by+i
                 self.physical_property.append((x, y))
@@ -195,10 +187,10 @@ class Building:
     def add_building_from_rect_lot(self, rect, building_color, floor, door_dir):
 
         w, h = rect.x2-rect.x1, rect.y2-rect.y1
-        if (w, h) in building_templates.buildings[self.type_]:
+        if (w, h) in BUILDINGS[self.type_]:
 
             bx, by = rect.x1, rect.y1
-            template = random.choice(building_templates.buildings['houses'][(w, h)])
+            template = random.choice(BUILDINGS['houses'][(w, h)])
             for i, row in enumerate(template):
                 for j, tile in enumerate(row):
                     x, y = bx+j, by+i
@@ -239,9 +231,6 @@ class Building:
 
 
 
-
-
-
 '''
 b - bedroom
 c - closet
@@ -255,9 +244,9 @@ p - pantry
 r = recreation
 '''
 
-buildings = {'house':{}, 'shop':{}}
+BUILDINGS = {'house':{}, 'shop':{}}
 
-buildings['TEST'] = [
+BUILDINGS['TEST'] = [
 '###############',
 '#      #      #',
 '#      #      #',
@@ -278,7 +267,7 @@ buildings['TEST'] = [
 '#################d###'
 ]
 
-buildings['temple1'] = [
+BUILDINGS['temple1'] = [
 '##################################################',
 '#             #                                  #',
 '#             #                                  #',
@@ -349,7 +338,7 @@ buildings['temple1'] = [
 
 
 
-buildings['house'][(6, 6)] = [
+BUILDINGS['house'][(6, 6)] = [
 [
 '#####.',
 '#   ##',
@@ -382,7 +371,7 @@ buildings['house'][(6, 6)] = [
 ]
 
 
-buildings['house'][(7, 7)] = [
+BUILDINGS['house'][(7, 7)] = [
 [
 '#######',
 '#  #  #',
@@ -418,7 +407,7 @@ buildings['house'][(7, 7)] = [
 ]
 
 
-buildings['house'][(8, 8)] = [
+BUILDINGS['house'][(8, 8)] = [
 [
 '########',
 '#   #  #',
@@ -457,7 +446,7 @@ buildings['house'][(8, 8)] = [
 ]
 
 
-buildings['house'][(12, 12)] = [
+BUILDINGS['house'][(12, 12)] = [
 [
 '############',
 '#     #    #',
