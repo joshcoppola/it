@@ -34,6 +34,8 @@ import data_importer as data
 
 
 
+random.seed(0)
+
 mouse = libtcod.Mouse()
 key = libtcod.Key()
 
@@ -1017,6 +1019,8 @@ class World(Map):
 
         ## Try to shade the map
         max_alpha = .9
+        hill_excluders = {'mountain', 'temperate forest', 'rain forest'}
+
         for y in xrange(2, self.height-2):
             for x in xrange(2, self.width-2):
                 if self.tiles[x][y].region != 'ocean' and self.tiles[x+1][y].region != 'ocean':
@@ -1034,19 +1038,18 @@ class World(Map):
                             self.tiles[x][y].char_color = libtcod.color_lerp(libtcod.darkest_sepia, self.tiles[x][y].char_color, alpha)
 
                     # Experimental badly placed code to add a "hill" character to hilly map spots
-                    if alpha == max_alpha and not(self.tiles[x][y].region in ('mountain', 'temperate forest', 'rain forest') ) \
-                                                 and not self.tiles[x][y].has_feature('river'):
+                    if alpha == max_alpha and not(self.tiles[x][y].region in hill_excluders) and not self.tiles[x][y].has_feature('river'):
 
                         self.tiles[x][y].char = chr(252)
-                        if self.tiles[x][y].region in ('semi-arid desert', 'arid desert', 'dry steppe'):
-                            self.tiles[x][y].char_color = self.tiles[x][y].color - libtcod.Color(12, 12, 12)
+                        # if self.tiles[x][y].region in ('semi-arid desert', 'arid desert', 'dry steppe'):
+                        self.tiles[x][y].char_color = self.tiles[x][y].color - libtcod.Color(20, 20, 20)
 
                 ################## OUT OF PLACE CAVE GEN CODE ###############
                 if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > g.MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
                     self.tiles[x][y].add_cave(world=self, name=None)
 
 
-        exclude_smooth = ['ocean']
+        exclude_smooth = {'ocean'}
         # Smooth the colors of the world
         for y in xrange(2, self.height - 2):
             for x in xrange(2, self.width - 2):
@@ -1059,10 +1062,10 @@ class World(Map):
                         smooth_coef = .1
 
                     #border_ocean = 0
-                    used_regions = ['ocean'] #Ensures color_lerp doesn't try to interpolate with almost all of the neighbors
+                    used_regions = {'ocean'} #Ensures color_lerp doesn't try to interpolate with almost all of the neighbors
                     for nx, ny in neighbors:
                         if self.tiles[nx][ny].region != self.tiles[x][y].region and self.tiles[nx][ny].region not in used_regions:
-                            used_regions.append(self.tiles[ny][ny].region)
+                            used_regions.add(self.tiles[ny][ny].region)
                             self.tiles[x][y].color = libtcod.color_lerp(self.tiles[x][y].color, self.tiles[nx][ny].color, smooth_coef)
                         #if self.tiles[nx][ny].region == 'ocean':
                         #    border_ocean = 1
@@ -2364,7 +2367,7 @@ class City(Site):
         self.object_to_agents_dict = defaultdict(list)
 
         already_checked = []
-        for agent in [a for a in self.econ.all_agents if a.reaction.is_finished_good]:
+        for agent in [a for a in self.econ.agents if a.reaction.is_finished_good]:
             if agent.name in already_checked:
                 continue
 
@@ -2379,7 +2382,7 @@ class City(Site):
         other_city.connected_to.append(self)
 
     def get_population(self):
-        return sum(agent.population_number for agent in self.econ.all_agents)
+        return sum(agent.population_number for agent in self.econ.agents)
 
     def add_import(self, city, good):
         # Add other city as an importer if it's not already
@@ -5072,6 +5075,8 @@ class Creature:
         self.current_weapon = None
         self.status = 'alive'
 
+        self.flags = {'has_shelter': 0}
+
         self.combat_target = []
         self.needs_to_calculate_combat = 0
         self.last_turn_moves = []
@@ -5630,9 +5635,9 @@ class Creature:
             obj = assemble_object(object_blueprint=phys.object_dict[obj], force_material=material, wx=self.owner.wx, wy=self.owner.wy)
 
         # Decrement object form owner's inventory
-        sell_agent.inventory[sell_agent.finished_good.name] -= 1
+        sell_agent.sell_inventory[sell_agent.sold_commodity_name] -= 1
 
-        sell_agent.gold += price
+        sell_agent.adjust_gold(price)
 
         #own_component = [grasper for grasper in self.get_graspers() if not grasper.grasped_item][0]
         #self.owner.pick_up_object(own_component=own_component, obj=obj)
@@ -7017,12 +7022,12 @@ class BasicWorldBrain:
             #     self.handle_goal_behavior()
             if self.current_goal_path:
                 self.take_goal_behavior()
-            #else:
-            #    if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
-            #        unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
-            #        item_name = random.choice(unique_objs) if unique_objs else 'shirt'
-            #
-            #        self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
+            else:
+                if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
+                    unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
+                    item_name = random.choice(unique_objs) if unique_objs else 'shirt'
+
+                    self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
