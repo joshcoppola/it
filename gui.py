@@ -600,7 +600,7 @@ def show_civs(world):
                 minr -= 1
                 maxr -= 1
         if key_pressed == libtcod.KEY_PAGEDOWN or mouse.wheel_down:
-            if not maxr + 1 > len(all_agents):
+            if not maxr + 1 > len(agents):
                 maxr += 1
                 minr += 1
 
@@ -715,10 +715,10 @@ def show_civs(world):
             libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
 
-            all_agents = (city.econ.all_agents + city.econ.buy_merchants + city.econ.sell_merchants)
+            agents = (city.econ.agents + city.econ.buy_merchants + city.econ.sell_merchants)
             merchants = city.econ.buy_merchants + city.econ.sell_merchants
 
-            for agent in all_agents[minr:maxr]:
+            for agent in agents[minr:maxr]:
                 y += 1
                 if y > g.SCREEN_HEIGHT - 5:
                     break
@@ -855,7 +855,7 @@ def show_civs(world):
                 # y += 1
 
             # Prepare agent counts for a summary table
-            agents_condensed = [a.name for a in city.econ.all_agents]
+            agents_condensed = [a.name for a in city.econ.agents]
             for m in city.econ.sell_merchants:
                 agents_condensed.append('{0} (sell)'.format(m.name))
             for m in city.econ.buy_merchants:
@@ -1051,7 +1051,7 @@ def economy_tab(world, city):
         libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
         iy, cy, ly = y, y, y
-        agent_list = city.econ.all_agents
+        agent_list = city.econ.agents
         if agent_index > len(agent_list) - 6:
             agent_index = len(agent_list) - 6
         for agent in agent_list[agent_index:agent_index + 6]:
@@ -1076,7 +1076,7 @@ def economy_tab(world, city):
                 if iy > 70: break
 
             cy, ly = y, y
-            if agent in city.econ.all_agents:
+            if agent in city.econ.agents:
                 for commodity, value in agent.perceived_values[agent.buy_economy].iteritems():
                     libtcod.console_print(0, 45, cy, '{0}: {1} ({2})'.format(commodity, value.center, value.uncertainty))
                     cy += 1
