@@ -259,8 +259,8 @@ class BuyItem(ActionBase):
 
     def take_behavior_action(self):
 
-        target_agent = random.choice([agent for agent in self.site.econ.good_producers if self.item_name in agent.get_sold_objects()])
-        self.entity.creature.buy_object(obj=self.item_name, sell_agent=target_agent, price=target_agent.perceived_values[target_agent.finished_good.name].center, material=None, create_object=1)
+        target_agent = random.choice([agent for agent in self.site.econ.agents if agent.reaction.is_finished_good and self.item_name in agent.get_sold_objects()])
+        self.entity.creature.buy_object(obj=self.item_name, sell_agent=target_agent, price=target_agent.perceived_values[target_agent.buy_economy][target_agent.sold_commodity_name].center, material=None, create_object=1)
 
         # print target_agent.name, 'just sold', self.item_name, 'to', self.entity.fulltitle(), 'for', target_agent.perceived_values[target_agent.finished_good.name].center
         #print '{0} just bought a {1}'.format(self.entity.fulltitle(), self.item_name)
