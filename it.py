@@ -7022,12 +7022,12 @@ class BasicWorldBrain:
             #     self.handle_goal_behavior()
             if self.current_goal_path:
                 self.take_goal_behavior()
-            else:
-                if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
-                    unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
-                    item_name = random.choice(unique_objs) if unique_objs else 'shirt'
-
-                    self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
+            # else:
+            #     if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
+            #         unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
+            #         item_name = random.choice(unique_objs) if unique_objs else 'shirt'
+            #
+            #         self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
