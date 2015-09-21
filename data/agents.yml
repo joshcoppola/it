@@ -53,21 +53,21 @@ producers:
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
-        sold_object_tags: [tool]
+        sold_object_tags: [tool, weapon]
     bronze tools: 
         name: Bronze Blacksmith
         finished_good: bronze tools
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
-        sold_object_tags: [tool]
+        sold_object_tags: [tool, weapon]
     iron tools: 
         name: Iron Blacksmith
         finished_good: iron tools
         consumed: [woods]
         essential: []
         preferred: [clothing, furniture, pottery]
-        sold_object_tags: [tool]
+        sold_object_tags: [tool, weapon]
 
     copper weapons:
         name: Copper Weaponsmith
