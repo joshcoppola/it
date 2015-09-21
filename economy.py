@@ -567,7 +567,7 @@ class Agent(object):
             g.game.add_message('{0} in {1} has gone bankrupt, but was reimpursed'.format(self.name, self.buy_economy.owner.name))
             return
 
-        all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.all_agents if a.name == self.name]
+        all_agents_of_this_type_in_this_economy = [a for a in self.buy_economy.agents if a.name == self.name]
 
         if len(all_agents_of_this_type_in_this_economy) == 1:
             # Government bailout
@@ -577,7 +577,7 @@ class Agent(object):
         # Main action - remove agent from economy, etc
         elif len(all_agents_of_this_type_in_this_economy) > 1:
             g.game.add_message('{0} in {1} has gone bankrupt'.format(self.name, self.buy_economy.owner.name))
-            self.buy_economy.all_agents.remove(self)
+            self.buy_economy.agents.remove(self)
             if self.resource_gathering_regions:
                 resource_name = 'land' if self.sold_commodity_name == 'food' else self.sold_commodity_name
                 self.resource_gathering_region.remove_resource_gatherer_from_region(resource_name=resource_name, agent=self)
@@ -866,7 +866,7 @@ class Economy:
         self.buy_merchants = []
         self.sell_merchants = []
 
-        self.all_agents = []
+        self.agents = []
 
         self.starving_agents = []
         # Auctions that take place in this economy
@@ -985,7 +985,7 @@ class Economy:
 
         self.agent_num += 1
 
-        self.all_agents.append(agent)
+        self.agents.append(agent)
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(token)
 
@@ -1046,7 +1046,7 @@ class Economy:
         gold_per_commodity = defaultdict(int)
         agents_per_commodity = defaultdict(int)
 
-        for agent in self.all_agents:
+        for agent in self.agents:
             # If it's a finished good, or it's a raw material that is available for us to use...
             if agent.reaction.is_finished_good or ( (not agent.reaction.is_finished_good) and agent.sold_commodity_name in available_resource_slots):
                 gold_per_commodity[agent.sold_commodity_name] += agent.gold / agent.population_number
@@ -1109,10 +1109,10 @@ class Economy:
         collected_taxes_tmp = {c: self.collected_taxes[c] for c in self.collected_taxes}
 
         # First, each agent produces items and puts them for sale
-        for agent in self.all_agents[:] + self.sell_merchants[:]:
+        for agent in self.agents[:] + self.sell_merchants[:]:
             agent.create_sells_for_turn()
         # Next, agents place bids based on what's available
-        for agent in self.all_agents[:] + self.buy_merchants[:]:
+        for agent in self.agents[:] + self.buy_merchants[:]:
             agent.create_bids_for_turn()
 
         # Append the difference in taxed commodities (which occured this turn) to the history
