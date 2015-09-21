@@ -6,7 +6,15 @@ import libtcodpy as libtcod
 import config as g
 
 
-
+BUILDING_INFO = {
+    'tomb':{'cons materials': 500},
+    'bowyer':{'cons materials': 100},
+    'barracks':{'cons materials': 200},
+    'stable':{'cons materials': 200},
+    'weaponsmith':{'cons materials': 200},
+    'armorer':{'cons materials': 200},
+    'hideout':{'cons materials': 30}
+}
 
 
 class Building:
