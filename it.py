@@ -227,7 +227,6 @@ class World(Map):
 
         self.time_cycle = TimeCycle(self)
 
-        #self.travelers = []
         self.sites = []
         self.all_sites = []
         self.resources = []
@@ -349,9 +348,6 @@ class World(Map):
         for figure in g.WORLD.all_figures:
             if not self.tiles[figure.wx][figure.wy].site:
                 figure.w_draw()
-        #for traveler in self.travelers:
-        #    if traveler != g.player:
-        #        traveler.w_draw()
 
         for site in self.sites:
             site.draw()
@@ -2510,7 +2506,7 @@ class City(Site):
 
         ## Actually give profession to the person ##
         market = self.get_building('Market')
-        market.add_profession(Profession(name=sold_commodity_name + ' Merchant', category='merchant'))
+        market.add_profession(Profession(name='{0} Merchant'.format(sold_commodity_name), category='merchant'))
         market.professions[-1].give_profession_to(human)
 
         merchant = self.econ.add_merchant(sell_economy=sell_economy, sold_commodity_name=sold_commodity_name, attached_to=human)
@@ -2525,7 +2521,6 @@ class City(Site):
             location.get_building('Market').add_worker(human)
 
         ## Now add the caravan to a list
-        #caravan_goods = Counter(merchant.buy_inventory)
         sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':roll(10, 20)}}}
         g.WORLD.create_population(char='M', name='{0} caravan'.format(self.name), faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=location.x, wy=location.y, commander=human)
 
@@ -2568,7 +2563,6 @@ class City(Site):
                 market.add_worker(figure)
 
         #g.WORLD.tiles[caravan_leader.wx][caravan_leader.wy].entities.remove(caravan_leader)
-        #g.WORLD.travelers.remove(caravan_leader)
         self.caravans.append(caravan_leader)
 
     def increase_radius(self, amount=1):
@@ -6805,8 +6799,6 @@ class BasicWorldBrain:
     #     if current_goal.is_completed():
     #         self.goals.remove(current_goal)
     #
-    #         #if len(self.goals) == 0:
-    #         #    g.WORLD.travelers.remove(self.owner)
 
     def take_goal_behavior(self):
         current_goal = self.current_goal_path[0]
