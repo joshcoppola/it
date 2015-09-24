@@ -231,13 +231,11 @@ class Agent(object):
     def setup_initial_perceived_item_values(self):
         ''' Setting up the initial values for perceived items, when this agent is created '''
         self.perceived_values[self.buy_economy] = {self.sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
-
         for token_of_commodity in data.commodity_manager.all_commodity_names:
             self.perceived_values[self.buy_economy][token_of_commodity]  = PriceBelief(START_VAL, START_UNCERT)
 
         if self.is_merchant:
             self.perceived_values[self.sell_economy] = {self.sold_commodity_name:PriceBelief(START_VAL, START_UNCERT)}
-
             for token_of_commodity in data.commodity_manager.all_commodity_names:
                 self.perceived_values[self.sell_economy][token_of_commodity] = PriceBelief(START_VAL, START_UNCERT)
 
@@ -248,10 +246,7 @@ class Agent(object):
             self.input_product_inventory[self.reaction.input_commodity_name] += self.population_number * roll(1, 3)
 
         if not self.is_merchant:
-            for commodity_category in self.reaction.commodities_consumed:
-                self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
-
-            for commodity_category in self.reaction.commodities_required:
+            for commodity_category in chain(self.reaction.commodities_consumed, self.reaction.commodities_required):
                 self.buy_inventory[random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_category))] += self.population_number * roll(0, 3)
 
         self.buy_inventory['food'] = self.population_number * roll(2, 5)
@@ -472,9 +467,6 @@ class Agent(object):
 
     def eval_bid_rejected(self, economy, type_of_commodity, price=None):
         ''' What to do when we've bid on something and didn't get it '''
-
-        assert economy.auctions[type_of_commodity].supply
-
         if price is None:
             self.perceived_values[economy][type_of_commodity].center += BID_REJECTED_ADJUSTMENT
             self.adjust_uncertainty(economy, type_of_commodity)
@@ -495,13 +487,9 @@ class Agent(object):
 
         # For every consumed commodity, check how many we have in inventory, and keep track of the minimum number of times
         # we can run the reaction
-        for commodity_type, amount in self.reaction.commodities_consumed.iteritems():
-            total_consumed_commodities = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
-            available_reaction_amount = min(int(total_consumed_commodities / amount), available_reaction_amount)
-
-        for commodity_type, amount in self.reaction.commodities_required.iteritems():
-            total_required_commodities = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
-            available_reaction_amount = min(int(total_required_commodities / amount), available_reaction_amount)
+        for commodity_type, amount_needed_per_person in chain(self.reaction.commodities_consumed.iteritems(), self.reaction.commodities_required.iteritems()):
+            total_owned = self.count_commodities_of_type(commodity_type, inventory=self.buy_inventory)
+            available_reaction_amount = min(int(total_owned / amount_needed_per_person), available_reaction_amount)
 
         # Reaction limited by how much output space we have available
         available_space = self.get_available_inventory_space(inventory=self.sell_inventory)
@@ -704,20 +692,14 @@ class Agent(object):
 
         # Non-merchants will check for commodities input and consumed by their reactions
         if not self.is_merchant:
-            ## For goods like wood to be burned by a blacksmith; which we need to consume in order to make our output
+            ## Goes through goods like wood to be burned by a blacksmith (consumed) or tools (required but not consumed);
+            # which we need in order to make our output
             ideal_number_per_person = 2
             total_ideal_number = ideal_number_per_person * population_number # Slight optimization by precomputing this
-            for commodity_category in self.reaction.commodities_consumed:
+            for commodity_category in chain(self.reaction.commodities_consumed, self.reaction.commodities_required):
                 if inventory_by_type[commodity_category] < total_ideal_number:
                     amount_of_commodity_to_bid = total_ideal_number - inventory_by_type[commodity_category]
                     self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
-
-            ## For goods like tools, which we need in order to make our output
-            for commodity_category in self.reaction.commodities_required:
-                if inventory_by_type[commodity_category] < total_ideal_number:
-                    amount_of_commodity_to_bid = total_ideal_number - inventory_by_type[commodity_category]
-                    self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
-
 
             # If there is an input to the reaction we generate, bid on it
             if self.reaction.is_finished_good:
@@ -1091,20 +1073,6 @@ class Economy:
         return best_commodity
 
 
-    def find_least_demanded_commodity(self):
-        ### Find the item in highest demand
-        least_demand = 10000
-        least_commodity = None
-
-        for commodity, auction in self.auctions.iteritems():
-            current = auction.demand # no div/0
-            if current < least_demand:
-                least_demand = current
-                least_commodity = commodity
-
-        return least_commodity
-
-
     def run_simulation(self):
         ''' Run a simulation '''
 
@@ -1188,7 +1156,6 @@ class Economy:
             if auction.bids and num_sells > 0:
                 for buyer in auction.bids:
                     buyer.owner.eval_bid_rejected(self, buyer.commodity)
-
 
             # All sellers re-evaluate prices, if some quantity was being offered
             elif auction.sells and num_bids > 0:
