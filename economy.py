@@ -6,6 +6,7 @@ import pstats
 import os
 import yaml
 from collections import defaultdict, OrderedDict
+from itertools import chain
 
 from it import Profession
 import data_importer as data
@@ -618,7 +619,8 @@ class Agent(object):
         self.pay_taxes()
 
         if self.gold < 0:
-            self.bankrupt()
+            self.buy_economy.bankruptees.append(self)
+            #self.bankrupt()
 
         if self.is_merchant:
             self.create_sell(economy=self.sell_economy, sell_commodity=self.sold_commodity_name, quantity=int(self.sell_inventory[self.sold_commodity_name] * .75))
@@ -688,11 +690,12 @@ class Agent(object):
         normalized_gold = self.gold / self.population_number
         # Our standard of living is a ratio of how much gold we have per person, to the cost of living in the economy
         our_standard_of_living = normalized_gold / self.buy_economy.cost_of_living
+        population_number = self.population_number # Slight optimization by making this local
 
         for commodity_category, (standard_of_living_threshhold, ideal_number_per_person) in self.personalized_commodity_bid_threshholds.iteritems():
             # Only bid on items which are above our standard of living ratio
             if our_standard_of_living > standard_of_living_threshhold:
-                amount_of_commodity_to_bid = int(self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+                amount_of_commodity_to_bid = int(population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
                 # We will consider bidding on commodities if they don't match the type of commodity we output, and if
                 # we have a high enough standard of living
                 if amount_of_commodity_to_bid > 0:
@@ -705,15 +708,16 @@ class Agent(object):
         if not self.is_merchant:
             ## For goods like wood to be burned by a blacksmith; which we need to consume in order to make our output
             ideal_number_per_person = 2
+            total_ideal_number = ideal_number_per_person * population_number # Slight optimization by precomputing this
             for commodity_category in self.reaction.commodities_consumed:
-                if inventory_by_type[commodity_category] < self.population_number * ideal_number_per_person:
-                    amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+                if inventory_by_type[commodity_category] < total_ideal_number:
+                    amount_of_commodity_to_bid = total_ideal_number - inventory_by_type[commodity_category]
                     self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
 
             ## For goods like tools, which we need in order to make our output
             for commodity_category in self.reaction.commodities_required:
-                if inventory_by_type[commodity_category] < self.population_number * ideal_number_per_person:
-                    amount_of_commodity_to_bid = (self.population_number * ideal_number_per_person) - inventory_by_type[commodity_category]
+                if inventory_by_type[commodity_category] < total_ideal_number:
+                    amount_of_commodity_to_bid = total_ideal_number - inventory_by_type[commodity_category]
                     self.find_token_and_place_bid(economy=self.buy_economy, type_of_commodity=commodity_category, quantity=amount_of_commodity_to_bid)
 
 
@@ -721,7 +725,7 @@ class Agent(object):
             if self.reaction.is_finished_good:
                 if normalized_gold < self.buy_economy.cost_of_living * 1000:
                     # At minimum, try to maintain just enough so we can perform the max reactions
-                    quantity_to_bid = self.population_number - self.input_product_inventory[self.reaction.input_commodity_name]
+                    quantity_to_bid = population_number - self.input_product_inventory[self.reaction.input_commodity_name]
                 else:
                     # Otherwise, we're feeling bold enough to bid a bigger amount
                     quantity_to_bid = self.get_available_inventory_space(inventory=self.input_product_inventory)
@@ -868,7 +872,8 @@ class Economy:
 
         self.agents = []
 
-        self.starving_agents = []
+        self.bankruptees = []
+
         # Auctions that take place in this economy
         self.auctions = {}
         self.prices = {}
@@ -1109,10 +1114,10 @@ class Economy:
         collected_taxes_tmp = {c: self.collected_taxes[c] for c in self.collected_taxes}
 
         # First, each agent produces items and puts them for sale
-        for agent in self.agents[:] + self.sell_merchants[:]:
+        for agent in chain(self.agents, self.sell_merchants):
             agent.create_sells_for_turn()
         # Next, agents place bids based on what's available
-        for agent in self.agents[:] + self.buy_merchants[:]:
+        for agent in chain(self.agents, self.buy_merchants):
             agent.create_bids_for_turn()
 
         # Append the difference in taxed commodities (which occured this turn) to the history
@@ -1178,22 +1183,23 @@ class Economy:
                         seller.owner.sells += quantity
                         seller.owner.last_turn.append('Sold {0} {1} to {2} at {3}'.format(quantity, commodity, buyer.owner.name, price))
 
-                        # Add to running tally of prices this turn
+                        # Add to running tally of prices this turn TODO - this doesn't yet accurately reflect the price since it's not accounting for quantity
                         commodity_sell_prices.append(price)
 
             # All bidders re-evaluate prices, if some quantity was being offered
-            if len(auction.bids) > 0:
-                if num_sells > 0:
-                    for buyer in auction.bids:
-                        buyer.owner.eval_bid_rejected(self, buyer.commodity)
-                self.auctions[commodity].bids = []
+            if auction.bids and num_sells > 0:
+                for buyer in auction.bids:
+                    buyer.owner.eval_bid_rejected(self, buyer.commodity)
+
 
             # All sellers re-evaluate prices, if some quantity was being offered
-            elif len(auction.sells) > 0:
-                if num_bids > 0:
-                    for seller in auction.sells:
-                        seller.owner.eval_sell_rejected(self, seller.commodity)
-                self.auctions[commodity].sells = []
+            elif auction.sells and num_bids > 0:
+                for seller in auction.sells:
+                    seller.owner.eval_sell_rejected(self, seller.commodity)
+
+            # Reset the auction bids and sells
+            self.auctions[commodity].bids = []
+            self.auctions[commodity].sells = []
 
             ## Average prices if there were some, else set as None (so position is maintained in historical averages)
             mean_price_last_round = int(round(sum(commodity_sell_prices)/len(commodity_sell_prices))) if commodity_sell_prices else None
@@ -1202,9 +1208,14 @@ class Economy:
 
 
         ## Merchants evaluate whether or not to move on to the next city
-        for merchant in self.buy_merchants + self.sell_merchants:
+        for merchant in chain(self.buy_merchants, self.sell_merchants):
             if merchant.current_location == self:
                 merchant.increment_cycle()
+
+        # Handle Bankrupts
+        for agent in self.bankruptees:
+            agent.bankrupt()
+        self.bankruptees = []
 
         self.calculate_cost_of_living()
 
