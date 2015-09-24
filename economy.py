@@ -358,13 +358,9 @@ class Agent(object):
 
     def get_all_commodities_of_type(self, type_of_commodity, inventory):
         ''' Return a dict of all commodities in our inventory which match the type of commodity '''
-        matching_commodities = defaultdict(int)
-
-        for token_of_commodity in data.commodity_manager.get_names_of_commodities_of_type(type_of_commodity):
-            if token_of_commodity in inventory and inventory[token_of_commodity] > 0:
-                matching_commodities[token_of_commodity] = inventory[token_of_commodity]
-
-        return matching_commodities
+        # Building a dict comprehension should be fast
+        return {c: inventory[c] for c in data.commodity_manager.get_names_of_commodities_of_type(type_of_commodity)
+                                    if c in inventory and inventory[c] > 0}
 
 
     def find_token_and_place_bid(self, economy, type_of_commodity, quantity):
