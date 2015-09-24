@@ -1732,7 +1732,7 @@ class World(Map):
         ## Some history...
         #begin = time.time()
         for i in xrange(weeks * 7):
-            self.time_cycle.day_tick(1)
+            self.time_cycle.day_tick()
         #g.game.add_message('History run in %.2f seconds' %(time.time() - begin))
         # List the count of site types
         g.game.add_message(join_list([ ct(type_, len(self.site_index[type_])) for type_ in self.site_index]))
@@ -7173,7 +7173,7 @@ class TimeCycle(object):
             self.current_weekday += 1
             self.check_day()
 
-            self.day_tick(num_days=1)
+            self.day_tick()
 
     def next_day(self):
         if self.current_day + 1 >= self.days_per_month:
@@ -7203,7 +7203,8 @@ class TimeCycle(object):
 
     def goto_next_week(self):
         days_til_next_week = self.days_per_week - self.current_weekday
-        self.day_tick(days_til_next_week)
+        for i in xrange(days_til_next_week):
+            self.day_tick()
 
     def dayToNight(self):
         pass
@@ -7291,30 +7292,35 @@ class TimeCycle(object):
         g.M.update_dmaps()
 
 
-    def day_tick(self, num_days):
-        for iteration in xrange(num_days):
-            self.check_day()
-            self.handle_events()
+    def day_tick(self):
+        ''' All the events that happen each day in the world '''
+        self.check_day()
+        self.handle_events()
 
-            # Each day, random people in cities can encounter one another to spread knowledge
-            for city in g.WORLD.cities:
-                city.run_random_encounter()
+        # Each day, random people in cities can encounter one another to spread knowledge
+        for city in g.WORLD.cities:
+            city.run_random_encounter()
 
-            # Then, all entities in the world can take their daily turn
-            for figure in reversed(g.WORLD.all_figures):
-                if figure.world_brain: #and figure .world_brain.next_tick == self.current_day:
-                    #figure.world_brain.next_tick = self.next_day()
-                    figure.world_brain.take_turn()
+        # Then, all entities in the world can take their daily turn
+        for figure in reversed(g.WORLD.all_figures):
+            if figure.world_brain: #and figure .world_brain.next_tick == self.current_day:
+                #figure.world_brain.next_tick = self.next_day()
+                figure.world_brain.take_turn()
 
-            # Clear set of those who've battled this round
-            self.world.has_battled = set([])
+        # Clear set of those who've battled this round
+        self.world.has_battled = set([])
 
 
     def week_tick(self):
+        begin = time.time()
         # Cheaply defined to get civs working per-day
-        for city in reversed(g.WORLD.cities):
+        for city in self.world.cities:
             city.econ.run_simulation()
+        g.game.add_message('econ run in {0:.2f} seconds'.format(time.time() - begin))
+
+        for city in self.world.cities:
             city.dispatch_caravans()
+
 
         # Player econ preview - to show items we're gonna bid on
         if g.game.state == 'playing' and g.player.creature.economy_agent:
@@ -8682,7 +8688,7 @@ class Game:
         elif self.map_scale == 'world':
             # Change back to allow blocked movement and non-glitchy battlemap
             g.player.w_move(dx, dy)
-            g.WORLD.time_cycle.day_tick(1)
+            g.WORLD.time_cycle.day_tick()
             self.camera.center(g.player.wx, g.player.wy)
 
 
