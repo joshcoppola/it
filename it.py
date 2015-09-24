@@ -866,145 +866,151 @@ class World(Map):
     def set_resource_and_biome_info(self):
         ''' TODO NEW FUNCTION DEFINITION TO MODIFY FOR NEW RAIN CODE '''
         ''' Finally, use the scant climate info generated to add biome and color information '''
+
+        mountain_height = g.MOUNTAIN_HEIGHT # minor optimization to make variable local
+        water_height = g.WATER_HEIGHT # minor optimization to make variable local
+
+        taiga_chars = (chr(5), '^')
+        forest_chars = (chr(5), chr(6))
+        rain_forest_chars = (chr(6), '*')
+
+        # Hardcoded positions where tundra cannot go in between (e.g. none in between world y height of tundra_min and tundra_max)
+        tundra_min = 35
+        tundra_max = self.height - 35
+        # Hardcoded positions where tundra cannot go in between (e.g. none in between world y height of tundra_min and tundra_max)
+        taiga_min = 45
+        taiga_max = self.height - 45
+
+        a = 3 # Used for coloring tiles (each rgb value will vary by +- this #)
+
         for y in xrange(self.height):
             for x in xrange(self.width):
-                sc = int(self.tiles[x][y].height) - 1
-                mmod = int(round(40 - self.tiles[x][y].moist) / 1.4) - 25
-                a = 3
-                #mthresh = 1.04
+                this_tile = self.tiles[x][y] # minor optimization to avoid lookups
+
+                sc = int(this_tile.height) - 1
+                mmod = int(round(40 - this_tile.moist) / 1.4) - 25
+
                 ## Ocean
-                if self.tiles[x][y].height < g.WATER_HEIGHT:
-                    self.tiles[x][y].blocks_mov = True
-                    self.tiles[x][y].region = 'ocean'
+                if this_tile.height < water_height:
+                    this_tile.blocks_mov = True
+                    this_tile.region = 'ocean'
 
-                    self.tiles[x][y].clear_all_resources()
+                    this_tile.clear_all_resources()
 
-                    if self.tiles[x][y].height < 75:
-                        self.tiles[x][y].color = libtcod.Color(7, 13, int(round(sc * 2)) + 10)
+                    if this_tile.height < 75:
+                        this_tile.color = libtcod.Color(7, 13, int(round(sc * 2)) + 10)
                     else:
-                        self.tiles[x][y].color = libtcod.Color(20, 60, int(round(sc * 2)) + 15)
+                        this_tile.color = libtcod.Color(20, 60, int(round(sc * 2)) + 15)
 
+                #### MOUNTAIN ####
+                elif this_tile.height > mountain_height:
+                    this_tile.blocks_mov = True
+                    this_tile.blocks_vis = True
+                    this_tile.region = 'mountain'
 
-                elif self.tiles[x][y].height > g.MOUNTAIN_HEIGHT:
-                    self.tiles[x][y].blocks_mov = True
-                    self.tiles[x][y].blocks_vis = True
-                    self.tiles[x][y].region = 'mountain'
+                    this_tile.clear_all_resources()
 
-                    self.tiles[x][y].clear_all_resources()
-
-                    #g.WORLD.tiles[x][y].color = libtcod.Color(117+roll(-a,a), 130+roll(-a,a), 104+roll(-a,a))
-                    #g.WORLD.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 40+roll(-a,a), 34+roll(-a,a))
-                    #g.WORLD.tiles[x][y].color = libtcod.Color(118+roll(-a,a), 90+roll(-a,a), 80+roll(-a,a))
-
-                    ############################ Latest backup #######################################
-                    #self.tiles[x][y].color = libtcod.Color(43+roll(-a,a), 45+roll(-a,a), 34+roll(-a,a))
-                    #self.tiles[x][y].char_color = libtcod.Color(33+roll(-a,a), 30+roll(-a,a), 24+roll(-a,a))
-
-                    c = int(round((self.tiles[x][y].height - 200) / 2))
+                    c = int(round((this_tile.height - 200) / 2))
                     d = -int(round(c / 2))
-                    self.tiles[x][y].color = libtcod.Color(d + 43 + roll(-a, a), d + 50 + roll(-a, a), d + 34 + roll(-a, a))
-                    if self.tiles[x][y].height > 235:
-                        self.tiles[x][y].char_color = libtcod.grey
-                    else:
-                        self.tiles[x][y].char_color = libtcod.Color(c + 38 + roll(-a, a), c + 25 + roll(-a, a), c + 21 + roll(-a, a))
-                    self.tiles[x][y].char = chr(036)
+                    this_tile.color = libtcod.Color(d + 43 + roll(-a, a), d + 55 + roll(-a, a), d + 34 + roll(-a, a))
+                    if this_tile.height > 235:      this_tile.char_color = libtcod.grey # Tall mountain - snowy peak
+                    else:                           this_tile.char_color = libtcod.Color(c + 38 + roll(-a, a), c + 25 + roll(-a, a), c + 21 + roll(-a, a))
+                    this_tile.char = chr(036)
 
-                ## Tundra
-                elif self.tiles[x][y].temp < 18 and not ( 25 < y < self.height-25):
-                    self.tiles[x][y].region = 'tundra'
-                    self.tiles[x][y].color = libtcod.Color(190 + roll(-a - 2, a + 2), 188 + roll(-a - 2, a + 2), 189 + roll(-a - 2, a + 2))
+                ######################## TUNDRA ########################
+                elif this_tile.temp < 18 and not (tundra_min < y < tundra_max):
+                    this_tile.region = 'tundra'
+                    this_tile.color = libtcod.Color(190 + roll(-a - 2, a + 2), 188 + roll(-a - 2, a + 2), 189 + roll(-a - 2, a + 2))
 
-                elif self.tiles[x][y].temp < 23 and self.tiles[x][y].moist < 22 and not ( 30 < y < self.height-30):
-                    self.tiles[x][y].region = 'taiga'
-                    self.tiles[x][y].color = libtcod.Color(127 + roll(-a, a), 116 + roll(-a, a), 115 + roll(-a, a))
+                ######################## TAIGA ########################
+                elif this_tile.temp < 23 and this_tile.moist < 22 and not (taiga_min < y < taiga_max):
+                    this_tile.region = 'taiga'
+                    this_tile.color = libtcod.Color(127 + roll(-a, a), 116 + roll(-a, a), 115 + roll(-a, a))
 
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(23 + roll(-a, a), 58 + mmod + roll(-a, a), 9 + roll(-a, a))
-                        if roll(1, 2) == 1:
-                            self.tiles[x][y].char = chr(5)
-                        else:
-                            self.tiles[x][y].char = '^'
+                    if not this_tile.has_feature('river'):
+                        this_tile.char_color = libtcod.Color(23 + roll(-a, a), 58 + mmod + roll(-a, a), 9 + roll(-a, a))
+                        this_tile.char = random.choice(taiga_chars)
 
-                elif self.tiles[x][y].temp < 30 and self.tiles[x][y].moist < 18:
-                    self.tiles[x][y].region = 'temperate forest'
-                    self.tiles[x][y].color = libtcod.Color(53 + roll(-a, a), 75 + mmod + roll(-a, a), 32 + roll(-a, a))
+                ######################## TEMPERATE FOREST ########################
+                elif this_tile.temp < 30 and this_tile.moist < 18:
+                    this_tile.region = 'temperate forest'
+                    this_tile.color = libtcod.Color(53 + roll(-a, a), 75 + mmod + roll(-a, a), 32 + roll(-a, a))
 
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(25 + roll(-a, a), 55 + mmod + roll(-a, a), 20 + roll(-a, a))
-                        if roll(1, 2) == 1:
-                            self.tiles[x][y].char = chr(5)
-                        else:
-                            self.tiles[x][y].char = chr(6)
+                    if not this_tile.has_feature('river'):
+                        this_tile.char_color = libtcod.Color(25 + roll(-a, a), 55 + mmod + roll(-a, a), 20 + roll(-a, a))
+                        this_tile.char = random.choice(forest_chars)
 
-                elif self.tiles[x][y].temp < 35:
-                    self.tiles[x][y].region = 'temperate steppe'
-                    self.tiles[x][y].color = libtcod.Color(65 + roll(-a, a), 97 + mmod + roll(-a, a), 41 + roll(-a, a))
+                ######################## TEMPERATE STEPPE ########################
+                elif this_tile.temp < 35:
+                    this_tile.region = 'temperate steppe'
+                    this_tile.color = libtcod.Color(65 + roll(-a, a), 97 + mmod + roll(-a, a), 41 + roll(-a, a))
 
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = self.tiles[x][y].color * .85
-                        self.tiles[x][y].char = chr(176)
+                    if not this_tile.has_feature('river'):
+                        this_tile.char_color = this_tile.color * .85
+                        this_tile.char = chr(176)
 
-                elif self.tiles[x][y].temp > 47 and self.tiles[x][y].moist < 18:
-                    self.tiles[x][y].region = 'rain forest'
-                    self.tiles[x][y].color = libtcod.Color(40 + roll(-a, a), 60 + mmod + roll(-a, a), 18 + roll(-a, a))
+                ######################## RAIN FOREST ########################
+                elif this_tile.temp > 47 and this_tile.moist < 18:
+                    this_tile.region = 'rain forest'
+                    this_tile.color = libtcod.Color(40 + roll(-a, a), 60 + mmod + roll(-a, a), 18 + roll(-a, a))
 
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = libtcod.Color(16 + roll(-a, a), 40 + roll(-a - 5, a + 5), 5 + roll(-a, a))
-                        if roll(1, 2) == 1:
-                            self.tiles[x][y].char = chr(6)
-                        else:
-                            self.tiles[x][y].char = '*'
+                    if not this_tile.has_feature('river'):
+                        this_tile.char_color = libtcod.Color(16 + roll(-a, a), 40 + roll(-a - 5, a + 5), 5 + roll(-a, a))
+                        this_tile.char = random.choice(rain_forest_chars)
 
-                elif self.tiles[x][y].temp >= 35 and self.tiles[x][y].moist < 18:
-                    self.tiles[x][y].region = 'tree savanna'
-                    self.tiles[x][y].color = libtcod.Color(50 + roll(-a, a), 85 + mmod + roll(-a, a), 25 + roll(-a, a))
-                    #self.tiles[x][y].color = libtcod.Color(209, 189, 126)  # grabbed from a savannah image
-                    #self.tiles[x][y].color = libtcod.Color(139, 119, 56)
+                ######################## TREE SAVANNA ########################
+                elif this_tile.temp >= 35 and this_tile.moist < 18:
+                    this_tile.region = 'tree savanna'
+                    this_tile.color = libtcod.Color(50 + roll(-a, a), 85 + mmod + roll(-a, a), 25 + roll(-a, a))
+                    #this_tile.color = libtcod.Color(209, 189, 126)  # grabbed from a savannah image
+                    #this_tile.color = libtcod.Color(139, 119, 56)
 
-                    if not self.tiles[x][y].has_feature('river'):
+                    if not this_tile.has_feature('river'):
                         if roll(1, 5) > 1:
-                            self.tiles[x][y].char_color = self.tiles[x][y].color * .85
-                            self.tiles[x][y].char = chr(176)
+                            this_tile.char_color = this_tile.color * .85
+                            this_tile.char = chr(176)
                         else:
-                            self.tiles[x][y].char_color = self.tiles[x][y].color * .75
-                            self.tiles[x][y].char = '*'
+                            this_tile.char_color = this_tile.color * .75
+                            this_tile.char = '*'
 
-                elif self.tiles[x][y].temp >= 35 and self.tiles[x][y].moist < 34:
-                    self.tiles[x][y].region = 'grass savanna'
-                    self.tiles[x][y].color = libtcod.Color(91 + roll(-a, a), 110 + mmod + roll(-a, a), 51 + roll(-a, a))
-                    #self.tiles[x][y].color = libtcod.Color(209, 189, 126) # grabbed from a savannah image
-                    #self.tiles[x][y].color = libtcod.Color(179, 169, 96)
+                ######################## GRASS SAVANNA ########################
+                elif this_tile.temp >= 35 and this_tile.moist < 34:
+                    this_tile.region = 'grass savanna'
+                    this_tile.color = libtcod.Color(91 + roll(-a, a), 110 + mmod + roll(-a, a), 51 + roll(-a, a))
+                    #this_tile.color = libtcod.Color(209, 189, 126) # grabbed from a savannah image
+                    #this_tile.color = libtcod.Color(179, 169, 96)
 
-                    if not self.tiles[x][y].has_feature('river'):
-                        self.tiles[x][y].char_color = self.tiles[x][y].color * .80
-                        self.tiles[x][y].char = chr(176)
+                    if not this_tile.has_feature('river'):
+                        this_tile.char_color = this_tile.color * .80
+                        this_tile.char = chr(176)
 
-                elif self.tiles[x][y].temp <= 44:
-                    self.tiles[x][y].region = 'dry steppe'
-                    self.tiles[x][y].color = libtcod.Color(99 + roll(-a, a), 90 + roll(-a, a + 1), 59 + roll(-a, a + 1))
+                ######################## DRY STEPPE ########################
+                elif this_tile.temp <= 44:
+                    this_tile.region = 'dry steppe'
+                    this_tile.color = libtcod.Color(99 + roll(-a, a), 90 + roll(-a, a + 1), 59 + roll(-a, a + 1))
 
-                elif self.tiles[x][y].temp > 44 and self.tiles[x][y].moist < 48:
-                    self.tiles[x][y].region = 'semi-arid desert'
-                    self.tiles[x][y].color = libtcod.Color(178 + roll(-a - 1, a + 2), 140 + roll(-a - 1, a + 2),
-                                                          101 + roll(-a - 1, a + 2))
+                ######################## SEMI-ARID DESERT ########################
+                elif this_tile.temp > 44 and this_tile.moist < 48:
+                    this_tile.region = 'semi-arid desert'
+                    this_tile.color = libtcod.Color(178 + roll(-a - 1, a + 2), 140 + roll(-a - 1, a + 2), 101 + roll(-a - 1, a + 2))
 
-                elif self.tiles[x][y].temp > 44:
-                    self.tiles[x][y].region = 'arid desert'
-                    self.tiles[x][y].color = libtcod.Color(212 + roll(-a - 1, a + 1), 185 + roll(-a - 1, a + 1),
-                                                          142 + roll(-a - 1, a + 1))
+                ######################## ARID DESERT ########################
+                elif this_tile.temp > 44:
+                    this_tile.region = 'arid desert'
+                    this_tile.color = libtcod.Color(212 + roll(-a - 1, a + 1), 185 + roll(-a - 1, a + 1), 142 + roll(-a - 1, a + 1))
 
                 # Hopefully shouldn't come to this
                 else:
-                    self.tiles[x][y].region = 'none'
-                    self.tiles[x][y].color = libtcod.red
+                    this_tile.region = 'none'
+                    this_tile.color = libtcod.red
 
 
                 #### New code - add resources
                 for resource in data.commodity_manager.resources:
                     for biome, chance in resource.app_chances.iteritems():
-                        if biome == self.tiles[x][y].region or (biome == 'river' and self.tiles[x][y].has_feature('river')):
+                        if biome == this_tile.region or (biome == 'river' and this_tile.has_feature('river')):
                             if roll(1, 1200) < chance:
-                                self.tiles[x][y].add_resource(resource.name, resource.app_amt)
+                                this_tile.add_resource(resource.name, resource.app_amt)
 
                                 # Hack in the ideal locs and start locs
                                 if resource.name == 'food':
@@ -1019,30 +1025,30 @@ class World(Map):
 
         for y in xrange(2, self.height-2):
             for x in xrange(2, self.width-2):
-                if self.tiles[x][y].region != 'ocean' and self.tiles[x+1][y].region != 'ocean':
-                    hdif = self.tiles[x][y].height / self.tiles[x+1][y].height
+                this_tile = self.tiles[x][y]
+                if this_tile.region != 'ocean' and self.tiles[x+1][y].region != 'ocean':
+                    hdif = this_tile.height / self.tiles[x+1][y].height
 
                     if hdif <= 1:
                         alpha = max(hdif, max_alpha)
-                        self.tiles[x][y].color = libtcod.color_lerp(libtcod.lightest_sepia, self.tiles[x][y].color, alpha )
-                        if not self.tiles[x][y].has_feature('river'):
-                            self.tiles[x][y].char_color = libtcod.color_lerp(libtcod.white, self.tiles[x][y].char_color, alpha )
+                        this_tile.color = libtcod.color_lerp(libtcod.lightest_sepia, this_tile.color, alpha )
+                        if not this_tile.has_feature('river'):
+                            this_tile.char_color = libtcod.color_lerp(libtcod.white, this_tile.char_color, alpha )
                     elif hdif > 1:
                         alpha = max(2 - hdif, max_alpha)
-                        self.tiles[x][y].color = libtcod.color_lerp(libtcod.darkest_sepia, self.tiles[x][y].color, alpha)
-                        if not self.tiles[x][y].has_feature('river'):
-                            self.tiles[x][y].char_color = libtcod.color_lerp(libtcod.darkest_sepia, self.tiles[x][y].char_color, alpha)
+                        this_tile.color = libtcod.color_lerp(libtcod.darkest_sepia, this_tile.color, alpha)
+                        if not this_tile.has_feature('river'):
+                            this_tile.char_color = libtcod.color_lerp(libtcod.darkest_sepia, this_tile.char_color, alpha)
 
                     # Experimental badly placed code to add a "hill" character to hilly map spots
-                    if alpha == max_alpha and not(self.tiles[x][y].region in hill_excluders) and not self.tiles[x][y].has_feature('river'):
-
-                        self.tiles[x][y].char = chr(252)
-                        # if self.tiles[x][y].region in ('semi-arid desert', 'arid desert', 'dry steppe'):
-                        self.tiles[x][y].char_color = self.tiles[x][y].color - libtcod.Color(20, 20, 20)
+                    if alpha == max_alpha and not(this_tile.region in hill_excluders) and not this_tile.has_feature('river'):
+                        this_tile.char = chr(252)
+                        # if this_tile.region in ('semi-arid desert', 'arid desert', 'dry steppe'):
+                        this_tile.char_color = this_tile.color - libtcod.Color(20, 20, 20)
 
                 ################## OUT OF PLACE CAVE GEN CODE ###############
-                if self.tiles[x][y].region != 'mountain' and self.tiles[x][y].height > g.MOUNTAIN_HEIGHT-10 and roll(1, 100) <= 20:
-                    self.tiles[x][y].add_cave(world=self, name=None)
+                if this_tile.region != 'mountain' and this_tile.height > mountain_height-10 and roll(1, 100) <= 20:
+                    this_tile.add_cave(world=self, name=None)
 
 
         exclude_smooth = {'ocean'}
