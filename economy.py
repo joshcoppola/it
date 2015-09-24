@@ -656,16 +656,18 @@ class Agent(object):
     def get_all_inventory_by_type(self):
         ''' Return a dictionary for all commodities in our (buy) inventory, arranged as commodity_type : amount'''
         inventory_by_type = defaultdict(int)
-        for commodity_name, amount in self.buy_inventory.iteritems():
+        for commodity_name, amount in self.get_buy_inventory_with_stock().iteritems():
             inventory_by_type[data.commodity_manager.get_actual_commodity_from_name(commodity_name).category] += amount
 
         return inventory_by_type
 
+    def get_buy_inventory_with_stock(self):
+        return {c: self.buy_inventory[c] for c in self.buy_inventory if self.buy_inventory[c]}
 
     def consume_food_and_break_commodities(self):
         ''' Here is where an agent consumes food, (potentially) breaks some items '''
         #### Roll through everything - consume food, and have stuff break ####
-        for commodity_name, amount in self.buy_inventory.iteritems():
+        for commodity_name, amount in self.get_buy_inventory_with_stock().iteritems():
             # If we're not a farmer, each population eats a food
             if commodity_name == 'food' and self.sold_commodity_name != 'food':
                 self.buy_inventory['food'] -= min(self.population_number, self.buy_inventory['food'])
