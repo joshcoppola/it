@@ -27,7 +27,7 @@ SYMB_FOR_INDEF_AN = {chr(139), chr(140), chr(141), chr(161), # I
 # from http://stackoverflow.com/questions/9647202/ordinal-numbers-replacement
 int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
 
-vowels = {'a','e','i','o','u','y'}
+vowels = {'a','e','i','o','u'}
 def trim(string_, length):
     if len(string_) >= length:
         return ''.join([l for l in string_ if l not in vowels])
@@ -225,11 +225,11 @@ def looped_increment(initial_num, max_num, increment_amt):
     return incremented_num
 
 def get_border_tiles(x, y):
-    return ( (x, y+1), (x+1, y), (x, y-1), (x-1, y) )
+    return  (x, y+1), (x+1, y), (x, y-1), (x-1, y)
 
 
 def get_border_tiles_8(x, y):
-    return ( (x, y+1), (x+1, y), (x, y-1), (x-1, y), (x+1, y+1), (x+1, y-1), (x-1, y-1), (x-1, y+1)  )
+    return (x, y+1), (x+1, y), (x, y-1), (x-1, y), (x+1, y+1), (x+1, y-1), (x-1, y-1), (x-1, y+1)
 
 
 def libtcod_path_to_list(path_map):
