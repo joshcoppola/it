@@ -34,7 +34,6 @@ import data_importer as data
 
 
 
-random.seed(0)
 
 mouse = libtcod.Mouse()
 key = libtcod.Key()
