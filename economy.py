@@ -10,7 +10,7 @@ from itertools import chain
 
 from it import Profession
 import data_importer as data
-from helpers import weighted_dict_choice
+from helpers import weighted_dict_choice, infinite_defaultdict
 
 import config as g
 
@@ -842,7 +842,7 @@ class Offer:
 class Economy:
     def __init__(self, native_resources, local_taxes, owner=None):
         self.native_resources = native_resources
-        self.available_types = {}
+        self.available_types = defaultdict(list)
         # Should be the city where this economy is located
         self.owner = owner
 
@@ -904,16 +904,10 @@ class Economy:
 
     def add_commodity_to_economy(self, commodity):
         ''' Each commodity has an associated auction house, containing some price / bidding history '''
-        category = data.commodity_manager.get_actual_commodity_from_name(commodity).category
-        if category in self.available_types:
-            if commodity not in self.available_types[category]:
-                self.available_types[category].append(commodity)
-                self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
-                self.commodity_tax_rates[commodity] = DEFAULT_DOMESTIC_TAX_RATE
-                self.collected_taxes[commodity] = 0
-                self.collected_taxes_history[commodity] = [0]
-        else:
-            self.available_types[category] = [commodity]
+        if commodity not in self.auctions:
+            category = data.commodity_manager.get_actual_commodity_from_name(commodity).category
+
+            self.available_types[category].append(commodity)
             self.auctions[commodity] = AuctionHouse(economy=self, commodity=commodity)
             self.commodity_tax_rates[commodity] = DEFAULT_DOMESTIC_TAX_RATE
             self.collected_taxes[commodity] = 0
@@ -932,8 +926,9 @@ class Economy:
 
 
     def add_merchant(self, sell_economy, sold_commodity_name, attached_to=None):
-        name = '{0} merchant'.format(sold_commodity_name)
+        ''' Add merchant with this as the buy economy '''
 
+        name = '{0} merchant'.format(sold_commodity_name)
         # TODO - merchants will get default Reaction based on their traded item - should find a way around this
         merchant = Agent(id_=self.agent_num, name=name, population_number=20, buy_economy=self, sell_economy=sell_economy, sold_commodity_name=sold_commodity_name,
                          is_merchant=1, attached_to=attached_to)
@@ -951,12 +946,6 @@ class Economy:
     def add_agent_based_on_token(self, token):
         ''' If we only have a token and don't know whether it's a resource or a commodity,
         this function helps us figure out which method to call'''
-        #if token in [r.name for r in data.commodity_manager.resources]:
-        #    self.add_resource_gatherer(token)
-
-        #elif token in [g.name for g in data.commodity_manager.goods]:
-        #    self.add_good_producer(token)
-
         if token == 'food':
             population_number = 100
         elif token in [r.name for r in data.commodity_manager.resources]:
@@ -974,7 +963,7 @@ class Economy:
         # Test if it's in the economy and add it if not
         self.add_commodity_to_economy(token)
 
-        ###### IF RESOURCE GATHERER #############
+        ###### IF RESOURCE GATHERER - need to find a valid plot of land for it to work #############
         if token in [r.name for r in data.commodity_manager.resources]:
             ## Assign the agent to a physical slot somewhere by the city
             resource = 'land' if token == 'food' else token
@@ -994,7 +983,7 @@ class Economy:
 
             print 'ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name)
 
-        ###### IF GOOD PRODUCER #############
+        ###### IF GOOD PRODUCER - give it a building in the city #############
         elif token in [g.name for g in data.commodity_manager.goods]:
             if self.owner:
                 building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name, category='commoner')], inhabitants=[], tax_status='commoner')
@@ -1106,22 +1095,25 @@ class Economy:
             num_bids = len(auction.bids)
             num_sells = len(auction.sells)
 
-            if num_bids > 0 or num_sells > 0:
-                auction.supply = sum(offer.quantity for offer in auction.sells)
-                auction.demand = sum(offer.quantity for offer in auction.bids)
+            #if num_bids > 0 or num_sells > 0:
+            auction.supply = sum(offer.quantity for offer in auction.sells)
+            auction.demand = sum(offer.quantity for offer in auction.bids)
 
             if num_bids > 0:  buyer = auction.bids.pop()
             if num_sells > 0: seller = auction.sells.pop()
 
             # Match bidders with sellers
-            while not len(auction.bids) == 0 and not len(auction.sells) == 0:
+            while auction.bids and auction.sells:
                 # Once transactions have occured, leaving traders without anymore desired quantity, pop out the next one
                 if buyer.quantity == 0:  buyer = auction.bids.pop()
                 if seller.quantity == 0: seller = auction.sells.pop()
 
+                actual_buyer = buyer.owner
+                actual_seller = seller.owner
+
                 ## If the price is still lower than the seller
                 if buyer.price < seller.price:
-                    buyer.owner.eval_bid_rejected(self, commodity, seller.price)
+                    actual_buyer.eval_bid_rejected(self, commodity, seller.price)
                     buyer.quantity = 0
                 ## Make the transaction
                 else:
@@ -1134,20 +1126,20 @@ class Economy:
                         buyer.quantity -= quantity
                         seller.quantity -= quantity
 
-                        buyer.owner.eval_trade_accepted(self, buyer.commodity, price)
-                        seller.owner.eval_trade_accepted(self, buyer.commodity, price)
+                        actual_buyer.eval_trade_accepted(self, buyer.commodity, price)
+                        actual_seller.eval_trade_accepted(self, buyer.commodity, price)
 
                         ## Update inventories and gold counts
-                        buyer.owner.take_bought_commodity(buyer.commodity, quantity)
-                        seller.owner.remove_sold_commodity(seller.commodity, quantity)
+                        actual_buyer.take_bought_commodity(buyer.commodity, quantity)
+                        actual_seller.remove_sold_commodity(seller.commodity, quantity)
 
-                        buyer.owner.adjust_gold(-price*quantity)
-                        seller.owner.adjust_gold(price*quantity)
+                        actual_buyer.adjust_gold(-price*quantity)
+                        actual_seller.adjust_gold(price*quantity)
 
-                        buyer.owner.buys += quantity
-                        buyer.owner.last_turn.append('Bought {0} {1} from {2} at {3}'.format(quantity, commodity, seller.owner.name, price))
-                        seller.owner.sells += quantity
-                        seller.owner.last_turn.append('Sold {0} {1} to {2} at {3}'.format(quantity, commodity, buyer.owner.name, price))
+                        actual_buyer.buys += quantity
+                        actual_buyer.last_turn.append('Bought {0} {1} from {2} at {3}'.format(quantity, commodity, actual_seller.name, price))
+                        actual_seller.sells += quantity
+                        actual_seller.last_turn.append('Sold {0} {1} to {2} at {3}'.format(quantity, commodity, actual_buyer.name, price))
 
                         # Add to running tally of prices this turn TODO - this doesn't yet accurately reflect the price since it's not accounting for quantity
                         commodity_sell_prices.append(price)
