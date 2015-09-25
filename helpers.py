@@ -30,7 +30,8 @@ int2ord = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
 vowels = {'a','e','i','o','u'}
 def trim(string_, length):
     if len(string_) >= length:
-        return ''.join([l for l in string_ if l not in vowels])
+        # Always include first letter even if it's a vowel - #TODO - break into words and enrure first letter of each word is being used
+        return string_[0] + ''.join([l for l in string_[1:] if l not in vowels])
 
     return string_
 
