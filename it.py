@@ -1170,7 +1170,7 @@ class World(Map):
 
                 num_creatures = roll(5, 25)
                 sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
-                population = self.create_population(char="m", name="myth creature group", faction=faction, creatures=None, sentients=sentients, goods={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
+                population = self.create_population(char="m", name="myth creature group", faction=faction, creatures=None, sentients=sentients, econ_inventory={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
 
 
     def gen_sentient_races(self):
@@ -2083,7 +2083,7 @@ class World(Map):
             faction.set_leader(leader)
 
             sentients = {leader.creature.culture:{leader.creature.type_:{'Swordsman':10}}}
-            self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, goods={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
+            self.create_population(char='u', name=name, faction=faction, creatures={}, sentients=sentients, econ_inventory={'food':1}, wx=x, wy=y, site=ruin_site, commander=leader)
             # Set the headquarters and update the title to the building last created.
             if roll(1, 10) >= 9:
                 closest_city = self.get_closest_city(x, y)[0]
@@ -2127,7 +2127,7 @@ class World(Map):
         leader.w_teleport(wx, wy)
 
         sentients = {leader.creature.culture:{leader.creature.type_:{'Bandit':10}}}
-        self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, goods={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
+        self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, econ_inventory={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
         ## Prisoner
         #prisoner = closest_city.create_inhabitant(sex=1, born=WORLD.time_cycle.current_year-roll(18, 35), dynasty=None, important=0, house=None)
@@ -2137,8 +2137,8 @@ class World(Map):
         return leader, hideout_building
 
 
-    def create_population(self, char, name, faction, creatures, sentients, goods, wx, wy, site=None, commander=None):
-        population = Population(char, name, faction, creatures, sentients, goods, wx, wy, site, commander)
+    def create_population(self, char, name, faction, creatures, sentients, econ_inventory, wx, wy, site=None, commander=None):
+        population = Population(char, name, faction, creatures, sentients, econ_inventory, wx, wy, site, commander)
         self.tiles[wx][wy].populations.append(population)
         self.tiles[wx][wy].chunk.add_population(population)
 
@@ -2534,7 +2534,7 @@ class City(Site):
 
         ## Now add the caravan to a list
         sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':roll(10, 20)}}}
-        g.WORLD.create_population(char='M', name='{0} caravan'.format(self.name), faction=self.faction, creatures={}, sentients=sentients, goods={}, wx=location.x, wy=location.y, commander=human)
+        g.WORLD.create_population(char='M', name='{0} caravan'.format(self.name), faction=self.faction, creatures={}, sentients=sentients, econ_inventory={}, wx=location.x, wy=location.y, commander=human)
 
         #location.caravans.append(human)
 
@@ -3101,6 +3101,8 @@ class Object:
 
         # All tags associated with components which make up this object
         self.tags = self.get_tags()
+        # Tag that would mark this item as an economy item
+        self.econ_tag = None
 
         # How important / well-known this object is - also tracks entities' importance level
         self.infamy = 0
@@ -4628,14 +4630,14 @@ def dbg_faction_relations(faction):
 
 
 class Population:
-    def __init__(self, char, name, faction, creatures, sentients, goods, wx, wy, site=None, commander=None):
+    def __init__(self, char, name, faction, creatures, sentients, econ_inventory, wx, wy, site=None, commander=None):
         self.char = char
         self.name = name
         self.faction = faction
         self.creatures = creatures
         # {culture:{race:{profession: amount}}}
         self.sentients = sentients
-        self.goods = goods
+        self.econ_inventory = econ_inventory
 
         self.wx = wx
         self.wy = wy
@@ -4795,279 +4797,6 @@ class Dynasty:
         #libtcod.console_blit(panel, 0, 0, g.SCREEN_WIDTH, g.SCREEN_HEIGHT, 0, 0, 0)
 
 
-class Goal:
-    ''' This is the container for behaviors. It controls
-    when each behavior becomes active (serially) '''
-    def __init__(self, behavior_list, priority, reason):
-        self.behavior_list = behavior_list
-        for behavior in self.behavior_list:
-            behavior.goal = self
-        self.priority = priority
-        self.reason = reason
-
-    def get_name(self):
-        return self.behavior_list[0].get_name()
-
-    def take_goal_action(self):
-        ''' Picks the behavior which is currently active and executes it'''
-        behavior = self.behavior_list[0]
-
-        if not behavior.is_active and not behavior.is_completed():
-            behavior.initialize_behavior()
-
-        # TODO - improve flow. Currently checks if it's complete before and
-        # after taking the behavior action - the first time is to catch if
-        # the behavior happens to occur at a time where it's already completed
-        if not behavior.is_completed():
-            behavior.take_behavior_action()
-        # Important to put this here, so that it can again check the behavior after the action
-        if behavior.is_completed():
-            behavior.is_active= 0
-            self.behavior_list.remove(behavior)
-
-    def is_completed(self):
-        return not(len(self.behavior_list))
-
-
-class WaitBehavior:
-    ''' Used anytime a figure wants to wait somewhere and do some activity '''
-    def __init__(self, figure, location, num_days, travel_verb, activity_verb):
-        self.goal = None # will be set when added to a Goal
-        self.figure = figure
-        self.location= location
-        self.num_days = num_days
-        self.num_days_left = num_days
-        self.travel_verb = travel_verb
-        self.activity_verb = activity_verb
-
-        self.is_active = 0
-
-    def get_name(self):
-        if (self.figure.wx, self.figure.wy) != self.location:
-            goal_name = '{0} to {1} to {2} for {3} days'.format(self.travel_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.activity_verb, self.num_days)
-        else:
-            goal_name = '{0} in {1} for {2} days'.format(self.activity_verb, g.WORLD.tiles[self.location[0]][self.location[1]].get_location_description(), self.num_days)
-
-        return goal_name
-
-    def initialize_behavior(self):
-        # If we're not in the location, travel there
-        if (self.figure.wx, self.figure.wy) != self.location:
-            self.goal.behavior_list.insert(0, MovLocBehavior(location=self.location, figure=self.figure, travel_verb=self.travel_verb))
-            self.goal.behavior_list[0].initialize_behavior()
-
-            #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
-
-            event = hist.TravelStart(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
-                                     to_location=self.location, figures=self.figure.creature.commanded_figures + [self.figure], populations=self.figure.creature.commanded_populations)
-            g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
-        else:
-            self.is_active = 1
-
-    def is_completed(self):
-        ''' Add event when we reach destination'''
-        if self.num_days_left == 0:
-            event = hist.TravelEnd(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
-                                   figures=self.figure.creature.commanded_figures  + [self.figure], populations=self.figure.creature.commanded_populations)
-            g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
-            return 1
-
-        else:
-            return 0
-
-    def take_behavior_action(self):
-        self.num_days_left -= 1
-
-
-class MovLocBehavior:
-    ''' Specific behavior component for moving to an area.
-    Will use road paths if moving from city to city '''
-    def __init__(self, location, figure, travel_verb='travel'):
-        self.x = location[0]
-        self.y = location[1]
-        # The object
-        self.figure = figure
-        self.travel_verb = travel_verb
-        self.is_active = 0
-
-
-    def get_name(self):
-        goal_name = '{0} to {1}'.format(self.travel_verb, g.WORLD.tiles[self.x][self.y].get_location_description())
-        return goal_name
-
-    def initialize_behavior(self):
-        ''' Will be run as soon as this behavior is activated '''
-        self.is_active = 1
-        ## Find path
-        targeting_city = 0
-        target_site = g.WORLD.tiles[self.x][self.y].site
-        current_site = g.WORLD.tiles[self.figure.wx][self.figure.wy].site
-        if target_site is not None and target_site in g.WORLD.cities:
-            targeting_city = 1
-        if targeting_city and (current_site is not None and current_site in g.WORLD.cities):
-            # Pathfinding bit
-            self.figure.world_brain.path = current_site.path_to[target_site][:]
-
-        else:
-            # Default - use libtcod's A* to create a path to destination
-            path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.x, dy=self.y)
-            self.figure.world_brain.path = libtcod_path_to_list(path_map=g.WORLD.path_map)
-
-        #self.name = 'move to {0}.'.format(g.WORLD.tiles[self.x][self.y].get_location_description())
-        #g.game.add_message('{0} has decided to {1}'.format(self.figure.fulltitle(), self.get_name()), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .5))
-
-    def is_completed(self):
-        return (self.figure.wx, self.figure.wy) == (self.x, self.y)
-
-    def take_behavior_action(self):
-        self.figure.w_move_along_path(path=self.figure.world_brain.path)
-
-
-class MovTargBehavior:
-    ''' Behavior for moving to something that's not a city (a historical figure, perhaps)'''
-    def __init__(self, target, figure):
-        self.target = target
-        # The object
-        self.figure = figure
-
-        self.is_active = 0
-
-    def initialize_behavior(self):
-        ''' Will be run as soon as this behavior is activated '''
-        self.is_active= 1
-        if (self.figure.wx, self.figure.wy) == (self.target.x, self.target.y):
-            g.game.add_message(self.figure.fulltitle() + ' tried moving to ' + self.target.fulltitle() + ' but was already there')
-
-    def is_completed(self):
-        return self.figure.wx == self.target.wx and self.figure.wy == self.target.wy
-
-    def take_behavior_action(self):
-        # TODO - not magically knowing where the target is....
-        #path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.figure.wx, oy=self.figure.wy, dx=self.target.wx, dy=self.target.wy)
-        #libtcod.path_compute(p, ox, oy, dx, dy)
-
-        #x, y = libtcod.path_walk(g.WORLD.path_map, True)
-        #if x is not None and y is not None:
-        self.figure.w_move_to(self.target.wx, self.target.wy)
-
-class UnloadGoodsBehavior:
-    def __init__(self, target_city, figure):
-        self.target_city = target_city
-        self.figure = figure
-        self.is_active = 0
-
-    def initialize_behavior(self):
-        self.is_active= 1
-
-    def get_name(self):
-        goal_name = 'Unload good in {0}'.format(self.target_city.name)
-        return goal_name
-
-    def is_completed(self):
-        return self.figure in self.target_city.caravans
-
-    def take_behavior_action(self):
-        if self.figure not in self.target_city.caravans:
-            self.target_city.receive_caravan(self.figure)
-        else:
-            g.game.add_message('{0} tried to unload caravan goods and was already in {1}.caravans'.format(self.figure.fulltitle(), self.target_city.name), libtcod.red)
-
-class KillTargBehavior:
-    ''' Behavior for moving to something that's not a city (a historical figure, perhaps)'''
-    def __init__(self, target, figure):
-        self.target = target
-        # The object
-        self.figure = figure
-
-        self.is_active = 0
-        self.has_attempted_kill = 0
-
-    def initialize_behavior(self):
-        self.is_active= 1
-
-    def get_name(self):
-        goal_name = 'Kill {0}'.format(self.target.fulltitle())
-        return goal_name
-
-    def is_completed(self):
-        # return self.target.creature.status == 'dead'
-        return self.has_attempted_kill
-
-    def take_behavior_action(self):
-
-        battle = combat.WorldBattle(date=g.WORLD.time_cycle.get_current_date(), location=(self.figure.wx, self.figure.wy),
-                                    faction1_named=[self.figure], faction1_populations=[], faction2_named=[self.target], faction2_populations=[])
-        g.game.add_message(battle.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.figure.color, .3))
-
-        self.has_attempted_kill = 1
-
-        #if roll(0, 1):
-        #    self.target.creature.die()
-
-
-class CaptureTargBehavior:
-    ''' Behavior for capturing a target '''
-    def __init__(self, target, figure):
-        self.target = target
-        # The object
-        self.figure = figure
-
-        self.is_active = 0
-
-    def initialize_behavior(self):
-        self.is_active= 1
-
-    def is_completed(self):
-        return self.target in self.figure.creature.captives
-
-    def take_behavior_action(self):
-        pass
-
-class ImprisonTargBehavior:
-    ''' Behavior for moving a captive from an ary into a building '''
-    def __init__(self, target, figure, building):
-        self.target = target
-        # The object
-        self.figure = figure
-        self.building = building
-
-        self.is_active = 0
-
-    def initialize_behavior(self):
-        self.is_active= 1
-
-    def is_completed(self):
-        if self.target in self.building.captives:
-            g.game.add_message('WOOT', libtcod.dark_chartreuse)
-
-        return self.target in self.building.captives
-
-    def take_behavior_action(self):
-        pass
-        #self.figure.creature.army.transfer_captive_to_building(figure=self.target, target_building=self.building)
-
-
-class WanderBehavior:
-    ''' Behavior for capturing a target '''
-    def __init__(self, figure):
-        # The object
-        self.figure = figure
-
-        self.is_active = 0
-
-    def initialize_behavior(self):
-        self.is_active= 1
-
-    def is_completed(self):
-        return 0
-
-    def take_behavior_action(self):
-        bordering_tiles = get_border_tiles_8(self.figure.wx, self.figure.wy)
-        wx, wy = random.choice([t for t in bordering_tiles if not g.WORLD.tile_blocks_mov(t[0], t[1])])
-
-        self.figure.w_move_to(wx, wy)
-
-
 class Creature:
     def __init__(self, type_, sex, intelligence_level, firstname=None, lastname=None, culture=None, born=None, dynasty=None, important=0):
         self.type_ = type_
@@ -5172,6 +4901,7 @@ class Creature:
         self.commanded_figures = []
 
         self.economy_agent = None
+        self.econ_inventory = {}
         self.net_money = 0
 
         self.hometown = None # Where we originally were from
@@ -6721,96 +6451,7 @@ class BasicWorldBrain:
         self.current_goal_path = best_path
 
         return best_path
-
-    # def add_goal(self, priority, goal_type, reason, **kwargs):
-    #     ' Terribly written general handler for any goal type \
-    #     messy implementation with **kwargs for now...'
-    #
-    #     # To be phased out at some point
-    #     if goal_type == 'wait':
-    #         # Name the location
-    #         behavior_list = []
-    #         #target = kwargs['target']
-    #         #location = g.WORLD.tiles[target[0]][target[1]].get_location_description()
-    #         #if (self.owner.wx, self.owner.wy) != target or len(self.goals): # Problematic that this is calculated when the goal is added rather than when fired.
-    #         #    goal_name = '{0} to {1} to {2} for {3} days'.format(kwargs['travel_verb'], location, kwargs['activity_verb'], kwargs['num_days'])
-    #         #    behavior_list.append(MovLocBehavior(coords=target, figure=self.owner))
-    #         #else:
-    #         #    goal_name = '{0} at {1} for {2} days'.format(kwargs['activity_verb'], location, kwargs['num_days'])
-    #         #wait = WaitBehavior(figure=self.owner, num_days=kwargs['num_days'], activity=kwargs['activity_verb'])
-    #         wait = WaitBehavior(figure=self.owner, location=kwargs['location'], num_days=kwargs['num_days'], travel_verb=kwargs['travel_verb'], activity_verb=kwargs['activity_verb'])
-    #         behavior_list.append(wait)
-    #
-    #     elif goal_type == 'travel':
-    #         #goal_name = 'travel to {0}'.format(g.WORLD.tiles[target_tuple[0]][target_tuple[1]].get_location_description())
-    #         goto_site = MovLocBehavior(location=kwargs['location'], figure=self.owner, travel_verb='travel')
-    #         behavior_list = [goto_site]
-    #     # also phased out
-    #     elif goal_type == 'travel to person':
-    #         target_figure = kwargs['target']
-    #         #goal_name = 'travel to ' + target_figure.fulltitle()
-    #         goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
-    #         behavior_list = [goto_target]
-    #
-    #     elif goal_type == 'kill person':
-    #         target_figure = kwargs['target']
-    #         #goal_name = 'kill ' + target_figure.fulltitle()
-    #         goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
-    #         kill_target = KillTargBehavior(target=target_figure, figure=self.owner)
-    #
-    #         behavior_list = [goto_target, kill_target]
-    #
-    #     elif goal_type == 'capture person':
-    #         target_figure = kwargs['target']
-    #         target_prison_bldg = kwargs['target_prison_bldg']
-    #         target_prison_site = target_prison_bldg.site
-    #         #goal_name = 'capture ' + target_figure.fulltitle()
-    #         goto_target = MovTargBehavior(target=target_figure, figure=self.owner)
-    #         capture_target = CaptureTargBehavior(target=target_figure, figure=self.owner)
-    #         #for after capture
-    #         goto_target_location = MovLocBehavior(location=(target_prison_site.x, target_prison_site.y), figure=self.owner)
-    #         imprison_target = ImprisonTargBehavior(target=target_figure, figure=self.owner, building=target_prison_bldg)
-    #
-    #         behavior_list = [goto_target, capture_target, goto_target_location, imprison_target]
-    #
-    #     elif goal_type == 'move_trade_goods_to_city':
-    #         target_city = kwargs['target_city']
-    #         #goal_name = 'move goods to to {0}'.format(target_city.name)
-    #         goto_site = MovLocBehavior(location=(target_city.x, target_city.y), figure=self.owner)
-    #         unload_goods = UnloadGoodsBehavior(target_city=target_city, figure=self.owner)
-    #         behavior_list = [goto_site, unload_goods]
-    #
-    #     elif goal_type == 'bandit_wander':
-    #
-    #         behavior_list = [WanderBehavior(figure=self.owner)]
-    #
-    #     ## Tell the world what you're doing
-    #     #if goal_type != 'move_trade_goods_to_city':
-    #     #    g.game.add_message('{0} has decided to {1}'.format(self.owner.fulltitle(), goal_name), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .5))
-    #
-    #     # Add the goal to the list. Automatically add a goal to return home after the goal is complete
-    #     if len(self.goals) >= 2 and self.goals[-1].reason == 'I like to be home when I can.':
-    #         self.goals.insert(-1, Goal(behavior_list=behavior_list, priority=priority, reason=reason))
-    #     else:
-    #         self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason=reason))
-    #
-    #     # Auto return home
-    #     if self.goals[-1].reason != 'I like to be home when I can.' and self.owner.creature.current_citizenship:
-    #         home_city = self.owner.creature.current_citizenship
-    #         return_from_site = MovLocBehavior(location=(home_city.x, home_city.y), figure=self.owner, travel_verb='return home')
-    #         behavior_list = [return_from_site]
-    #
-    #         self.goals.append(Goal(behavior_list=behavior_list, priority=priority, reason='I like to be home when I can.'))
-    #
-    # def handle_goal_behavior(self):
-    #     ''' Key function which takes each goal a step at a time
-    #     and performs the behavior one by one '''
-    #     current_goal = self.goals[0]
-    #     current_goal.take_goal_action()
-    #
-    #     if current_goal.is_completed():
-    #         self.goals.remove(current_goal)
-    #
+    
 
     def take_goal_behavior(self):
         current_goal = self.current_goal_path[0]
@@ -8489,13 +8130,13 @@ class Game:
         g.player.local_brain = None
 
         sentients = {cult:{random.choice(cult.races):{'Adventurers':10}}}
-        g.player_party = g.WORLD.create_population(char='@', name="g.player party", faction=faction1, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=g.player)
+        g.player_party = g.WORLD.create_population(char='@', name="g.player party", faction=faction1, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=g.player)
 
 
         born = g.WORLD.time_cycle.years_ago(roll(20, 40))
         leader = cult.create_being(sex=1, born=born, char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
-        enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, goods={}, wx=1, wy=1, commander=leader)
+        enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
 
 
         hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
