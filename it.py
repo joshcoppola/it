@@ -1771,10 +1771,17 @@ class World(Map):
         if g.game.world_map_display_type == 'normal':
             #buffer = libtcod.ConsoleBuffer(CAMERA_WIDTH, CAMERA_HEIGHT)
 
+            ##### Micro-optimizations to avoid lookups in the loop
+            tiles = self.tiles
+            con = g.game.interface.map_console.con
+            c2m = g.game.camera.cam2map
+            put_char_ex = libtcod.console_put_char_ex
+            ##### End micro-optimizations
+
             for y in xrange(g.game.camera.height):
                 for x in xrange(g.game.camera.width):
-                    (wmap_x, wmap_y) = g.game.camera.cam2map(x, y)
-                    libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
+                    (wmap_x, wmap_y) = c2m(x, y)
+                    put_char_ex(con, x, y, tiles[wmap_x][wmap_y].char, tiles[wmap_x][wmap_y].char_color, tiles[wmap_x][wmap_y].color)
                     #bc = g.WORLD.tiles[wmap_x][wmap_y].color
                     #fc = g.WORLD.tiles[wmap_x][wmap_y].char_color
                     #buffer.set(x=x, y=y, back_r=g.WORLD.tiles[wmap_x][wmap_y].color.r, back_g=g.WORLD.tiles[wmap_x][wmap_y].color.g, back_b=g.WORLD.tiles[wmap_x][wmap_y].color.b, \
