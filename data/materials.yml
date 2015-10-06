@@ -16,6 +16,12 @@ copper:
     rigid: 1
     force_diffusion: 1
     slice_resistance: 5000
+stone:
+    rgb_color: [160, 150, 155]
+    density: 2750
+    rigid: 1
+    force_diffusion: 1
+    slice_resistance: 5000
 bone:
     rgb_color: [227, 218, 201]
     density: 1000
