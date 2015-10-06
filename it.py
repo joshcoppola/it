@@ -6481,7 +6481,6 @@ class BasicWorldBrain:
             if self.owner.creature.profession and self.owner.creature.profession.name == 'Bard':
                 target_city = random.choice([city for city in g.WORLD.cities if (city.x, city.y) != (self.owner.wx, self.owner.wy)])
                 reason = 'travel from city to city to make my living!'
-                # goal_state = goap.AtLocation(initial_location=(self.owner.wx, self.owner.wy), target_location=(target_city.x, target_city.y), entity=self.owner)
                 goal_state = goap.IsHangingOut(target_location=(target_city.x, target_city.y), entity=self.owner)
                 self.set_goal(goal_state=goal_state, reason=reason)
         #

@@ -97,6 +97,7 @@ class GoodsAreLoaded:
 
 
 class HaveCommodities:
+    ''' TODO - this is just a stub; needs expanding! '''
     def __init__(self, commodities_and_quantities, entity):
         self.status = 'have_economy_item'
         self.commodities_and_quantities = commodities_and_quantities
