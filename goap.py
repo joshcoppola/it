@@ -55,6 +55,22 @@ class AtLocation:
         return (self.entity.wx, self.entity.wy) == self.target_location
 
 
+class IsHangingOut:
+    ''' State needed to get an entity moving somewhere where the movement itself is the end goal.
+        Used due to issue with AtLocation directly calling the MoveToLocation behavior'''
+    def __init__(self, target_location, entity):
+        self.status = 'is_hanging_out'
+        self.target_location = target_location
+        self.entity = entity
+        # Will be set if this status isn't already completed
+        self.behaviors_to_accomplish = [SetupWaitBehavior(target_location=target_location, entity=entity)]
+
+    def is_completed(self):
+        # Considered complete once we are at the location -- movement behavior will be automatically generated as this
+        # behavior gets analyzed
+        return (self.entity.wx, self.entity.wy) == self.target_location
+
+
 class GoodsAreUnloaded:
     def __init__(self, target_city, goods, entity):
         self.target_city = target_city
@@ -78,6 +94,20 @@ class GoodsAreLoaded:
             return self.entity in self.target_city.caravans
 
 
+
+
+class HaveCommodities:
+    def __init__(self, commodities_and_quantities, entity):
+        self.status = 'have_economy_item'
+        self.commodities_and_quantities = commodities_and_quantities
+        self.needed_commodities_and_quantities = defaultdict(int)
+
+        self.entity = entity
+        # Will be set if this status isn't already completed
+        self.behaviors_to_accomplish = [BuyItem(self.item_name, self.entity)]
+
+    def is_completed(self):
+        return self.item_name in self.entity.creature.possessions
 
 
 class HaveItem:
@@ -331,6 +361,31 @@ class MoveToLocation(ActionBase):
         self.entity.w_move_along_path(path=self.entity.world_brain.path)
 
 
+
+class SetupWaitBehavior(ActionBase):
+    ''' Used when the end goal of an entity is simply to be in an area, due to an issue using the AtLocation state directly as an end goal '''
+    def __init__(self, target_location, entity):
+        ActionBase.__init__(self)
+        self.behavior = 'setup_wait_behavior'
+        self.target_location = target_location
+        self.entity = entity
+
+        self.preconditions = [AmAvailableToAct(self.entity)]
+
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
+
+    def get_name(self):
+        goal_name = 'Get ready to wait at {0}'.format(self.target_location)
+        return goal_name
+
+    def is_completed(self):
+        return 1 # Always true, so that as soon as this behavior is launched we can move on (with the auto-generated MoveToLocation behavior)
+
+    def get_behavior_location(self, current_location):
+        return self.target_location
+
+    def take_behavior_action(self):
+        pass  # No behavior needed here -
 
 class UnloadGoodsBehavior(ActionBase):
     def __init__(self, target_city, entity):
