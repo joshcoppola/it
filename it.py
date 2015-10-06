@@ -6451,7 +6451,7 @@ class BasicWorldBrain:
         self.current_goal_path = best_path
 
         return best_path
-    
+
 
     def take_goal_behavior(self):
         current_goal = self.current_goal_path[0]
@@ -6478,12 +6478,12 @@ class BasicWorldBrain:
                     creature.have_child()
 
             ####### Specal case - bards #######
-        #     if self.owner.creature.profession and self.owner.creature.profession.name == 'Bard':
-        #         target_city = random.choice([city for city in g.WORLD.cities if (city.x, city.y) != (self.owner.wx, self.owner.wy)])
-        #         reason = 'travel from city to city to make my living!'
-        #         # print '{0} is moving to {1}'.format(self.owner.fullname(), target_city.name)
-        #         # creature.change_citizenship(new_city=target_city, new_house=None)
-        #         self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
+            if self.owner.creature.profession and self.owner.creature.profession.name == 'Bard':
+                target_city = random.choice([city for city in g.WORLD.cities if (city.x, city.y) != (self.owner.wx, self.owner.wy)])
+                reason = 'travel from city to city to make my living!'
+                # goal_state = goap.AtLocation(initial_location=(self.owner.wx, self.owner.wy), target_location=(target_city.x, target_city.y), entity=self.owner)
+                goal_state = goap.IsHangingOut(target_location=(target_city.x, target_city.y), entity=self.owner)
+                self.set_goal(goal_state=goal_state, reason=reason)
         #
         #     ####### GOALS #######
         #     elif not creature.economy_agent \
