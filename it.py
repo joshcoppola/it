@@ -8076,7 +8076,6 @@ class Game:
         g.playerciv = g.WORLD.cities[0]
         born = g.WORLD.time_cycle.years_ago(roll(20, 45))
         g.player = g.playerciv.culture.create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
-        print g.WORLD.get_closest_resource(g.player.wx, g.player.wy, 'copper')
         # Make player literate
         for language in g.player.creature.languages:
             g.player.creature.update_language_knowledge(language=language, verbal=0, written=g.player.creature.languages[language]['verbal'])
