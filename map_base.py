@@ -1,9 +1,9 @@
 
 from __future__ import division
-import libtcodpy as libtcod
 from math import ceil
+from collections import defaultdict
 
-
+import libtcodpy as libtcod
 
 class Chunk:
     def __init__(self, x, y):
@@ -28,6 +28,9 @@ class RegionChunk(Chunk):
         self.sites = []
         self.minor_sites = []
         self.caves = []
+
+        # Will be stored as resource: [location1, location2, ...] where locations are tuples
+        self.resources = defaultdict(list)
 
     def get_all_sites(self):
         return self.sites + self.minor_sites + self.caves
@@ -85,6 +88,7 @@ class Map:
     def setup_chunks(self, chunk_size, map_type):
         ''' Set up "chunks" of tiles, useful for checking nearby things without having to loop through all map tiles '''
 
+        # How many chunks in the world (width and height)
         self.chunk_width = int(ceil(self.width/chunk_size))
         self.chunk_height = int(ceil(self.height/chunk_size))
 
@@ -116,4 +120,5 @@ class Map:
 
     def get_nearby_chunks(self, chunk, distance):
         ''' Return nearby chunks bordering which are <distance> away from chunk.x, chunk.y '''
-        return [self.chunk_tiles[cx][cy] for cy in xrange(chunk.y - distance, chunk.y + distance + 1) for cx in xrange(chunk.x - distance, chunk.x + distance + 1) if 0 <= cx < self.chunk_width and 0 <= cy < self.chunk_height]
+        return [self.chunk_tiles[cx][cy] for cy in xrange(chunk.y - distance, chunk.y + distance + 1)
+                for cx in xrange(chunk.x - distance, chunk.x + distance + 1) if 0 <= cx < self.chunk_width and 0 <= cy < self.chunk_height]
