@@ -88,6 +88,9 @@ class Region:
         self.res[resource_name] += amount
         self.agent_slots[resource_name] = {'slots':g.MAX_ECONOMY_AGENTS_PER_TILE, 'agents':[]}
 
+        # Add location to to chunk of world this region is a part of
+        self.chunk.resources[resource_name].append((self.x, self.y))
+
     def add_resource_gatherer_to_region(self, resource_name, agent):
         self.agent_slots[resource_name]['agents'].append(agent)
         agent.resource_gathering_region = self
@@ -372,36 +375,21 @@ class World(Map):
         if self.tiles[x][y-1].has_feature('road'):
             N = 1
 
-        if N and S and E and W:
-            char = chr(197)
-        elif N and S and E:
-            char = chr(195)
-        elif N and E and W:
-            char = chr(193)
-        elif S and E and W:
-            char = chr(194)
-        elif N and S and W:
-            char = chr(180)
-        elif E and W:
-            char = chr(196)
-        elif E and N:
-            char = chr(192)
-        elif N and S:
-            char = chr(179)
-        elif N and W:
-            char = chr(217)
-        elif S and W:
-            char = chr(191)
-        elif S and E:
-            char = chr(218)
-        elif N:
-            char = chr(179)
-        elif S:
-            char = chr(179)
-        elif E:
-            char = chr(196)
-        elif W:
-            char = chr(196)
+        if N and S and E and W:     char = chr(197)
+        elif N and S and E:         char = chr(195)
+        elif N and E and W:         char = chr(193)
+        elif S and E and W:         char = chr(194)
+        elif N and S and W:         char = chr(180)
+        elif E and W:               char = chr(196)
+        elif E and N:               char = chr(192)
+        elif N and S:               char = chr(179)
+        elif N and W:               char = chr(217)
+        elif S and W:               char = chr(191)
+        elif S and E:               char = chr(218)
+        elif N:                     char = chr(179)
+        elif S:                     char = chr(179)
+        elif E:                     char = chr(196)
+        elif W:                     char = chr(196)
         elif not (N and S and E and W):
             return
 
@@ -511,9 +499,29 @@ class World(Map):
 
         return nearby_resources, nearby_resource_locations
 
+    def get_closest_resource(self, x, y, resource):
+        ''' Given world x and y coords, find the closest instance of a particular resource '''
+        initial_chunk = self.tiles[x][y].chunk
+        # Find a list of nearby chunks to check the resources of - arbitrarily setting # of chunks to 5 for now
+        resource_locations = [location for chunk in self.get_nearby_chunks(chunk=initial_chunk, distance=5)
+                                       for location in chunk.resources[resource] if resource in chunk.resources]
+
+        closest_distance = 100000
+        closest_location = None
+        # Run through each resource location:
+        for location in resource_locations:
+            distance = self.get_astar_distance_to(x=x, y=y, target_x=location[0], target_y=location[1])
+            # Keep track of whether this is closer than what is recorded
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_location = location
+
+        return closest_location
+
     def setup_world(self):
-        #fill g.WORLD with dummy regions
+        # Fill world with dummy regions
         self.tiles = [[Region(x=x, y=y) for y in xrange(self.height)] for x in xrange(self.width)]
+        # Initialize the chunks inthe world - method inherited from map_base
         self.setup_chunks(chunk_size=10, map_type='world')
 
         # Equator line - temperature depends on this. Varies slightly from map to map
@@ -8068,6 +8076,7 @@ class Game:
         g.playerciv = g.WORLD.cities[0]
         born = g.WORLD.time_cycle.years_ago(roll(20, 45))
         g.player = g.playerciv.culture.create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        print g.WORLD.get_closest_resource(g.player.wx, g.player.wy, 'copper')
         # Make player literate
         for language in g.player.creature.languages:
             g.player.creature.update_language_knowledge(language=language, verbal=0, written=g.player.creature.languages[language]['verbal'])
