@@ -76,8 +76,8 @@ class CommodityManager:
     def __init__(self):
 
         # These 3 contain the actual Resource / Good classes in the list
-        self.resources = []
-        self.goods = []
+        self.resources = set()
+        self.goods = set()
         self.all_commodities = []
         self.all_commodity_names = []
 
@@ -123,7 +123,7 @@ class CommodityManager:
                                gather_amount=resource_info[rname]['harvest']['number_output'], break_chance=resource_info[rname]['break_chance'],
                                app_chances=resource_info[rname]['app_chances'], app_amt=resource_info[rname]['app_amount'])
 
-            self.resources.append(resource)
+            self.resources.add(resource)
 
             self.reactions[rname] = Reaction(is_finished_good=0,
                                 input_commodity_name=None, input_amount=None,
@@ -134,7 +134,7 @@ class CommodityManager:
             # "Reactions" for each resource - e.g. we can turn 2 copper into 1 copper tools, or something
             for reaction_type in resource_info[rname]['reactions']:
                 finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['number_input'], out_amt=resource_info[rname]['reactions'][reaction_type]['number_output'])
-                self.goods.append(finished_good)
+                self.goods.add(finished_good)
 
                 ### Saving those reactions ###
                 reaction_name = '{0} {1}'.format(rname, reaction_type)
@@ -190,7 +190,11 @@ class CommodityManager:
     def get_material_from_commodity_name(self, commodity_name):
         return self.materials[self.get_actual_commodity_from_name(commodity_name).material.name]
 
+    def is_resource(self, commodity):
+        return commodity in self.resources
 
+    def is_good(self, commodity):
+        return commodity in self.goods
 
 def import_data():
     global AGENT_INFO, CITY_INDUSTRY_SLOTS, CITY_RESOURCE_SLOTS, COMMODITY_TO_PRODUCER_NAMES, commodity_manager, materials
