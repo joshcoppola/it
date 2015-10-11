@@ -502,24 +502,25 @@ class World(Map):
     def get_closest_resource(self, x, y, resource):
         ''' Given world x and y coords, find the closest instance of a particular resource '''
         initial_chunk = self.tiles[x][y].chunk
+        resource_locations = [location for location in initial_chunk.resources[resource] if resource in initial_chunk.resources]
+        # Check if there are any on this chunk
+        closest_distance, closest_location = self.get_closest_location(x=x, y=y, locations=resource_locations)
+
+        # If there is a distance, and it's less than the chunk size, then this is a good location
+        if 0 <= closest_distance <= self.chunk_size:
+            return closest_distance, closest_location
+
         # Find a list of nearby chunks to check the resources of - arbitrarily setting # of chunks to 5 for now
-        resource_locations = [location for chunk in self.get_nearby_chunks(chunk=initial_chunk, distance=5)
-                                       for location in chunk.resources[resource] if resource in chunk.resources]
+        resource_locations = [location for chunk in self.get_nearby_chunks(chunk=initial_chunk, distance=3)
+                                       if chunk != initial_chunk for location in chunk.resources[resource]
+                                       if resource in chunk.resources and self.tiles[location[0]][location[1]].in_play_region()]
 
-        closest_distance = 100000
-        closest_location = None
-        # Run through each resource location:
-        for location in resource_locations:
-            distance = self.get_astar_distance_to(x=x, y=y, target_x=location[0], target_y=location[1])
-            # Keep track of whether this is closer than what is recorded
-            if distance < closest_distance:
-                closest_distance = distance
-                closest_location = location
+        closest_distance, closest_location = self.get_closest_location(x=x, y=y, locations=resource_locations)
 
-        return closest_location
+        return closest_distance, closest_location
 
     def setup_world(self):
-        # Fill world with dummy regions
+        # Fill world with empty regions
         self.tiles = [[Region(x=x, y=y) for y in xrange(self.height)] for x in xrange(self.width)]
         # Initialize the chunks inthe world - method inherited from map_base
         self.setup_chunks(chunk_size=10, map_type='world')
@@ -4909,7 +4910,7 @@ class Creature:
         self.commanded_figures = []
 
         self.economy_agent = None
-        self.econ_inventory = {}
+        self.econ_inventory = defaultdict(int)
         self.net_money = 0
 
         self.hometown = None # Where we originally were from
@@ -6463,6 +6464,10 @@ class BasicWorldBrain:
 
     def take_goal_behavior(self):
         current_goal = self.current_goal_path[0]
+
+        if not current_goal.activated:
+            current_goal.activate()
+
         current_goal.take_behavior_action()
 
         if current_goal.is_completed():
@@ -6680,6 +6685,12 @@ class BasicWorldBrain:
             #         item_name = random.choice(unique_objs) if unique_objs else 'shirt'
             #
             #         self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
+            else:
+                if self.owner.creature.intelligence_level == 3 and roll(1, 100) == 1:
+                    #commodity = random.choice(['copper', 'iron', 'bronze', 'wood', 'clay', 'stone'])
+                    commodity = 'stone'
+                    if 'stone' not in g.WORLD.tiles[self.owner.wx][self.owner.wy].res:
+                        self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=5, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
