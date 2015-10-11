@@ -9,6 +9,7 @@ import libtcodpy as libtcod
 from helpers import infinite_defaultdict, libtcod_path_to_list
 from traits import TRAIT_INFO
 import config as g
+import data_importer as data
 
 GOAL_ITEM = 'cheese'
 
@@ -94,21 +95,53 @@ class GoodsAreLoaded:
             return self.entity in self.target_city.caravans
 
 
-
-
-class HaveCommodities:
-    ''' TODO - this is just a stub; needs expanding! '''
-    def __init__(self, commodities_and_quantities, entity):
+class HaveCommodityAtLocation:
+    def __init__(self, commodity, quantity, entity, target_location):
         self.status = 'have_economy_item'
-        self.commodities_and_quantities = commodities_and_quantities
-        self.needed_commodities_and_quantities = defaultdict(int)
+        self.commodity = commodity
+        self.quantity = quantity
+        self.entity = entity
+        self.target_location = target_location
+
+        # Will be set if this status isn't already completed
+        self.behaviors_to_accomplish = [BringCommodityToLocation(commodity=commodity, quantity=quantity, entity=self.entity, target_location=target_location)]
+
+
+    def is_completed(self):
+        has_all_commodities = True
+        for commodity, quantity in self.commodities_and_quantities.iteritems():
+            if (commodity not in self.entity.creature.econ_inventory) or self.entity.creature.econ_inventory[self.commodity] < quantity:
+                has_all_commodities = False
+                break
+
+        return has_all_commodities and (self.entity.wx, self.entity.wy) == self.target_location
+
+
+class HaveCommodity:
+    ''' State of having a commodity in inventory, and potentially being at a particular location once the commodity is owned '''
+    def __init__(self, commodity, quantity, entity):
+        self.status = 'have_economy_item'
+
+        self.commodity = commodity
+        self.quantity = quantity
 
         self.entity = entity
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = [BuyItem(self.item_name, self.entity)]
+        # self.behaviors_to_accomplish = [BuyCommodity(self.commodity, self.entity)]
+        self.behaviors_to_accomplish = []
+
+        # Consider gathering the commodity if it is a raw resource
+        if data.commodity_manager.name_is_resource(self.commodity):
+            self.behaviors_to_accomplish.append(GatherCommodityBehavior(self.commodity, self.quantity, self.entity))
+
+        # Else consider doing the reaction if it's a finished good
+        elif data.commodity_manager.name_is_good(self.commodity):
+            self.behaviors_to_accomplish.append(DoReaction(self.commodity, self.quantity, self.entity))
+
 
     def is_completed(self):
-        return self.item_name in self.entity.creature.possessions
+        ''' Target location is optional to include, so only check for it if necessary '''
+        return self.entity.creature.econ_inventory[self.commodity] >= self.quantity
 
 
 class HaveItem:
@@ -185,6 +218,7 @@ class ActionBase:
     ''' The base action class, providing some default methods for other actions '''
     def __init__(self):
         self.checked_for_movement = 0
+        self.activated = 0
 
     def get_unmet_conditions(self):
         return [precondition for precondition in self.preconditions if not precondition.is_completed()]
@@ -195,71 +229,10 @@ class ActionBase:
     def get_behavior_location(self, current_location):
         return roll(0, 10), roll(0, 10)
 
+    def activate(self):
+        ''' Any specific behavior needed upon activating - will be overwritten if needed '''
+        self.activated = 1
 
-
-class FindOutWhereItemIsLocated(ActionBase):
-    def __init__(self, item, entity):
-        ActionBase.__init__(self)
-        self.behavior = 'find_out_where_item_is_located'
-        self.item = item
-        self.entity = entity
-
-        self.preconditions = [AmAvailableToAct(self.entity)]
-
-        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
-
-    def get_behavior_location(self, current_location):
-        return None
-
-class SearchForItem(ActionBase):
-    def __init__(self, item, entity):
-        ActionBase.__init__(self)
-        self.behavior = 'search_for_item'
-        self.item = item
-        self.entity = entity
-
-        self.preconditions = [AmAvailableToAct(self.entity), HaveRoughIdeaOfLocation(self.item, self.entity)]
-
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':0, 'legality':0}
-
-class GetJob(ActionBase):
-    def __init__(self, entity):
-        ActionBase.__init__(self)
-        self.behavior = 'get_job'
-        self.entity = entity
-        self.preconditions = [AmAvailableToAct(self.entity)]
-
-        self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0}
-
-class GetMoneyThroughWork(ActionBase):
-    def __init__(self, money, entity):
-        ActionBase.__init__(self)
-        self.behavior = 'get_money_through_work'
-        self.money = money
-        self.entity = entity
-        self.preconditions = [HaveJob(self.entity)]
-
-        self.costs = {'money':-1, 'time':1, 'distance':0, 'morality':0, 'legality':0}
-
-    def get_repeats(self):
-        return ceil(self.money / self.entity.profession.monthly_pay)
-
-    # def get_behavior_location(self):
-    #     return self.entity.profession.current_work_building.site.x, self.entity.profession.current_work_building.site.y
-
-    #def is_at_location(self):
-    #    return (self.entity.wx, self.entity.wy) == self.get_behavior_location()
-
-
-class StealMoney(ActionBase):
-    def __init__(self, money, entity):
-        ActionBase.__init__(self)
-        self.behavior = 'steal_money'
-        self.money = money
-        self.entity = entity
-        self.preconditions = [AmAvailableToAct(self.entity)]
-
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':50, 'legality':50}
 
 
 class BuyItem(ActionBase):
@@ -299,16 +272,6 @@ class BuyItem(ActionBase):
     def is_completed(self):
         return 1
 
-class StealItem(ActionBase):
-    def __init__(self, item, entity):
-        ActionBase.__init__(self)
-        self.behavior = 'steal_item'
-        self.item = item
-        self.entity = entity
-        self.preconditions = [KnowWhereItemisLocated(self.item, self.entity)]
-
-        self.costs = {'money':0, 'time':1, 'distance':0, 'morality':50, 'legality':50}
-
 
 
 class MoveToLocation(ActionBase):
@@ -327,28 +290,12 @@ class MoveToLocation(ActionBase):
 
         self.costs = {'money':0, 'time':0, 'distance':0, 'morality':0, 'legality':0}
 
-        if g.WORLD: # This would otherwise stop this module running as __main__, leaving this in for testing purposes
-            target_site = g.WORLD.tiles[self.target_location[0]][self.target_location[1]].site
-            current_site = g.WORLD.tiles[self.entity.wx][self.entity.wy].site
 
-            if target_site in g.WORLD.cities and current_site in g.WORLD.cities:
-                full_path = current_site.path_to[target_site][:]
-            else:
-                # Default - use libtcod's A* to create a path to destination
-                path = libtcod.path_compute(p=g.WORLD.path_map, ox=self.entity.wx, oy=self.entity.wy, dx=self.target_location[0], dy=self.target_location[1])
-                full_path = libtcod_path_to_list(path_map=g.WORLD.path_map)
+        self.full_path = self.get_best_path(initial_location=self.initial_location, target_location=self.target_location)
 
-            # Add path to brain
-            self.entity.world_brain.path = full_path
-            # Update the cost of this behavior
-            self.costs['time'] += len(full_path)
-            self.costs['distance'] += len(full_path)
-
-        else:
-            # Stuff to give this movement a random cost
-            cost = roll(1, 10)
-            self.costs['distance'] = cost
-            self.costs['time'] = cost
+        # Update the cost of this behavior
+        self.costs['time'] += len(self.full_path)
+        self.costs['distance'] += len(self.full_path)
 
 
     def get_name(self):
@@ -358,9 +305,100 @@ class MoveToLocation(ActionBase):
     def is_completed(self):
         return (self.entity.wx, self.entity.wy) == self.target_location
 
-    def take_behavior_action(self):
-        self.entity.w_move_along_path(path=self.entity.world_brain.path)
+    def activate(self):
+        ''' On activation, must double check to make sure entity is still in the initial location -- if not, recalculate'''
+        if (self.entity.wx, self.entity.wy) != self.initial_location:
+            self.full_path = self.get_best_path(initial_location=(self.entity.wx, self.entity.wy), target_location=self.target_location)
 
+        # Set the entity's brain to this path
+        self.entity.world_brain.path = self.full_path
+        self.activated = 1
+
+    def take_behavior_action(self):
+        # Don't take any action if no path has been set (e.g. we are already at the location we thought we needed to move to)
+        if self.entity.world_brain.path:
+            self.entity.w_move_along_path(path=self.entity.world_brain.path)
+
+        elif self.full_path:
+            print '{0} has no path to take, although the behavior has one!'.format(self.entity.fulltitle())
+        elif self.full_path:
+            print 'Both {0} and the behavior have no path to take!'.format(self.entity.fulltitle())
+
+    def get_best_path(self, initial_location, target_location):
+        ''' Find a path between 2 points, but take roads if both points happen to be cities '''
+        target_site = g.WORLD.tiles[target_location[0]][target_location[1]].site
+        current_site = g.WORLD.tiles[initial_location[0]][initial_location[1]].site
+
+        if target_site in g.WORLD.cities and current_site in g.WORLD.cities and current_site != target_site:
+            full_path = current_site.path_to[target_site][:]
+        else:
+            # Default - use libtcod's A* to create a path to destination
+            libtcod.path_compute(p=g.WORLD.path_map, ox=initial_location[0], oy=initial_location[1], dx=target_location[0], dy=target_location[1])
+            full_path = libtcod_path_to_list(path_map=g.WORLD.path_map)
+
+        if not full_path:
+            print '{0} -- has no full path to get from {1} to {2}'.format(self.entity.fulltitle(), self.initial_location, self.target_location)
+
+        return full_path
+
+
+class BringCommodityToLocation(ActionBase):
+    def __init__(self, commodity, quantity, entity, target_location):
+        ActionBase.__init__(self)
+        self.behavior = 'bring_commodity_behavior'
+        self.commodity = commodity
+        self.quantity = quantity
+        self.entity = entity
+        self.target_location = target_location
+
+        self.preconditions = [HaveCommodity(commodity=self.commodity,  quantity=self.quantity, entity=self.entity)]
+
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
+
+    def get_name(self):
+        goal_name = 'Bring {0} {1} to {2}'.format(self.quantity, self.commodity, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
+        return goal_name
+
+    def is_completed(self):
+        return self.entity.creature.econ_inventory[self.commodity] >= self.quantity and (self.entity.wx, self.entity.wy) == self.target_location
+
+    def get_behavior_location(self, current_location):
+        return self.target_location
+
+    def take_behavior_action(self):
+        pass
+
+
+
+class GatherCommodityBehavior(ActionBase):
+    def __init__(self, commodity, amount, entity):
+        ActionBase.__init__(self)
+        self.behavior = 'gather_commodity_behavior'
+        self.commodity = commodity
+        self.amount = amount
+        self.entity = entity
+
+        self.preconditions = [AmAvailableToAct(self.entity)]
+
+        self.costs = {'money':0, 'time':.1, 'distance':0, 'morality':0, 'legality':0}
+
+    def get_name(self):
+        goal_name = 'Gather {0} {1}'.format(self.amount, self.commodity)
+        return goal_name
+
+    def is_completed(self):
+        return self.entity.creature.econ_inventory[self.commodity] >= self.amount
+
+    def get_behavior_location(self, current_location):
+        _, closest_resource_location = g.WORLD.get_closest_resource(x=current_location[0], y=current_location[1], resource=self.commodity)
+
+        if closest_resource_location is None:
+            print self.entity.fullname(), 'at', current_location, 'going for', self.commodity, 'COULD NOT FIND CLOSEST'
+
+        return closest_resource_location
+
+    def take_behavior_action(self):
+        self.entity.creature.econ_inventory[self.commodity] += self.amount
 
 
 class SetupWaitBehavior(ActionBase):
