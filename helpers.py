@@ -235,12 +235,7 @@ def get_border_tiles_8(x, y):
 
 def libtcod_path_to_list(path_map):
     ''' get a libtcod path into a list '''
-    path = []
-    while not libtcod.path_is_empty(path_map):
-        x, y = libtcod.path_walk(path_map, True)
-        path.append((x, y))
-
-    return path
+    return [libtcod.path_get(path_map, i) for i in xrange(libtcod.path_size(path_map))]
 
 
 def in_circle(center_x, center_y, radius, x, y):
