@@ -77,7 +77,11 @@ class CommodityManager:
 
         # These 3 contain the actual Resource / Good classes in the list
         self.resources = set()
+        self.resource_names = set()
+
         self.goods = set()
+        self.good_names = set()
+
         self.all_commodities = []
         self.all_commodity_names = []
 
@@ -124,6 +128,7 @@ class CommodityManager:
                                app_chances=resource_info[rname]['app_chances'], app_amt=resource_info[rname]['app_amount'])
 
             self.resources.add(resource)
+            self.resource_names.add(rname)
 
             self.reactions[rname] = Reaction(is_finished_good=0,
                                 input_commodity_name=None, input_amount=None,
@@ -135,6 +140,7 @@ class CommodityManager:
             for reaction_type in resource_info[rname]['reactions']:
                 finished_good = FinishedGood(category=reaction_type, material=resource, in_amt=resource_info[rname]['reactions'][reaction_type]['number_input'], out_amt=resource_info[rname]['reactions'][reaction_type]['number_output'])
                 self.goods.add(finished_good)
+                self.good_names.add(finished_good.name)
 
                 ### Saving those reactions ###
                 reaction_name = '{0} {1}'.format(rname, reaction_type)
@@ -193,8 +199,14 @@ class CommodityManager:
     def is_resource(self, commodity):
         return commodity in self.resources
 
+    def name_is_resource(self, commodity_name):
+        return commodity_name in self.resource_names
+
     def is_good(self, commodity):
         return commodity in self.goods
+
+    def name_is_good(self, commodity_name):
+        return commodity_name in self.good_names
 
 def import_data():
     global AGENT_INFO, CITY_INDUSTRY_SLOTS, CITY_RESOURCE_SLOTS, COMMODITY_TO_PRODUCER_NAMES, commodity_manager, materials
