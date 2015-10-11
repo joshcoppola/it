@@ -75,19 +75,42 @@ class Map:
         self.chunk_width = None
         self.chunk_height = None
 
+        self.chunk_size = None
+
     def is_val_xy(self, coords):
         return (0 < coords[0] < self.width) and (0 < coords[1] < self.height)
 
     def get_astar_distance_to(self, x, y, target_x, target_y):
+        ''' Gets distance using A* algo - how far an entity would actually have to walk to get somewhere '''
+        # Handle case where the target is the same as the initial location
+        if (x, y) == (target_x, target_y):
+            return 0
+
+        # Otherwise, compute the path
         libtcod.path_compute(self.path_map, x, y, target_x, target_y)
+        # A length of 0 here should mean that it was not possible to reach the location
+        # It could mean that the initial loc == the target loc, but we've tested that above
         new_path_len = libtcod.path_size(self.path_map)
 
-        return new_path_len
+        # Therefore, a len of 0 here should mean unreachable - so return None
+        return new_path_len if new_path_len else None
 
+    def get_closest_location(self, x, y, locations):
+        ''' Rake a series of (x, y) locations, and find which is closest to the input x and y vals '''
+        closest_distance = 100000
+        closest_location = None
+        for location in locations:
+            distance = self.get_astar_distance_to(x=x, y=y, target_x=location[0], target_y=location[1])
+            # Keep track of whether this is closer than what is recorded
+            if distance is not None and distance < closest_distance:
+                closest_distance = distance
+                closest_location = location
+
+        return closest_distance, closest_location
 
     def setup_chunks(self, chunk_size, map_type):
         ''' Set up "chunks" of tiles, useful for checking nearby things without having to loop through all map tiles '''
-
+        self.chunk_size = chunk_size
         # How many chunks in the world (width and height)
         self.chunk_width = int(ceil(self.width/chunk_size))
         self.chunk_height = int(ceil(self.height/chunk_size))
