@@ -208,6 +208,10 @@ class CommodityManager:
     def name_is_good(self, commodity_name):
         return commodity_name in self.good_names
 
+    def get_days_to_harvest(self, resource_name):
+        # In the YAML, units are specified in yields per week. This will find how many days it will take to gather them
+        return int(round(7 / self.reactions[resource_name].output_amount))
+
 def import_data():
     global AGENT_INFO, CITY_INDUSTRY_SLOTS, CITY_RESOURCE_SLOTS, COMMODITY_TO_PRODUCER_NAMES, commodity_manager, materials
 
