@@ -45,7 +45,6 @@ class TestEntity:
 
 class AtLocation:
     def __init__(self, initial_location, target_location, entity):
-        self.status = 'at_location'
         self.initial_location = initial_location
         self.target_location = target_location
         self.entity = entity
@@ -60,7 +59,6 @@ class IsHangingOut:
     ''' State needed to get an entity moving somewhere where the movement itself is the end goal.
         Used due to issue with AtLocation directly calling the MoveToLocation behavior'''
     def __init__(self, target_location, entity):
-        self.status = 'is_hanging_out'
         self.target_location = target_location
         self.entity = entity
         # Will be set if this status isn't already completed
@@ -97,7 +95,6 @@ class GoodsAreLoaded:
 
 class HaveCommodityAtLocation:
     def __init__(self, commodity, quantity, entity, target_location):
-        self.status = 'have_economy_item'
         self.commodity = commodity
         self.quantity = quantity
         self.entity = entity
@@ -120,8 +117,6 @@ class HaveCommodityAtLocation:
 class HaveCommodity:
     ''' State of having a commodity in inventory, and potentially being at a particular location once the commodity is owned '''
     def __init__(self, commodity, quantity, entity):
-        self.status = 'have_economy_item'
-
         self.commodity = commodity
         self.quantity = quantity
 
@@ -146,7 +141,6 @@ class HaveCommodity:
 
 class HaveItem:
     def __init__(self, item_name, entity):
-        self.status = 'have_item'
         self.item_name = item_name
         self.entity = entity
         # Will be set if this status isn't already completed
@@ -158,7 +152,6 @@ class HaveItem:
 
 class KnowWhereItemisLocated:
     def __init__(self, item, entity):
-        self.status = 'know_where_item_is_located'
         self.item = item
         self.entity = entity
         self.behaviors_to_accomplish = [FindOutWhereItemIsLocated(self.item, self.entity)]
@@ -169,7 +162,6 @@ class KnowWhereItemisLocated:
 
 class HaveRoughIdeaOfLocation:
     def __init__(self, item, entity):
-        self.status = 'have_rough_idea_of_location'
         self.item = item
         self.entity = entity
         self.behaviors_to_accomplish = []
@@ -180,7 +172,6 @@ class HaveRoughIdeaOfLocation:
 
 class HaveMoney:
     def __init__(self, money, entity):
-        self.status = 'have_item'
         self.money = money
         self.entity = entity
         # Will be set if this status isn't already completed
@@ -193,7 +184,6 @@ class HaveMoney:
 
 class HaveJob:
     def __init__(self, entity):
-        self.status = 'have_job'
         self.entity = entity
         # Will be set if this status isn't already completed
         self.behaviors_to_accomplish = [GetJob(self.entity)]
@@ -204,7 +194,6 @@ class HaveJob:
 
 class AmAvailableToAct:
     def __init__(self, entity):
-        self.status = 'am_available_to_act'
         self.entity = entity
         # Will be set if this status isn't already completed
         self.behaviors_to_accomplish = []
@@ -240,7 +229,6 @@ class ActionBase:
 class BuyItem(ActionBase):
     def __init__(self, item_name, entity):
         ActionBase.__init__(self)
-        self.behavior = 'buy_item'
         self.item_name = item_name
         self.entity = entity
         self.preconditions = [HaveMoney(self.item_name, self.entity)]
@@ -263,6 +251,9 @@ class BuyItem(ActionBase):
 
         return closest_city.x, closest_city.y
 
+    def get_name(self):
+        return 'buy {0}'.format(self.item_name)
+
     def take_behavior_action(self):
 
         target_agent = random.choice([agent for agent in self.site.econ.agents if agent.reaction.is_finished_good and self.item_name in agent.get_sold_objects()])
@@ -281,7 +272,6 @@ class MoveToLocation(ActionBase):
     Will use road paths if moving from city to city '''
     def __init__(self, initial_location, target_location, entity, travel_verb='travel'):
         ActionBase.__init__(self)
-        self.behavior = 'move'
         self.initial_location = initial_location
         self.target_location = target_location
         self.entity = entity
@@ -343,7 +333,6 @@ class MoveToLocation(ActionBase):
 class BringCommodityToLocation(ActionBase):
     def __init__(self, commodity, quantity, entity, target_location):
         ActionBase.__init__(self)
-        self.behavior = 'bring_commodity_behavior'
         self.commodity = commodity
         self.quantity = quantity
         self.entity = entity
@@ -352,7 +341,7 @@ class BringCommodityToLocation(ActionBase):
         self.preconditions = [HaveCommodity(commodity=self.commodity,  quantity=self.quantity, entity=self.entity)]
 
     def get_name(self):
-        goal_name = 'Bring {0} {1} to {2}'.format(self.quantity, self.commodity, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
+        goal_name = 'bring {0} {1} to {2}'.format(self.quantity, self.commodity, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
         return goal_name
 
     def is_completed(self):
@@ -369,7 +358,6 @@ class BringCommodityToLocation(ActionBase):
 class GatherCommodityBehavior(ActionBase):
     def __init__(self, commodity, quantity, entity):
         ActionBase.__init__(self)
-        self.behavior = 'gather_commodity_behavior'
         self.commodity = commodity
         self.quantity = quantity
         self.entity = entity
@@ -381,7 +369,7 @@ class GatherCommodityBehavior(ActionBase):
         self.time_to_gather = data.commodity_manager.get_days_to_harvest(resource_name=self.commodity)
 
     def get_name(self):
-        goal_name = 'Gather {0} {1}'.format(self.quantity, self.commodity)
+        goal_name = 'gather {0} {1}'.format(self.quantity, self.commodity)
         return goal_name
 
     def is_completed(self):
@@ -404,18 +392,61 @@ class GatherCommodityBehavior(ActionBase):
             self.behavior_progress = 0
 
 
+class DoReaction(ActionBase):
+    def __init__(self, commodity, quantity, entity):
+        ActionBase.__init__(self)
+        self.commodity = commodity
+        self.quantity = quantity
+        self.entity = entity
+
+        # Store this reaction
+        self.reaction = data.commodity_manager.reactions[commodity]
+        self.number_of_reactions = int(ceil(quantity / self.reaction.output_amount))
+
+        # Amount we need total for the reacion, accounting for the amount input / output quantities
+        input_quantity =  self.number_of_reactions * self.reaction.input_amount
+        self.preconditions = [HaveCommodity(commodity=self.reaction.input_commodity_name, quantity=input_quantity, entity=entity)]
+
+        self.behavior_progress = 0
+
+        # Time to do 1 reaction is calculated based off of the weekly reaction yield specified in yaml
+        self.days_of_reaction = int(ceil(7 / (quantity / self.reaction.output_amount) ))
+
+
+    def get_name(self):
+        goal_name = 'do reactions to create {0} {1}'.format(self.quantity, self.commodity)
+        return goal_name
+
+    def is_completed(self):
+        return self.entity.creature.econ_inventory[self.commodity] >= self.quantity
+
+    def get_behavior_location(self, current_location):
+        # Does not need to be done at particular location for now
+        return current_location
+
+    def take_behavior_action(self):
+        ''' Increment progress counter, and do reaction if we've toiled long enough '''
+        self.behavior_progress += 1
+        if self.behavior_progress >= self.days_of_reaction:
+            self.entity.creature.econ_inventory[self.commodity] += (self.number_of_reactions * self.reaction.output_amount)
+            self.entity.creature.econ_inventory[self.reaction.input_commodity_name] -= (self.number_of_reactions * self.reaction.input_amount)
+
+            #g.game.add_message('{0} has created {1} {2} (originally needed {3}'.format(self.entity.fulltitle(), self.number_of_reactions * self.reaction.output_amount, self.commodity, self.quantity), libtcod.red)
+            #g.game.add_message(' - {0}: {1}, {2}: {3}'.format(self.commodity, self.entity.creature.econ_inventory[self.commodity],
+            #                                                  self.reaction.input_commodity_name, self.entity.creature.econ_inventory[self.reaction.input_commodity_name]), libtcod.dark_red)
+            self.behavior_progress = 0
+
 class SetupWaitBehavior(ActionBase):
     ''' Used when the end goal of an entity is simply to be in an area, due to an issue using the AtLocation state directly as an end goal '''
     def __init__(self, target_location, entity):
         ActionBase.__init__(self)
-        self.behavior = 'setup_wait_behavior'
         self.target_location = target_location
         self.entity = entity
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
     def get_name(self):
-        goal_name = 'Get ready to wait at {0}'.format(self.target_location)
+        goal_name = 'spend some time at {0}'.format(self.target_location)
         return goal_name
 
     def is_completed(self):
@@ -431,7 +462,6 @@ class SetupWaitBehavior(ActionBase):
 class UnloadGoodsBehavior(ActionBase):
     def __init__(self, target_city, entity):
         ActionBase.__init__(self)
-        self.behavior = 'unload goods'
         self.target_city = target_city
         self.entity = entity
 
@@ -457,7 +487,6 @@ class UnloadGoodsBehavior(ActionBase):
 class LoadGoodsBehavior(ActionBase):
     def __init__(self, target_city, entity):
         ActionBase.__init__(self)
-        self.behavior = 'load goods'
         self.target_city = target_city
         self.entity = entity
 
