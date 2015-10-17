@@ -4,6 +4,8 @@ import random
 from random import randint as roll
 from collections import defaultdict
 from time import time
+from itertools import chain
+
 import libtcodpy as libtcod
 
 from helpers import infinite_defaultdict, libtcod_path_to_list
@@ -406,6 +408,10 @@ class DoReaction(ActionBase):
         # Amount we need total for the reacion, accounting for the amount input / output quantities
         input_quantity =  self.number_of_reactions * self.reaction.input_amount
         self.preconditions = [HaveCommodity(commodity=self.reaction.input_commodity_name, quantity=input_quantity, entity=entity)]
+
+        for commodity_type, quantity in chain(self.reaction.commodities_consumed.iteritems(), self.reaction.commodities_required.iteritems()):
+            commodity = random.choice(data.commodity_manager.get_names_of_commodities_of_type(commodity_type=commodity_type))
+            self.preconditions.append(HaveCommodity(commodity=commodity, quantity=quantity, entity=entity))
 
         self.behavior_progress = 0
 
