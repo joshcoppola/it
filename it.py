@@ -6456,8 +6456,12 @@ class BasicWorldBrain:
         #for path, cost in all_costs:
         #    print [b.behavior for b in path], cost
 
-        # Add to current goal list
-        self.current_goal_path = best_path
+        if best_path:
+            # Add to current goal list
+            self.current_goal_path = best_path
+            # print self.owner.fulltitle(), 'desiring to', goal_state.get_name(), ' -- behaviors:', join_list([b.get_name() for b in best_path])
+        else:
+            print self.owner.fulltitle(), 'had no best path to', goal_state.get_name()
 
         return best_path
 
@@ -6686,11 +6690,10 @@ class BasicWorldBrain:
             #
             #         self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
             else:
-                if self.owner.creature.intelligence_level == 3 and roll(1, 100) == 1:
-                    #commodity = random.choice(['copper', 'iron', 'bronze', 'wood', 'clay', 'stone'])
-                    commodity = 'stone'
-                    if 'stone' not in g.WORLD.tiles[self.owner.wx][self.owner.wy].res:
-                        self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=5, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
+                if self.owner.creature.intelligence_level == 3 and self.owner.creature.profession and not 'erchant' in self.owner.creature.profession.name and roll(1, 200) == 1:
+                    commodity = random.choice(['stone cons materials', 'iron tools', 'wood furniture'])
+                    quantity = roll(2, 10)
+                    self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=quantity, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
