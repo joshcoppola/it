@@ -611,6 +611,9 @@ class Wmap(Map):
 
         if g.game.map_scale == 'human':
             g.game.add_message('%i objs; %i saps' %(len(self.objects), len(self.creatures)) )
+            for s in self.creatures:
+                g.game.add_message('{0}: {1}, {2}'.format(s.fulltitle(), s.x, s.y))
+            #     self.tiles[s.x][s.y].set_color(libtcod.darker_red)
 
         self.initialize_fov()
 
