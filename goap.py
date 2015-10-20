@@ -10,6 +10,7 @@ import libtcodpy as libtcod
 
 from helpers import infinite_defaultdict, libtcod_path_to_list
 from traits import TRAIT_INFO
+from building_info import BUILDING_INFO
 import config as g
 import data_importer as data
 
@@ -158,6 +159,24 @@ class HaveItem:
 
     def get_name(self):
         return 'have {0}'.format(self.item_name)
+
+
+class BuildingIsConstructed:
+    def __init__(self, building_type, building_material, target_location, target_site, entity):
+        self.building_type = building_type
+        self.building_material = building_material
+        self.target_location = target_location
+        self.target_site = target_site
+        self.entity = entity
+
+        self.behaviors_to_accomplish = [ConstructBuilding(building_type, building_material, target_location, target_site, entity)]
+
+    def is_completed(self):
+        return len([b for b in self.target_site.buildings if b.type_ == self.building_type])
+
+    def get_name(self):
+        return 'have a {0} constructed at {1}'.format(self.building_type, self.target_site.name)
+
 
 # class KnowWhereItemisLocated:
 #     def __init__(self, item, entity):
@@ -543,6 +562,42 @@ class LoadGoodsBehavior(ActionBase):
             g.game.add_message('{0} tried to pick up caravan goods and was already in {1} caravans'.format(self.entity.fulltitle(), self.target_city.name), libtcod.red)
 
 
+
+class ConstructBuilding(ActionBase):
+    def __init__(self, building_type, building_material, target_location, target_site, entity):
+        ActionBase.__init__(self)
+        self.building_type = building_type
+        self.building_material = building_material
+        self.target_location = target_location
+        self.target_site = target_site
+        self.entity = entity
+
+        self.preconditions = [HaveCommodityAtLocation(commodity=building_material, quantity=BUILDING_INFO[building_type]['cons materials'], entity=entity, target_location=target_location)]
+
+        self.behavior_progress = 0
+        self.behavior_total_time = BUILDING_INFO[building_type]['cons materials']
+
+    def get_name(self):
+        goal_name = 'construct a {0} in {1}'.format(self.building_type, self.target_site.name)
+        return goal_name
+
+    def is_completed(self):
+        return len([b for b in self.target_site.buildings if b.type_ == self.building_type])
+
+    def get_behavior_location(self, current_location):
+        return self.target_location
+
+    def take_behavior_action(self):
+        self.behavior_progress += 1
+
+        if self.behavior_progress > self.behavior_total_time:
+            self.target_site.create_building(zone='residential', type_=self.building_type, template='TEST', professions=[], inhabitants=[], tax_status=None)
+
+            # In case this is the first building in the site, we'll have to add it in to the site
+            if self.target_site not in g.WORLD.tiles[self.target_location[0]][self.target_location[1]].all_sites:
+                g.WORLD.tiles[self.target_location[0]][self.target_location[1]].add_minor_site(self.target_site)
+
+            #g.game.add_message('{0} has constructed a {1} in {2}'.format(self.entity.fulltitle(), self.building_type, self.target_site.name))
 
 def find_actions_leading_to_goals(goal_states, action_path, all_possible_paths):
     ''' Recursive function to find all possible behaviors which can be undertaken to get to a particular goal. This
