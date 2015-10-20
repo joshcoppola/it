@@ -157,8 +157,8 @@ class Region:
 
         return base_color
 
-    def add_minor_site(self, world, type_, char, name, color, culture, faction):
-        site = Site(world, type_, self.x, self.y, char, name, color, culture, faction)
+    def add_minor_site(self, site):
+        ''' Takes an already created site and adds it to the map '''
         self.minor_sites.append(site)
         self.all_sites.append(site)
 
@@ -166,6 +166,11 @@ class Region:
 
         # CHUNK
         self.chunk.add_minor_site(site)
+
+    def create_and_add_minor_site(self, world, type_, char, name, color, culture, faction):
+        ''' Creates a new instance of a Site and adds it to the map '''
+        site = Site(world, type_, self.x, self.y, char, name, color, culture, faction)
+        self.add_minor_site(site)
 
         return site
 
@@ -2039,7 +2044,7 @@ class World(Map):
         return city
 
     def add_mine(self, x, y, city):
-        mine = self.tiles[x][y].add_minor_site(world=self, type_='mine',char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
+        mine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='mine',char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
         mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "+"
         self.tiles[x][y].char_color = city.faction.color
@@ -2047,7 +2052,7 @@ class World(Map):
         return mine
 
     def add_farm(self, x, y, city):
-        farm = self.tiles[x][y].add_minor_site(world=self, type_='farm', char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
+        farm = self.tiles[x][y].create_and_add_minor_site(world=self, type_='farm', char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
         farm.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         if not self.tiles[x][y].has_feature('road'):
             self.tiles[x][y].char = "."
@@ -2057,7 +2062,7 @@ class World(Map):
 
     def add_shrine(self, x, y, city):
         name = '{0} shrine'.format(city.culture.pantheon.name)
-        shrine = self.tiles[x][y].add_minor_site(world=self, type_='shrine', char='^', name=name, color=libtcod.black, culture=None, faction=None)
+        shrine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='shrine', char='^', name=name, color=libtcod.black, culture=None, faction=None)
         shrine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "^"
         self.tiles[x][y].char_color = libtcod.black
@@ -2071,7 +2076,7 @@ class World(Map):
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = lang.spec_cap(site_name)
 
-        ruin_site = self.tiles[x][y].add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        ruin_site = self.tiles[x][y].create_and_add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black, culture=None, faction=None)
         self.tiles[x][y].chunk.add_site(ruin_site)
 
         self.tiles[x][y].char = 259
@@ -2114,7 +2119,7 @@ class World(Map):
 
         ## Choose building for site
         if hideout_site is None:
-            hideout_site = self.tiles[wx][wy].add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
+            hideout_site = self.tiles[wx][wy].create_and_add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
             hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         else:
             hideout_building = random.choice(hideout_site.buildings)
@@ -6690,10 +6695,18 @@ class BasicWorldBrain:
             #
             #         self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
             else:
-                if self.owner.creature.intelligence_level == 3 and self.owner.creature.profession and not 'erchant' in self.owner.creature.profession.name and roll(1, 200) == 1:
-                    commodity = random.choice(['stone cons materials', 'iron tools', 'wood furniture'])
-                    quantity = roll(2, 10)
-                    self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=quantity, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
+                # if self.owner.creature.intelligence_level == 3 and self.owner.creature.profession and not 'erchant' in self.owner.creature.profession.name and roll(1, 200) == 1:
+                #     commodity = random.choice(['stone cons materials', 'iron tools', 'wood furniture'])
+                #     quantity = roll(2, 10)
+                #     self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=quantity, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
+
+                if self.owner.creature.intelligence_level == 2 and roll(1, 100) == 1:
+                    target_location = (self.owner.wx+1, self.owner.wy)
+                    site = Site(world=g.WORLD, type_='hideout', x=self.owner.wx, y=self.owner.wy, char='H', name='test site', color=libtcod.red, culture=self.owner.creature.culture, faction=self.owner.creature.faction)
+                    goal = goap.BuildingIsConstructed(building_type='hideout', building_material='stone cons materials', target_location=target_location, target_site=site, entity=self.owner)
+                    self.set_goal(goal_state=goal, reason='hehehehehe', priority=1)
+
+
 
             # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
             if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
@@ -8160,7 +8173,7 @@ class Game:
         enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
 
 
-        hideout_site = g.WORLD.tiles[1][1].add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
+        hideout_site = g.WORLD.tiles[1][1].create_and_add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
         hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
         faction1.set_leader(leader=g.player)
