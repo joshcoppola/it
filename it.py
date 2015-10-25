@@ -524,6 +524,20 @@ class World(Map):
 
         return closest_distance, closest_location
 
+    def get_random_location_away_from_civilization(self, min_dist, max_dist):
+        ''' Finds a random tile in the play area that is within a range of distances from civilization '''
+        assert min_dist <= max_dist
+
+        # Loop through the play tiles until a tile is found that meets the criteria
+        while True:
+            wx, wy = random.choice(self.play_tiles)
+
+            if min_dist <= self.distance_from_civilization_dmap.dmap[wx][wy] <= max_dist:
+                break
+
+        return (wx, wy)
+
+
     def setup_world(self):
         # Fill world with empty regions
         self.tiles = [[Region(x=x, y=y) for y in xrange(self.height)] for x in xrange(self.width)]
@@ -6463,6 +6477,7 @@ class BasicWorldBrain:
 
         if best_path:
             # Add to current goal list
+            goap.set_behavior_parents(behavior_path=best_path)
             self.current_goal_path = best_path
             # print self.owner.fulltitle(), 'desiring to', goal_state.get_name(), ' -- behaviors:', join_list([b.get_name() for b in best_path])
         else:
@@ -6701,9 +6716,8 @@ class BasicWorldBrain:
                 #     self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=quantity, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
 
                 if self.owner.creature.intelligence_level == 2 and roll(1, 100) == 1:
-                    target_location = (self.owner.wx+1, self.owner.wy)
                     site = Site(world=g.WORLD, type_='hideout', x=self.owner.wx, y=self.owner.wy, char='H', name='test site', color=libtcod.red, culture=self.owner.creature.culture, faction=self.owner.creature.faction)
-                    goal = goap.BuildingIsConstructed(building_type='hideout', building_material='stone cons materials', target_location=target_location, target_site=site, entity=self.owner)
+                    goal = goap.BuildingIsConstructed(entity=self.owner, building_type='hideout', target_site=site)
                     self.set_goal(goal_state=goal, reason='hehehehehe', priority=1)
 
 
