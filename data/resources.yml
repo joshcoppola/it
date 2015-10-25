@@ -220,15 +220,15 @@ stone:
     app_chances:
         mountain: 0
         tundra: 0
-        taiga: 10
-        temperate forest: 10
-        temperate steppe: 10
-        rain forest: 10
-        tree savanna: 10
-        grass savanna: 10
-        dry steppe: 10
-        semi-arid desert: 10
-        arid desert: 10
+        taiga: 20
+        temperate forest: 20
+        temperate steppe: 20
+        rain forest: 20
+        tree savanna: 20
+        grass savanna: 20
+        dry steppe: 20
+        semi-arid desert: 20
+        arid desert: 20
         river: 0
 flax:
     category: cloths
