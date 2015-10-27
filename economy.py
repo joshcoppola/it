@@ -8,7 +8,6 @@ import yaml
 from collections import defaultdict, OrderedDict
 from itertools import chain
 
-from it import Profession
 import data_importer as data
 from helpers import weighted_dict_choice, infinite_defaultdict
 
@@ -986,7 +985,7 @@ class Economy:
         ###### IF GOOD PRODUCER - give it a building in the city #############
         elif token in [g.name for g in data.commodity_manager.goods]:
             if self.owner:
-                building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[Profession(name, category='commoner')], inhabitants=[], tax_status='commoner')
+                building = self.owner.create_building(zone='industrial', type_='shop', template='TEST', professions=[], inhabitants=[], tax_status='commoner')
                 building.linked_economy_agent = agent
                 agent.linked_economy_building = building
 
