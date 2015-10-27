@@ -20,13 +20,14 @@ BUILDING_INFO = {
 class Building:
     '''A building'''
 
-    def __init__(self, zone, type_, template, site, faction, professions, inhabitants, tax_status, wx, wy):
+    def __init__(self, zone, type_, template, site, construction_material, faction, professions, inhabitants, tax_status, wx, wy, constructed=1):
         self.zone = zone
         self.template = template
         self.type_ = type_
         self.name = type_
 
         self.site = site
+        self.construction_material = construction_material
         self.faction = faction
         self.wx = wx
         self.wy = wy
@@ -42,6 +43,8 @@ class Building:
 
         for inhabitant in inhabitants:
             self.add_inhabitant(inhabitant)
+
+        self.constructed = constructed
 
         self.current_workers = []
         self.physical_property = []
