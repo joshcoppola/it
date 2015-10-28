@@ -633,7 +633,7 @@ def show_civs(world):
         elif key_pressed == 'f':
             view = 'figures'
         elif key_pressed == 'c':
-            show_cultures(world=world, spec_culture=city.culture)
+            show_cultures(world=world, spec_culture=city.get_culture())
         elif key_pressed == 'r':
             world.cities[city_number].econ.run_simulation()
         elif key_pressed == 'a':
@@ -650,15 +650,15 @@ def show_civs(world):
         #g.game.interface.root_console.draw_box(1, 28, 8, g.SCREEN_HEIGHT - 2, g.PANEL_FRONT) # Around relations
         # Check for title holder
 
-        # if city.faction.leader:
-        #     title_info = '{0} {1}, age {2}'.format(city.faction.leader_prefix, city.faction.get_leader().fullname(), city.faction.get_leader().creature.get_age())
+        # if city.get_faction().leader:
+        #     title_info = '{0} {1}, age {2}'.format(city.get_faction().leader_prefix, city.get_faction().get_leader().fullname(), city.get_faction().get_leader().creature.get_age())
         # else:
         #     title_info = 'No holder'
         # libtcod.console_print(0, 2, 11, title_info)
         # libtcod.console_print(0, 2, 12, 'Dynastic heirs:')
         #
         # y = 13
-        # for heir in city.faction.heirs:
+        # for heir in city.get_faction().heirs:
         #     libtcod.console_print(0, 2, y, '{0}, age {1}'.format(heir.fullname(), heir.creature.get_age()))
         #     y += 1
 
@@ -669,11 +669,11 @@ def show_civs(world):
         libtcod.console_set_default_foreground(0, libtcod.color_lerp(city.color, g.PANEL_FRONT, .5))
         libtcod.console_print(0, 4, y - 4, 'City of {0} (Population: {1}, {2} gold)'.format(city.name, city.get_population(), city.treasury))
         libtcod.console_print(0, 4, y - 3, 'Access to: {0}'.format(join_list(city.native_res.keys())))
-        if city.faction.parent is None:
+        if city.get_faction().parent is None:
             liege = ' * Independent *  '
         else:
-            liege = 'Vassal to ' + city.faction.parent.site.name + '. '
-        libtcod.console_print(0, 4, y - 2, liege + 'Vassals: ' + ', '.join([vassal.site.name for vassal in city.faction.subfactions]))
+            liege = 'Vassal to ' + city.get_faction().parent.site.name + '. '
+        libtcod.console_print(0, 4, y - 2, liege + 'Vassals: ' + ', '.join([vassal.site.name for vassal in city.get_faction().subfactions]))
         libtcod.console_set_default_foreground(0, g.PANEL_FRONT)
 
         if view == 'building':
