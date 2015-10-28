@@ -2279,7 +2279,13 @@ class Site:
         self.nearby_resources, self.nearby_resource_locations = self.world.find_nearby_resources(self.x, self.y, 6)
 
     def create_building(self, zone, type_, template, professions, inhabitants, tax_status):
-        building = building_info.Building(zone=zone, type_=type_, template=template, site=self, faction=self.faction, professions=professions, inhabitants=inhabitants, tax_status=tax_status, wx=self.x, wy=self.y)
+        building = building_info.Building(zone=zone, type_=type_, template=template, site=self, construction_material='stone cons materials', faction=self.faction, professions=professions, inhabitants=inhabitants, tax_status=tax_status, wx=self.x, wy=self.y)
+        self.buildings.append(building)
+        return building
+
+    def finish_constructing_building(self, building):
+        ''' Used when adding a building which has already been created programmatically '''
+        building.constructed = 1
         self.buildings.append(building)
         return building
 
@@ -6716,9 +6722,11 @@ class BasicWorldBrain:
                 #     self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=quantity, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
 
                 if self.owner.creature.intelligence_level == 2 and roll(1, 100) == 1:
-                    site = Site(world=g.WORLD, type_='hideout', x=self.owner.wx, y=self.owner.wy, char='H', name='test site', color=libtcod.red, culture=self.owner.creature.culture, faction=self.owner.creature.faction)
-                    goal = goap.BuildingIsConstructed(entity=self.owner, building_type='hideout', target_site=site)
-                    self.set_goal(goal_state=goal, reason='hehehehehe', priority=1)
+                    #site = Site(world=g.WORLD, type_='hideout', x=self.owner.wx, y=self.owner.wy, char='H', name='test site', color=libtcod.red, culture=self.owner.creature.culture, faction=self.owner.creature.faction)
+                    #goal = goap.BuildingIsConstructed(entity=self.owner, building_type='hideout', target_site=site)
+                    #self.set_goal(goal_state=goal, reason='hehehehehe', priority=1)
+
+                    self.set_goal(goal_state=goap.HaveShelter(entity=self.owner), reason='hehehehe', priority=1)
 
 
 
