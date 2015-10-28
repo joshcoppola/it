@@ -587,8 +587,8 @@ class Agent(object):
         ''' Return the names of the objects sold by this agent '''
         sold_objects = []
         if self.buy_economy.owner:
-            for obj in self.buy_economy.owner.faction.unique_object_dict:
-                for tag in self.buy_economy.owner.faction.unique_object_dict[obj]['tags']:
+            for obj in self.buy_economy.owner.get_faction().unique_object_dict:
+                for tag in self.buy_economy.owner.get_faction().unique_object_dict[obj]['tags']:
                     if tag in data.AGENT_INFO['producers'][self.sold_commodity_name]['sold_object_tags']:
                         sold_objects.append(obj)
                         break
