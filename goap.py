@@ -678,7 +678,7 @@ class MoveIntoBuilding(BehaviorBase):
             # If not, make a building object to send to the parent (but this doesn't actually exist yet - it will be added to a site later)
             else:
                 building = building_info.Building(zone='residential', type_='hideout', template='TEST', construction_material='stone cons materials',
-                                                  site=None, faction=None, professions=[], inhabitants=[], tax_status='commoner', wx=None, wy=None, constructed=0)
+                                                  site=None, professions=[], inhabitants=[], tax_status='commoner', wx=None, wy=None, constructed=0)
 
             return building
 
@@ -691,7 +691,7 @@ class MoveIntoBuilding(BehaviorBase):
         else:
             TEMPORARY_X = self.entity.wx
             TEMPORARY_Y = self.entity.wy
-            site = it.Site(world=g.WORLD, type_='hideout', x=TEMPORARY_X, y=TEMPORARY_Y, char='H', name='test site', color=libtcod.red, culture=self.entity.creature.culture, faction=self.entity.creature.faction)
+            site = it.Site(world=g.WORLD, type_='hideout', x=TEMPORARY_X, y=TEMPORARY_Y, char='H', name='test site', color=libtcod.red)
             return site
 
     def get_name(self):
