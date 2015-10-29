@@ -177,7 +177,7 @@ class BuildingIsConstructed:
         return self.building.constructed
 
     def get_name(self):
-        return 'have a {0} constructed at {1}'.format(self.building_type, self.target_site.name)
+        return 'have a {0} constructed at {1}'.format(self.building.type_, self.target_site.name)
 
 
 class HaveShelter:
@@ -625,7 +625,7 @@ class ConstructBuilding(BehaviorBase):
 
 
     def get_name(self):
-        goal_name = 'construct a {0} in {1}'.format(self.building_type, self.target_site.name)
+        goal_name = 'construct a {0} in {1}'.format(self.building.type_, self.target_site.name)
         return goal_name
 
     def is_completed(self):
