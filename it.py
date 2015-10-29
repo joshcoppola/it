@@ -1728,22 +1728,22 @@ class World(Map):
                 if possible_site.get_faction() is None:
                     ## Right now creating a dummy building. Eventually we won't need to do this, since sites will have their own buildings already present
                     possible_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-                    leader, hideout_building = self.create_and_move_bandits_to_site(wx=possible_site.x, wy=possible_site.y, hideout_site=possible_site)
+                    leader = self.create_and_move_bandits_to_site(wx=possible_site.x, wy=possible_site.y, hideout_site=possible_site)
 
                     g.game.add_message('Bandits moving to %s'%possible_site.type_, libtcod.dark_grey)
 
                     # For now, chance of stealing holy relic and taking it to the site
-                    if possible_obj_to_steal and (roll(0, 1) or (force_steal and possible_site.type_ == 'cave')):
-                        # Flip off flag so future steals are left to chance0
-                        force_steal = 0
-
-                        possible_obj_to_steal.set_current_owner(leader)
-                        possible_obj_to_steal.set_current_building(hideout_building)
-                        #g.game.add_message('%s, Bandit leader moved to %s and has stolen %s' %(leader.fullname(), possible_site.get_name(), possible_obj_to_steal.fullname()), libtcod.orange)
-                        possible_obj_to_steal = None
-                    else:
-                        pass
-                        #g.game.add_message('%s, Bandit leader moved to %s' %(leader.fullname(), possible_site.get_name()), libtcod.orange)
+                    # if possible_obj_to_steal and (roll(0, 1) or (force_steal and possible_site.type_ == 'cave')):
+                    #     # Flip off flag so future steals are left to chance0
+                    #     force_steal = 0
+                    #
+                    #     possible_obj_to_steal.set_current_owner(leader)
+                    #     possible_obj_to_steal.set_current_building(hideout_building)
+                    #     #g.game.add_message('%s, Bandit leader moved to %s and has stolen %s' %(leader.fullname(), possible_site.get_name(), possible_obj_to_steal.fullname()), libtcod.orange)
+                    #     possible_obj_to_steal = None
+                    # else:
+                    #     pass
+                    #     #g.game.add_message('%s, Bandit leader moved to %s' %(leader.fullname(), possible_site.get_name()), libtcod.orange)
 
                     hideout_num -= 1
 
@@ -2136,42 +2136,46 @@ class World(Map):
             closest_city = random.choice(self.cities)
             print 'Bandits could not find closest city'
 
+        # bname = lang.spec_cap(closest_city.get_culture().language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
         bname = lang.spec_cap(closest_city.get_culture().language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
         bandit_faction = Faction(leader_prefix='Bandit', name=bname, color=libtcod.black, succession='strongman', defaultly_hostile=1)
 
-        ## Choose building for site
-        if hideout_site is None:
-            hideout_site = self.tiles[wx][wy].create_and_add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black)
-            hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-        else:
-            hideout_building = random.choice(hideout_site.buildings)
-        ##########################
-        bandit_faction.set_headquarters(hideout_building)
+        # ## Choose building for site
+        # if hideout_site is None:
+        #     hideout_site = self.tiles[wx][wy].create_and_add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black)
+        #     hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
+        # else:
+        #     hideout_building = random.choice(hideout_site.buildings)
+        # ##########################
+        # bandit_faction.set_headquarters(hideout_building)
 
         # Create a bandit leader from nearby city
         born = g.WORLD.time_cycle.years_ago(roll(18, 35))
         leader = closest_city.create_inhabitant(sex=1, born=born, dynasty=None, important=1, house=None)
         bandit_faction.add_member(leader)
         bandit_faction.set_leader(leader)
+
         # Set profession, weirdly enough
         profession = Profession(name='Bandit', category='bandit')
         profession.give_profession_to(figure=leader)
-        profession.set_building(building=hideout_building)
+        # profession.set_building(building=hideout_building)
 
         # Give him the house
-        hideout_site.add_citizen(entity=leader, house=hideout_building)
+        # hideout_site.add_citizen(entity=leader, house=hideout_building)
         # Have him actually go there
         leader.w_teleport(wx, wy)
 
         sentients = {leader.creature.culture:{leader.creature.type_:{'Bandit':10}}}
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, econ_inventory={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
+        leader.world_brain.set_goal(goal_state=goap.HaveShelter(entity=leader), reason='I need shelter!', priority=1)
+
         ## Prisoner
         #prisoner = closest_city.create_inhabitant(sex=1, born=WORLD.time_cycle.current_year-roll(18, 35), dynasty=None, important=0, house=None)
         #bandits.add_captive(figure=prisoner)
         ############
 
-        return leader, hideout_building
+        return leader
 
 
     def create_population(self, char, name, faction, creatures, sentients, econ_inventory, wx, wy, site=None, commander=None):
@@ -6499,71 +6503,10 @@ class BasicWorldBrain:
                 reason = 'travel from city to city to make my living!'
                 goal_state = goap.IsHangingOut(target_location=(target_city.x, target_city.y), entity=self.owner)
                 self.set_goal(goal_state=goal_state, reason=reason)
-        #
-        #     ####### GOALS #######
-        #     elif not creature.economy_agent \
-        #             and self.owner.creature.sex == 1 \
-        #             and age >= 18 \
-        #             and not creature.is_commander() \
-        #             and not creature.is_captive() \
-        #             and roll(1, 50) == 1:
-        #
-        #         moving = self.check_for_move_city()
-        #
-        #         if not moving:
-        #             moving = self.check_for_adventure()
-        #
-        #         if not moving:
-        #             self.check_for_liesure_travel()
-        #
-        # ## Lesser intelligent creatures
-        # elif self.owner.creature.intelligence_level == 2:
-        #
-        #     # Start by making sure we have shelter
-        #     # if not self.owner.creature.house:
-        #     #     nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
-        #     #     dist = 10000
-        #     #     target = None
-        #     #     for chunk in nearby_chunks:
-        #     #         for shelter in chunk.caves:
-        #     #             if self.owner.w_distance(shelter.x, shelter.y) < dist:
-        #     #                 dist = self.owner.w_distance(shelter.x, shelter.y)
-        #     #                 target = shelter
-        #     #
-        #     #     if target:
-        #     #         self.add_goal(priority=1, goal_type='travel', reason='I need shelter', location=(target.x, target.y), travel_verb='travel')
-        #     #
-        #     #         # TODO - need to update house with a building in the site
-        #
-        #     if roll(1, 100) < 5:
-        #
-        #         #self.add_goal(priority=0, goal_type='bandit_wander', reason='Wanderlust')
-        #
-        #         nearby_chunks = g.WORLD.get_nearby_chunks(chunk=g.WORLD.tiles[self.owner.wx][self.owner.wy].chunk, distance=1)
-        #
-        #         dist = 10000
-        #         target = None
-        #         for chunk in nearby_chunks:
-        #             for entity in chunk.entities:
-        #                 if entity != self.owner and self.owner.w_distance_to(entity) < dist:
-        #                     dist = self.owner.w_distance_to(entity)
-        #                     target = entity
-        #
-        #         if target:
-        #             self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(target.wx, target.wy), travel_verb='travel', activity_verb='pillage', num_days=2)
-        #             self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
-        #
-        #         '''
-        #         city = g.WORLD.get_closest_city(self.owner.wx, self.owner.wy)[0]
-        #         if city:
-        #             self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=(city.x, city.y), travel_verb='travel', activity_verb='pillage', num_days=2)
-        #
-        #             self.add_goal(priority=1, goal_type='travel', reason='Do we need a reason?', location=(self.owner.wx, self.owner.wy), travel_verb='return')
-        #             #self.add_goal(priority=1, goal_type='wait', reason='Do we need a reason?', location=return_targ, travel_verb='return', activity_verb='rebase', num_days=2)
-        #         '''
+
 
     def pick_spouse(self):
-        # Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage
+        ''' Pick someone to marry. Not very sophistocated for now. Must be in a site to consider marriage '''
         if g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
             potential_spouses = [figure for figure in g.WORLD.tiles[self.owner.wx][self.owner.wy].entities
                                  if figure.creature.sex != self.owner.creature.sex
@@ -6597,7 +6540,7 @@ class BasicWorldBrain:
             ## Move in
             if spouse.creature.current_citizenship != self.owner.creature.current_citizenship:
                 #g.game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.creature.current_citizenship.name, creature.current_citizenship.name ), libtcod.dark_red)
-                self.owner.creature.current_citizenship.add_citizen(entity=spouse, new_house=self.owner.creature.house)
+                self.owner.creature.current_citizenship.add_citizen(entity=spouse)
 
             return spouse
 
