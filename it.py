@@ -167,9 +167,9 @@ class Region:
         # CHUNK
         self.chunk.add_minor_site(site)
 
-    def create_and_add_minor_site(self, world, type_, char, name, color, culture, faction):
+    def create_and_add_minor_site(self, world, type_, char, name, color):
         ''' Creates a new instance of a Site and adds it to the map '''
-        site = Site(world, type_, self.x, self.y, char, name, color, culture, faction)
+        site = Site(world, type_, self.x, self.y, char, name, color)
         self.add_minor_site(site)
 
         return site
@@ -1322,16 +1322,24 @@ class World(Map):
                 continue
 
             #### Create a civilization #####
+            culture = g.WORLD.tiles[nx][ny].culture
+
             civ_color = random.choice(g.CIV_COLORS)
             name = lang.spec_cap(self.tiles[nx][ny].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 20)))
 
             profession = Profession(name='King', category='noble')
             city_faction = Faction(leader_prefix='King', name='City of %s'%name, color=civ_color, succession='dynasty')
 
-            city = self.make_city(cx=nx, cy=ny, char=chr(10), color=civ_color, name=name, faction=city_faction)
+            leader, all_new_figures = culture.create_initial_dynasty(faction=city_faction, wx=nx, wy=ny, wife_is_new_dynasty=1)
+
+            city = self.make_city(cx=nx, cy=ny, char=chr(10), color=civ_color, name=name)
+            city.set_leader(leader)
+            for entity in all_new_figures:
+                city.add_citizen(entity=entity)
+
+            city.setup_initial_buildings()
 
             ### Add initial leader and dynasty ####
-            leader, all_new_figures = city.create_initial_dynasty(wife_is_new_dynasty=1)
             city_faction.set_leader(leader)
             profession.give_profession_to(figure=leader)
             profession.set_building(building=city.get_building(building_name='City Hall'))
@@ -1373,8 +1381,8 @@ class World(Map):
                 if resource not in self.tiles[city.x][city.y].culture.access_res:
                     self.tiles[city.x][city.y].culture.access_res.append(resource)
 
-            if city.culture not in civilized_cultures:
-                civilized_cultures.append(city.culture)
+            if city.get_culture() not in civilized_cultures:
+                civilized_cultures.append(city.get_culture())
 
         ## The cultures surrounding the cities now fill in with villages, sort of
         for culture in civilized_cultures:
@@ -1391,7 +1399,7 @@ class World(Map):
             self.add_famous_object(obj=obj)
 
             # Object will be put inside a temple
-            housed_city = random.choice(filter(lambda city_: city_.culture == culture, created_cities))
+            housed_city = random.choice(filter(lambda city_: city_.get_culture() == culture, created_cities))
             temple = housed_city.get_building('Temple')
             obj.set_current_building(building=temple)
 
@@ -1535,7 +1543,7 @@ class World(Map):
             city.setup_imports()
 
         for city in created_cities:
-            city.faction.create_faction_objects()
+            city.get_faction().create_faction_objects()
             # Now that imports have been created (last loop) we can start cache-ing the objects available here
             city.update_object_to_agents_dict()
 
@@ -1571,7 +1579,7 @@ class World(Map):
         for city in created_cities:
             for chunk in all_nearby_chunks:
                 for site in chunk.get_all_sites():
-                    city.culture.add_c_knowledge_of_site(site=site, location_accuracy=5)
+                    city.get_culture().add_c_knowledge_of_site(site=site, location_accuracy=5)
 
         # Until this point, a bunch of creature have been created, but their knowledge base needs to be updated with the new sites
         for entity in g.WORLD.all_figures:
@@ -1589,7 +1597,7 @@ class World(Map):
         date = g.WORLD.time_cycle.get_current_date()
 
         for city in created_cities:
-            c_language = city.culture.language
+            c_language = city.get_culture().language
             #### Book ####
             book = assemble_object(object_blueprint=phys.object_dict['book'], force_material=data.commodity_manager.materials['wood'], wx=city.x, wy=city.y)
 
@@ -1717,7 +1725,7 @@ class World(Map):
             while len(possible_sites) and hideout_num:
                 possible_site = possible_sites.pop(roll(0, len(possible_sites)-1 ))
 
-                if possible_site.faction is None:
+                if possible_site.get_faction() is None:
                     ## Right now creating a dummy building. Eventually we won't need to do this, since sites will have their own buildings already present
                     possible_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
                     leader, hideout_building = self.create_and_move_bandits_to_site(wx=possible_site.x, wy=possible_site.y, hideout_site=possible_site)
@@ -2041,9 +2049,9 @@ class World(Map):
         g.game.camera.center(g.player.x, g.player.y)
         g.game.handle_fov_recompute()
 
-    def make_city(self, cx, cy, char, color, name, faction):
+    def make_city(self, cx, cy, char, color, name):
         # Make a city
-        city = City(world=self, type_='city', x=cx, y=cy, char=char, name=name, color=color, culture=self.tiles[cx][cy].culture, faction=faction)
+        city = City(world=self, type_='city', x=cx, y=cy, char=char, name=name, color=color)
 
         self.tiles[cx][cy].site = city
         self.tiles[cx][cy].all_sites.append(city)
@@ -2058,30 +2066,30 @@ class World(Map):
         return city
 
     def add_mine(self, x, y, city):
-        mine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='mine',char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
+        mine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='mine',char='#', name=None, color=city.get_faction().color)
         mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "+"
-        self.tiles[x][y].char_color = city.faction.color
+        self.tiles[x][y].char_color = city.get_faction().color
 
         return mine
 
     def add_farm(self, x, y, city):
-        farm = self.tiles[x][y].create_and_add_minor_site(world=self, type_='farm', char='#', name=None, color=city.faction.color, culture=city.culture, faction=city.faction)
+        farm = self.tiles[x][y].create_and_add_minor_site(world=self, type_='farm', char='#', name=None, color=city.get_faction().color)
         farm.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         if not self.tiles[x][y].has_feature('road'):
             self.tiles[x][y].char = "."
-            self.tiles[x][y].char_color = city.faction.color
+            self.tiles[x][y].char_color = city.get_faction().color
 
         return farm
 
     def add_shrine(self, x, y, city):
-        name = '{0} shrine'.format(city.culture.pantheon.name)
-        shrine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='shrine', char='^', name=name, color=libtcod.black, culture=None, faction=None)
+        name = '{0} shrine'.format(city.get_culture().pantheon.name)
+        shrine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='shrine', char='^', name=name, color=libtcod.black)
         shrine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         self.tiles[x][y].char = "^"
         self.tiles[x][y].char_color = libtcod.black
 
-        city.culture.pantheon.add_holy_site(shrine)
+        city.get_culture().pantheon.add_holy_site(shrine)
 
         return shrine
 
@@ -2090,7 +2098,7 @@ class World(Map):
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = lang.spec_cap(site_name)
 
-        ruin_site = self.tiles[x][y].create_and_add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black, culture=None, faction=None)
+        ruin_site = self.tiles[x][y].create_and_add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black)
         self.tiles[x][y].chunk.add_site(ruin_site)
 
         self.tiles[x][y].char = 259
@@ -2115,7 +2123,7 @@ class World(Map):
             # Set the headquarters and update the title to the building last created.
             if roll(1, 10) >= 9:
                 closest_city = self.get_closest_city(x, y)[0]
-                closest_city.culture.pantheon.add_holy_site(ruin_site)
+                closest_city.get_culture().pantheon.add_holy_site(ruin_site)
 
         return ruin_site
 
@@ -2128,12 +2136,12 @@ class World(Map):
             closest_city = random.choice(self.cities)
             print 'Bandits could not find closest city'
 
-        bname = lang.spec_cap(closest_city.culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
+        bname = lang.spec_cap(closest_city.get_culture().language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
         bandit_faction = Faction(leader_prefix='Bandit', name=bname, color=libtcod.black, succession='strongman', defaultly_hostile=1)
 
         ## Choose building for site
         if hideout_site is None:
-            hideout_site = self.tiles[wx][wy].create_and_add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black, culture=closest_city.culture, faction=bandit_faction)
+            hideout_site = self.tiles[wx][wy].create_and_add_minor_site(world=self, type_='hideout', char='#', name=None, color=libtcod.black)
             hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         else:
             hideout_building = random.choice(hideout_site.buildings)
@@ -2143,6 +2151,7 @@ class World(Map):
         # Create a bandit leader from nearby city
         born = g.WORLD.time_cycle.years_ago(roll(18, 35))
         leader = closest_city.create_inhabitant(sex=1, born=born, dynasty=None, important=1, house=None)
+        bandit_faction.add_member(leader)
         bandit_faction.set_leader(leader)
         # Set profession, weirdly enough
         profession = Profession(name='Bandit', category='bandit')
@@ -2150,7 +2159,7 @@ class World(Map):
         profession.set_building(building=hideout_building)
 
         # Give him the house
-        leader.creature.change_citizenship(new_city=None, new_house=hideout_building)
+        hideout_site.add_citizen(entity=leader, house=hideout_building)
         # Have him actually go there
         leader.w_teleport(wx, wy)
 
@@ -2245,7 +2254,7 @@ class River(Feature):
         self.connected_dirs.append(direction)
 
 class Site:
-    def __init__(self, world, type_, x, y, char, name, color, culture=None, faction=None, underground=0):
+    def __init__(self, world, type_, x, y, char, name, color, underground=0):
         self.world = world
         self.type_ = type_
         self.x = x
@@ -2255,10 +2264,7 @@ class Site:
         self.name = name
         self.color = color
 
-        self.culture = culture
-        self.faction = faction
-        if self.faction:
-            self.faction.set_site(self)
+        self.leader = None
 
         self.departing_merchants = []
         self.goods = {}
@@ -2267,7 +2273,9 @@ class Site:
         #structures
         self.buildings = []
         # major figures who are citizens
-        self.citizens = []
+        self.entities_living_here = []
+        # populations
+        self.populations_living_here = []
 
         # Manage the world's dict of site types
         self.world.add_to_site_index(self)
@@ -2278,8 +2286,78 @@ class Site:
 
         self.nearby_resources, self.nearby_resource_locations = self.world.find_nearby_resources(self.x, self.y, 6)
 
+
+    # def get_leader_culture(self):
+    #     ''' Return the culture of the leader of the site, if it has one'''
+    #     return self.leader.creature.culture if self.leader else None
+
+    def get_culture(self):
+        ''' Return the culture of the leader of the site, if it has one'''
+        return self.leader.creature.culture if self.leader else None
+
+    def get_faction(self):
+        ''' Return the faction of the leader of the site, if it has one'''
+        return self.leader.creature.faction if self.leader else None
+
+    def set_leader(self, entity):
+        ''' Set leader of site - (sites don't need leaders though) '''
+        self.leader = entity
+
+    def add_citizen(self, entity, house=None):
+        ''' Handles removing person from their old site, and adding them to a new site '''
+
+        # Make sure it's not duping anyone
+        if entity in self.entities_living_here:
+            return
+
+        # Remove from old citizenship
+        if entity.creature.current_citizenship:
+            entity.creature.current_citizenship.remove_citizen(entity=entity)
+
+        #### Make sure our new inhabitant has a house ####
+        ## Check for spouse at site
+        if house is None and entity.creature.spouse and entity.creature.spouse.creature.house and entity.creature.spouse.creature.house.site == self:
+            house = entity.creature.spouse.creature.house
+        ## Check for father at this site
+        elif house is None and entity.creature.get_age() < g.MIN_CHILDBEARING_AGE and entity.creature.father and \
+                entity.creature.father.creature.house and entity.creature.father.creature.house.site == self:
+            house = entity.creature.father.creature.house
+        ## Check for mother at this site
+        elif house is None and entity.creature.get_age() < g.MIN_CHILDBEARING_AGE and entity.creature.mother and \
+                entity.creature.father.creature.house and entity.creature.mother.creature.house.site == self:
+            house = entity.creature.mother.creature.house
+        else:
+            house = self.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[entity], tax_status='commoner')
+            # print '{0}, age {1}, created a new house in {2}'.format(entity.fulltitle(), entity.creature.get_age(), self.get_name())
+
+        # Add entity to house's inhabitants
+        house.add_inhabitant(inhabitant=entity)
+
+        # Swap current citizenship, add to list of citizens
+        entity.creature.current_citizenship = self
+        self.entities_living_here.append(entity)
+
+        if self.get_faction():
+            # Remove old faction stuff
+            if entity.creature.faction:
+                entity.creature.faction.remove_member(entity)
+            # Add to this faction -- needed???
+            self.get_faction().add_member(entity)
+
+
+    def remove_citizen(self, entity):
+        ''' Remove associations from an entity to a site '''
+        self.entities_living_here.remove(entity)
+        entity.creature.current_citizenship = None
+
+        # Remove old housing stuff
+        if entity.creature.house:
+            assert entity.creature.house.site == self, 'Citizen of {0}\'s house\'s was at a different site than their citizenship'
+            entity.creature.house.remove_inhabitant(entity)
+
+
     def create_building(self, zone, type_, template, professions, inhabitants, tax_status):
-        building = building_info.Building(zone=zone, type_=type_, template=template, site=self, construction_material='stone cons materials', faction=self.faction, professions=professions, inhabitants=inhabitants, tax_status=tax_status, wx=self.x, wy=self.y)
+        building = building_info.Building(zone=zone, type_=type_, template=template, site=self, construction_material='stone cons materials', professions=professions, inhabitants=inhabitants, tax_status=tax_status, wx=self.x, wy=self.y)
         self.buildings.append(building)
         return building
 
@@ -2293,31 +2371,25 @@ class Site:
         if self.name:
             return self.name
         else:
-            return 'a {0}'.format(self.type_)
+            return indef(self.type_)
 
     def create_inhabitant(self, sex, born, dynasty, important, race=None, armed=0, house=None, char=None, world_char=None):
         ''' Add an inhabitant to the site '''
 
-        # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our hometown)
-        if self.culture is None:
+        # First things first - if this happens to be a weird site without a culture, inherit the closest city's culture (and pretend it's our home_site)
+        if self.get_culture() is None:
             city = g.WORLD.get_closest_city(x=self.x, y=self.y, max_range=1000)[0]
-            culture = city.culture
-            hometown = city
+            culture = city.get_culture()
+            home_site = city
         else:
-            culture = self.culture
-            hometown = self
+            culture = self.get_culture()
+            home_site = self
 
-        human = culture.create_being(sex=sex, born=born, dynasty=dynasty, important=important, faction=self.faction,
+        human = culture.create_being(sex=sex, born=born, dynasty=dynasty, important=important, faction=self.get_faction(),
                                      wx=self.x, wy=self.y, armed=armed, race=race, save_being=1, char=char, world_char=world_char)
 
-        # Make sure our new inhabitant has a house
-        if house is None:
-            house = self.create_building(zone='residential', type_='house', template='TEST', professions=[], inhabitants=[human], tax_status='commoner')
-        else:
-            house.add_inhabitant(human)
-
-        human.creature.change_citizenship(new_city=self, new_house=house)
-        human.creature.hometown = hometown
+        human.creature.home_site = home_site
+        self.add_citizen(human)
 
         return human
 
@@ -2361,9 +2433,9 @@ class Site:
 
 
 class City(Site):
-    def __init__(self, world, type_, x, y, char, name, color, culture, faction):
+    def __init__(self, world, type_, x, y, char, name, color):
         ## Initialize site ##
-        Site.__init__(self, world, type_, x, y, char, name, color, culture, faction)
+        Site.__init__(self, world, type_, x, y, char, name, color)
 
         self.connected_to = []
         self.path_to = {}
@@ -2397,7 +2469,7 @@ class City(Site):
         self.acquire_tile(self.x, self.y)
         self.increase_radius(amount=2)
         ## A package of buildings to start with
-        self.setup_initial_buildings()
+        # self.setup_initial_buildings()
 
 
     def update_object_to_agents_dict(self):
@@ -2567,8 +2639,8 @@ class City(Site):
             location.get_building('Market').add_worker(human)
 
         ## Now add the caravan to a list
-        sentients = {self.culture:{random.choice(self.culture.races):{'Caravan Guard':roll(10, 20)}}}
-        g.WORLD.create_population(char='M', name='{0} caravan'.format(self.name), faction=self.faction, creatures={}, sentients=sentients, econ_inventory={}, wx=location.x, wy=location.y, commander=human)
+        sentients = {self.get_culture():{random.choice(self.get_culture().races):{'Caravan Guard':roll(10, 20)}}}
+        g.WORLD.create_population(char='M', name='{0} caravan'.format(self.name), faction=self.get_faction(), creatures={}, sentients=sentients, econ_inventory={}, wx=location.x, wy=location.y, commander=human)
 
         #location.caravans.append(human)
 
@@ -2628,7 +2700,7 @@ class City(Site):
     def acquire_tile(self, x, y):
         # acquire a single tile for the city
         if g.WORLD.tiles[x][y].culture is None:
-            g.WORLD.tiles[x][y].culture = self.culture
+            g.WORLD.tiles[x][y].culture = self.get_culture()
 
         if g.WORLD.tiles[x][y].territory is not None:
             # If owned, add to civ/city's memory of territory, and remove from actual territory
@@ -2696,73 +2768,6 @@ class City(Site):
         ######### Fill positions #########
         for building in self.buildings:
             building.fill_initial_positions()
-
-
-    def create_initial_dynasty(self, wife_is_new_dynasty=0):
-        ''' Spits out a dynasty or two, used for a quick setup type thing '''
-        # Create's a dynasty for the leader and his wife
-        new_dynasty = Dynasty(lang.spec_cap(random.choice(self.culture.language.vocab_n.values())), race=random.choice(self.culture.races))
-
-        if wife_is_new_dynasty:
-            wife_dynasty = Dynasty(lang.spec_cap(random.choice(self.culture.language.vocab_n.values())), race=new_dynasty.race)
-        else:
-            wife_dynasty = None
-
-        born = g.WORLD.time_cycle.years_ago(roll(28, 40))
-        leader = self.create_inhabitant(sex=1, born=born, dynasty=new_dynasty, important=1, race=new_dynasty.race, house=None)
-
-        born = g.WORLD.time_cycle.years_ago(roll(28, 35))
-        wife = self.create_inhabitant(sex=0, born=born, dynasty=wife_dynasty, important=1, race=new_dynasty.race, house=leader.creature.house)
-        # Make sure wife takes husband's name
-        wife.creature.lastname = new_dynasty.lastname
-
-        marriage_date = g.WORLD.time_cycle.years_ago(roll(6, 10))
-        leader.creature.take_spouse(spouse=wife, date=marriage_date)
-
-        all_new_figures = [leader, wife]
-
-
-        # Leader's siblings
-        leader_siblings = []
-        for i in xrange(roll(2, 5)):
-            sex = roll(0, 1)
-            born = g.WORLD.time_cycle.years_ago(roll(28, 40))
-            sibling = self.create_inhabitant(sex=sex, born=born, dynasty=new_dynasty, race=new_dynasty.race, important=1, house=None)
-            leader_siblings.append(sibling)
-            all_new_figures.append(sibling)
-
-        # Wife's siblings
-        if wife_is_new_dynasty:
-            wife_siblings = []
-            for i in xrange(roll(2, 5)):
-                sex = roll(0, 1)
-                born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-                sibling = self.create_inhabitant(sex=sex, born=born, dynasty=wife_dynasty, race=new_dynasty.race, important=1, house=None)
-                wife_siblings.append(sibling)
-                all_new_figures.append(sibling)
-
-            wife.creature.siblings = wife_siblings
-            for sibling in wife_siblings:
-                sibling.creature.siblings.append(wife)
-
-        # have children
-        for i in xrange(roll(1, 3)):
-            born = g.WORLD.time_cycle.years_ago(roll(1, 10))
-            child = wife.creature.have_child(date_born=born)
-
-            all_new_figures.append(child)
-
-        leader.creature.siblings = leader_siblings
-        for sibling in leader_siblings:
-            sibling.creature.siblings.append(leader)
-
-
-        # Give a "Noble" profession to any new male members
-        for figure in filter(lambda f: f.creature.get_age() >= g.MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
-            profession = Profession(name='Noble', category='noble')
-            profession.give_profession_to(figure=figure)
-
-        return leader, all_new_figures
 
 
     def get_building(self, building_name):
@@ -2919,17 +2924,10 @@ class Faction:
 
     def set_headquarters(self, building):
         self.headquarters = building
-
         self.headquarters.faction = self
-
-        if self.headquarters.site and self.headquarters.site.faction is None:
-            self.headquarters.site.faction = self
 
     def set_site(self, site):
         self.site = site
-
-        if self.site.faction is None:
-            self.site.faction = self
 
     def add_member(self, figure):
         figure.creature.faction = self
@@ -3048,7 +3046,7 @@ class Faction:
                 heir = random.choice(self.members)
                 if heir is None:
                     born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-                    heir = self.headquarters.site.culture.create_being(sex=1, born=born, dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
+                    heir = self.headquarters.site.get_culture().create_being(sex=1, born=born, dynasty=None, important=0, faction=self, wx=self.headquarters.site.x, wy=self.headquarters.site.y, armed=1, save_being=1)
                     self.set_heir(heir=heir, number_in_line=1)
 
                 return [heir]
@@ -3085,7 +3083,7 @@ class Faction:
             if self.leader:
                 weapon_name = self.leader.creature.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
             else:
-                weapon_name = self.site.culture.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
+                weapon_name = self.site.get_culture().gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
 
             name = '{0} {1}'.format(weapon_name, wtype)
             weapon_info_dict['name'] = name
@@ -4938,7 +4936,7 @@ class Creature:
         self.econ_inventory = defaultdict(int)
         self.net_money = 0
 
-        self.hometown = None # Where we originally were from
+        self.home_site = None # Where we originally were from
         self.current_citizenship = None # The city where our house is currently located
         self.current_lodging = None # The place where we are currently staying - will be None when travelling,
         # our house if we're in our home city, or can be an inn
@@ -5475,15 +5473,13 @@ class Creature:
             elif question_type == 'sites':
                 found_site = 0
                 for site in self.knowledge['sites']:
-                    if site.faction and self.owner.creature.faction.is_hostile_to(site.faction):
+                    if site.get_faction() and self.owner.creature.faction.is_hostile_to(site.get_faction()):
                         found_site = 1
                         if site.name:
                             name = ' called {0}'.format(site.name)
                         else:
                             name = ''
                         self.say('I know of {0}{1} located in {2}'.format(indef(site.type_), name, g.WORLD.tiles[site.x][site.y].get_location_description_relative_to((self.owner.wx, self.owner.wy)) ))
-                    #elif site.faction is None:
-                    #    self.say(' -- DBG -- {0} is a {1} without a faction'.format(site.name, site.type_))
 
                 if not found_site:
                     self.say('I actually don\'t know about any sites at all')
@@ -5749,33 +5745,6 @@ class Creature:
 
         self.say('I\'m free!')
 
-
-    def change_citizenship(self, new_city, new_house):
-        ''' Transfer citizenship from one city to another '''
-        # Remove from old citizenship
-        if self.current_citizenship:
-            self.current_citizenship.citizens.remove(self.owner)
-        # Remove old housing stuff
-        if self.house:
-            self.house.remove_inhabitant(self.owner)
-        # Remove old faction stuff
-        if self.faction:
-            self.faction.remove_member(self.owner)
-
-        # Change to new city, and add to that city's citizens
-        if new_city is not None:
-            self.current_citizenship = new_city
-            new_city.citizens.append(self.owner)
-            new_city.faction.add_member(self.owner)
-        ## Otherwise switch to the faction that owns the house you're moving to
-        elif new_house.faction:
-            self.current_citizenship = None
-            new_house.faction.add_member(self.owner)
-
-        self.house = new_house
-        if self.house:
-            self.house.add_inhabitant(self.owner)
-
     def get_minor_successor(self):
         ''' A way for minor figures to pass down their profession, in cases where it's not a huge deal'''
         possible_successors = [child for child in self.children if child.creature.sex == 1 and child.creature.get_age() >= g.MIN_MARRIAGE_AGE]
@@ -5808,7 +5777,7 @@ class Creature:
                 self.profession.give_profession_to(successor)
 
             if self.current_citizenship:
-                self.current_citizenship.citizens.remove(figure)
+                self.current_citizenship.entities_living_here.remove(figure)
 
             if self.faction:
                 self.faction.remove_member(figure)
@@ -5899,7 +5868,8 @@ class Creature:
         if date_born == 'today':
             date_born = g.WORLD.time_cycle.get_current_date()
 
-        child = self.current_citizenship.create_inhabitant(sex=roll(0, 1), born=date_born, dynasty=self.spouse.creature.dynasty, race=self.type_, important=self.important, house=self.house)
+        child = self.culture.create_being(sex=roll(0, 1), born=date_born, dynasty=self.spouse.creature.dynasty,
+                                          important=self.important, faction=self.faction, wx=self.owner.wx, wy=self.owner.wy, race=self.type_, save_being=1)
 
         # Let the child know who its siblings are
         for other_child in self.children:
@@ -5919,6 +5889,9 @@ class Creature:
             parent.creature.meet(child)
 
         child.creature.generation = self.spouse.creature.generation + 1
+
+        if self.current_citizenship:
+            self.current_citizenship.add_citizen(child)
 
         event = hist. Birth(date=date_born, location=(self.owner.wx, self.owner.wy), parents=[self.owner, self.spouse], child=child)
         g.game.add_message(event.describe(), libtcod.color_lerp(g.PANEL_FRONT, self.owner.color, .3))
@@ -6624,10 +6597,7 @@ class BasicWorldBrain:
             ## Move in
             if spouse.creature.current_citizenship != self.owner.creature.current_citizenship:
                 #g.game.add_message('{0} (spouse), citizen of {1}, had to change citizenship to {2} in order to complete marriage'.format(spouse.fullname(), spouse.creature.current_citizenship.name, creature.current_citizenship.name ), libtcod.dark_red)
-                spouse.creature.change_citizenship(new_city=self.owner.creature.current_citizenship, new_house=self.owner.creature.house)
-            # Make sure the spouse meets them
-            # if (spouse.wx, spouse.wy) != (self.owner.wx, self.owner.wy):
-            #     spouse.world_brain.add_goal(priority=1, goal_type='travel', reason='because I just married {0}, so I must move to be with him!'.format(self.owner.fullname()), location=(self.owner.wx, self.owner.wy))
+                self.owner.creature.current_citizenship.add_citizen(entity=spouse, new_house=self.owner.creature.house)
 
             return spouse
 
@@ -7413,6 +7383,71 @@ class Culture:
 
         return human
 
+    def create_initial_dynasty(self, faction, wx, wy, wife_is_new_dynasty=0):
+        ''' Spits out a dynasty or two, used for to quickly setup new cities'''
+        # Create's a dynasty for the leader and his wife
+        new_dynasty = Dynasty(lang.spec_cap(random.choice(self.language.vocab_n.values())), race=random.choice(self.races))
+
+        if wife_is_new_dynasty:
+            wife_dynasty = Dynasty(lang.spec_cap(random.choice(self.language.vocab_n.values())), race=new_dynasty.race)
+        else:
+            wife_dynasty = None
+
+        born = g.WORLD.time_cycle.years_ago(roll(28, 40))
+        leader = self.create_being(sex=1, born=born, dynasty=new_dynasty, important=1, faction=faction, wx=wx, wy=wy, race=new_dynasty.race, save_being=1)
+
+        born = g.WORLD.time_cycle.years_ago(roll(28, 35))
+        wife = self.create_being(sex=0, born=born, dynasty=new_dynasty, important=1, faction=faction, wx=wx, wy=wy, race=new_dynasty.race, save_being=1)
+        # Make sure wife takes husband's name
+        wife.creature.lastname = new_dynasty.lastname
+
+        marriage_date = g.WORLD.time_cycle.years_ago(roll(6, 10))
+        leader.creature.take_spouse(spouse=wife, date=marriage_date)
+
+        all_new_figures = [leader, wife]
+
+
+        # Leader's siblings
+        leader_siblings = []
+        for i in xrange(roll(2, 5)):
+            sex = roll(0, 1)
+            born = g.WORLD.time_cycle.years_ago(roll(28, 40))
+            sibling = self.create_being(sex=sex, born=born, dynasty=new_dynasty, important=1, faction=faction, wx=wx, wy=wy, race=new_dynasty.race, save_being=1)
+            leader_siblings.append(sibling)
+            all_new_figures.append(sibling)
+
+        # Wife's siblings
+        if wife_is_new_dynasty:
+            wife_siblings = []
+            for i in xrange(roll(2, 5)):
+                sex = roll(0, 1)
+                born = g.WORLD.time_cycle.years_ago(roll(20, 45))
+                sibling = self.create_being(sex=sex, born=born, dynasty=new_dynasty, important=1, faction=faction, wx=wx, wy=wy, race=new_dynasty.race, save_being=1)
+                wife_siblings.append(sibling)
+                all_new_figures.append(sibling)
+
+            wife.creature.siblings = wife_siblings
+            for sibling in wife_siblings:
+                sibling.creature.siblings.append(wife)
+
+        # have children
+        for i in xrange(roll(1, 3)):
+            born = g.WORLD.time_cycle.years_ago(roll(1, 10))
+            child = wife.creature.have_child(date_born=born)
+            all_new_figures.append(child)
+
+        leader.creature.siblings = leader_siblings
+        for sibling in leader_siblings:
+            sibling.creature.siblings.append(leader)
+
+
+        # Give a "Noble" profession to any new male members
+        for figure in filter(lambda f: f.creature.get_age() >= g.MIN_MARRIAGE_AGE and f not in (leader, wife) and f.creature.sex == 1, all_new_figures):
+            profession = Profession(name='Noble', category='noble')
+            profession.give_profession_to(figure=figure)
+
+        return leader, all_new_figures
+
 
 def assemble_object(object_blueprint, force_material, wx, wy, creature=None, local_brain=None, world_brain=None, force_char=None, force_world_char=None):
     ''' Build an object from the blueprint dictionary '''
@@ -8124,7 +8159,7 @@ class Game:
 
         g.playerciv = g.WORLD.cities[0]
         born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-        g.player = g.playerciv.culture.create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.faction, armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        g.player = g.playerciv.get_culture().create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.get_faction(), armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
         # Make player literate
         for language in g.player.creature.languages:
             g.player.creature.update_language_knowledge(language=language, verbal=0, written=g.player.creature.languages[language]['verbal'])
@@ -8186,13 +8221,13 @@ class Game:
         g.player.local_brain = None
 
         sentients = {cult:{random.choice(cult.races):{'Adventurers':10}}}
-        g.player_party = g.WORLD.create_population(char='@', name="g.player party", faction=faction1, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=g.player)
+        g.player_party = g.WORLD.create_population(char='@', name="Player party", faction=faction1, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=g.player)
 
 
         born = g.WORLD.time_cycle.years_ago(roll(20, 40))
         leader = cult.create_being(sex=1, born=born, char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
-        enemy_party = g.WORLD.create_population(char='X', name="enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
+        enemy_party = g.WORLD.create_population(char='X', name="Enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
 
 
         hideout_site = g.WORLD.tiles[1][1].create_and_add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
