@@ -136,20 +136,14 @@ class Building:
         # Give temples and nobles and stuff an initial dynasty to begin with
         potential_employees = [figure for figure in g.WORLD.tiles[self.site.x][self.site.y].entities if
                                figure.creature.profession is None and figure.creature.sex == 1 and figure.creature.get_age() > g.MIN_MARRIAGE_AGE]
-        if profession.name in ('High Priest', 'General'):
-            # Create new dynasty
-            human, all_new_figures = self.site.create_initial_dynasty()
 
+        # Mostly try to use existing folks to fill the position
+        if not profession.name in ('Assassin', ) and len(potential_employees) > 0:
+            human = random.choice(potential_employees)
+        # Otherwise, create a new person
         else:
-            # Mostly try to use existing folks to fill the position
-            if not profession.name in ('Assassin', ) and len(potential_employees) > 0:
-                human = random.choice(potential_employees)
-                # all_new_figures = [human]
-            # Otherwise, create a new person
-            else:
-                born = g.WORLD.time_cycle.years_ago(roll(18, 40))
-                human = self.site.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None)
-                # all_new_figures = [human]
+            born = g.WORLD.time_cycle.years_ago(roll(18, 40))
+            human = self.site.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None)
 
         ## Actually give profession to the person ##
         profession.give_profession_to(human)
