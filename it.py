@@ -6588,8 +6588,9 @@ class BasicWorldBrain:
                         agent.activity_is_blocked = 1
 
             # Add to world's set of tiles which can potentially have encounters - later in the turn sequence, the game
-            # will check these tiles and run the encounters as necessary
-            if (not g.WORLD.tiles[self.owner.wx][self.owner.wy].site) and len(g.WORLD.tiles[self.owner.wx][self.owner.wy].entities):
+            # will check these tiles and run the encounters as necessary. Only add tiles which aren't sites, and tiles
+            # with more than 1 entity in it
+            if (not g.WORLD.tiles[self.owner.wx][self.owner.wy].site) and len(g.WORLD.tiles[self.owner.wx][self.owner.wy].entities) > 1:
                 g.WORLD.tiles_with_potential_encounters.add(g.WORLD.tiles[self.owner.wx][self.owner.wy])
 
 
