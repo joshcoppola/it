@@ -131,10 +131,6 @@ class WorldBattle(HistoricalEvent):
         # Add them to the map, with the special place_anywhere flag
         g.M.add_sapients_to_map(entities=self.faction1_named + self.faction2_named, populations=self.faction1_populations + self.faction2_populations, place_anywhere=1)
 
-        for member in self.faction1_named + self.faction2_named:
-            # Add entity to set of all things which have battled this world tick
-            g.WORLD.has_battled.add(member)
-
         # Now that the populations have been de-abstracted, we can make a list of all members in each faction
         f1_all_members = [e for e in g.M.creatures if e.creature.faction == self.faction1_commander.creature.faction]
         f2_all_members = [e for e in g.M.creatures if e.creature.faction == self.faction2_commander.creature.faction]
