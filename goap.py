@@ -297,7 +297,8 @@ class BuyItem(BehaviorBase):
         BehaviorBase.__init__(self)
         self.item_name = item_name
         self.entity = entity
-        self.preconditions = [HaveMoney(self.item_name, self.entity)]
+        # self.preconditions = [HaveMoney(self.item_name, self.entity)]
+        self.preconditions = [AmAvailableToAct(entity=self.entity)]
 
         # Set in get_behavior_location()
         self.site = None
