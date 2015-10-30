@@ -13,6 +13,7 @@ import cProfile as prof
 import pstats
 import copy
 from collections import Counter, defaultdict, namedtuple
+import itertools
 
 import economy
 import physics as phys
@@ -275,9 +276,8 @@ class World(Map):
         # Dijmap where cities are the root nodes; set after cities are generated
         self.distance_from_civilization_dmap = None
 
-        # Set of entities which have battled this round
-        self.has_battled = set([])
 
+        self.tiles_with_potential_encounters = set([])
 
         ## Set on initialize_fov() call
         self.fov_recompute = False
@@ -1889,6 +1889,47 @@ class World(Map):
                     closest_dist = dist
         return closest_city
 
+
+    def check_for_encounters(self):
+        ''' Loops through all tiles in the world which have been marked as potential encounter zones and checks to see if
+            any need to run encounters. This could be a battle if the factions are hostile, or just an exchange of information
+            if not '''
+
+        # Loop through all tiles that have been flagged
+        for tile in self.tiles_with_potential_encounters:
+            wx, wy = tile.x, tile.y
+
+            factions_and_entities = defaultdict(list)
+            for entity in tile.entities:
+                factions_and_entities[entity.creature.faction].append(entity)
+
+            for faction, other_faction in itertools.combinations(factions_and_entities.keys(), 2):
+                # Do battle if the two factions are hostile
+                if faction.is_hostile_to(other_faction):
+                    ## TODO - clean up ugly list comprehensions and whatnot
+                    faction_named = [e for e in factions_and_entities[faction] if e.creature.is_available_to_act()]
+                    faction_populations = [p for p in tile.populations if p.faction == faction]
+
+                    other_faction_named = [e for e in factions_and_entities[other_faction] if e.creature.is_available_to_act()]
+                    other_faction_populations = [p for p in tile.populations if p.faction == other_faction]
+
+                    if faction_named and other_faction_named and not g.player in faction_named + other_faction_named:
+                        # This will resolve the battle
+                        battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
+                                                    faction1_named=faction_named, faction1_populations=faction_populations,
+                                                    faction2_named=other_faction_named, faction2_populations=other_faction_populations)
+
+                        g.game.add_message(battle.describe(), libtcod.color_lerp(g.PANEL_FRONT, faction_named[0].color, .3))
+
+            # Each entity also has a chance of talking to other ones
+            for entity1, entity2 in itertools.combinations(tile.entities, 2):
+                # TODO - should have a chance of spreading rumors too
+                if (entity1.creature.important or entity2.creature.important) and not entity1.creature.faction.is_hostile_to(entity2.creature.faction):
+                    entity1.creature.encounter(other=entity2)
+                    entity2.creature.encounter(other=entity1)
+
+        # Reset those tiles
+        self.tiles_with_potential_encounters = set([])
 
     def goto_scale_map(self):
         ''' Create battle map from g.player's world coords '''
@@ -5186,31 +5227,6 @@ class Creature:
         else:
             target.local_brain.set_state('fleeing')
 
-    '''
-    # Deprecated in favor of simple_combat_attack
-    def standard_combat_attack(self, attacking_object_component, force, target, target_component):
-        # '' Calculates whether an attack will hit or not ''
-
-        if target.creature and target.local_brain and target.local_brain.ai_state == 'idle':
-            self.handle_renegade_faction(target)
-
-
-        attack_modifiers, defend_modifiers = self.get_attack_odds(attacking_object_component, force, target, target_component)
-
-        attack_chance = sum(attack_modifiers.values())
-        defend_chance = sum(defend_modifiers.values())
-
-        # If attack hits...
-        if roll(1, attack_chance + defend_chance) < attack_chance:
-            # Lists the top layers (outermost layer first)
-            chances_to_hit = target_component.get_chances_to_hit_exposed_layers()
-            # Weighted choice, from stackoverflow
-            targeted_layer = weighted_choice(chances_to_hit)
-
-            target_component.apply_force(other_obj_comp=attacking_object_component, total_force=force, targeted_layer=targeted_layer)
-            # Use the poorly-written physics module to compute damage
-            #targeted_layer.apply_force(other_obj_comp=attacking_object_component, total_force=force)
-    '''
 
     def simple_combat_attack(self, combat_move, target):
         combat_log = []
@@ -5389,6 +5405,10 @@ class Creature:
     def remove_commanded_population(self, population):
         population.commander = None
         self.commanded_populations.remove(population)
+
+    def get_base_detection_chance(self):
+        ''' Chance (out of 100) that this being will be detected when another unit shares the world tile with it'''
+        pass
 
     #def handle_question(self, asker, target, question_type):
     #    ''' Handles all functions relating to asking questions '''
@@ -6416,10 +6436,8 @@ class DijmapSapient:
 
 class BasicWorldBrain:
     def __init__(self):
-        self.destination = None
         self.path = None
         self.next_tick = 0
-        #self.goals = []
 
         self.current_goal_path = []
 
@@ -6544,156 +6562,35 @@ class BasicWorldBrain:
 
             return spouse
 
-    def check_for_adventure(self):
-        do_adventure = 0
-        # targets = [e for e in g.WORLD.all_figures if e.creature.type_ in g.WORLD.brutish_races ]
-        # if roll(1, 10) == 1 and targets != []:
-        #     target = random.choice(targets)
-        #
-        #     self.add_goal(priority=1, goal_type='kill person', reason='I lust for blood', target=target)
-        #     g.game.add_message(new_msg="{0} is going on mission to kill {1} at {2}, {3}".format(self.owner.fullname(), target.fullname(), target.wx, target.wy), color=libtcod.red)
-        #     do_adventure = 1
-        #
-        # elif targets == []:
-        #     g.game.add_message('{0} checked for adventure but found no targets'.format(self.owner.fullname()))
-
-        return do_adventure
-
-
-    def check_for_move_city(self):
-        # creature = self.owner.creature
-        # if creature.profession is None and roll(1, 1000) >= 950:
-        #     target_city = random.choice([city for city in g.WORLD.cities if city != creature.current_citizenship])
-        #     reason = random.choice(['needed a change of pace', 'wanted to see more of the world'])
-        #
-        #     creature.change_citizenship(new_city=target_city, new_house=None)
-        #     self.add_goal(priority=1, goal_type='travel', reason=reason, location=(target_city.x, target_city.y))
-        #     # Return whether the goal was fired or not
-        #     return 1
-        return 0
-
-
-    def check_for_liesure_travel(self):
-        # creature = self.owner.creature
-        # if (creature.profession is None or creature.profession == 'Adventurer') and roll(1, 1000) >= 500:
-        #
-        #     # More interesting alternative - visiting a holy site
-        #     if roll(0, 1) and len(creature.culture.pantheon.holy_sites):
-        #         holy_site = random.choice(creature.culture.pantheon.holy_sites)
-        #         target_x, target_y = holy_site.x, holy_site.y
-        #         travel_verb = 'go on a pilgrimmage to'
-        #         activity = 'meditate'
-        #         reason = 'wanted to visit this holy site.'
-        #     # Otherwise, pick a random spot to travel to
-        #     else:
-        #         found_spot = False
-        #         while not found_spot:
-        #             xdist = roll(5, 15) * random.choice((-1, 1))
-        #             ydist = roll(5, 15) * random.choice((-1, 1))
-        #             # If we can path there, it's OK
-        #             if g.WORLD.get_astar_distance_to(self.owner.wx, self.owner.wy, self.owner.wx + xdist, self.owner.wy + ydist):
-        #                 found_spot = True
-        #         # Pick a reason
-        #         travel_verb = 'travel'
-        #         activity = random.choice(('explore', 'hunt'))
-        #         reasons = {'explore':['wanted to explore', 'wanted to see more of the world'],
-        #                    'hunt':['needed time to relax', 'wanted a change of pace', 'think it\s a nice way to see the world', 'love the thrill of the chase']}
-        #         reason = random.choice(reasons[activity])
-        #         target_x, target_y = (self.owner.wx + xdist, self.owner.wy + ydist)
-        #
-        #     num_days = roll(3, 8)
-        #     #self.add_goal(priority=1, goal_type='travel', reason=reason, target=(target_x, target_y))
-        #     self.add_goal(priority=1, goal_type='wait', reason=reason, location=(target_x, target_y), num_days=num_days, activity_verb=activity, travel_verb=travel_verb)
-        #     return 1
-
-        return 0
-
-
-
-    def set_destination(self, origin, destination):
-        self.destination = destination
-        self.path = origin.path_to[destination][:]
-
     def take_turn(self):
-        if self.owner.creature.is_available_to_act():
+        ''' Covers taking a "turn" on the world map. This is run daily to resolve issues of pursuing goals. Larger decisions
+            about what goals to pursue will likely be made elsewhere, run less frequently '''
 
-            ## Here will be the check for immediate threats and / or re-evaluation of goals
-            # if self.goals:
-            #     self.handle_goal_behavior()
+        if self.owner.creature.is_available_to_act():
+            ## Here will be the check for take goal behavior or re-evaluating goals
             if self.current_goal_path:
                 self.take_goal_behavior()
-            # else:
-            #     if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
-            #         unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
-            #         item_name = random.choice(unique_objs) if unique_objs else 'shirt'
-            #
-            #         self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
+            ## Otherwise, for now, some debug behaviors chosen at random.
             else:
-                # if self.owner.creature.intelligence_level == 3 and self.owner.creature.profession and not 'erchant' in self.owner.creature.profession.name and roll(1, 200) == 1:
-                #     commodity = random.choice(['stone cons materials', 'iron tools', 'wood furniture'])
-                #     quantity = roll(2, 10)
-                #     self.set_goal(goal_state=goap.HaveCommodityAtLocation(commodity=commodity, quantity=quantity, entity=self.owner, target_location=(self.owner.wx, self.owner.wy)), reason='hehehehehe', priority=1)
+                if self.owner.creature.intelligence_level == 3 and roll(1, 10) == 1:
+                    unique_objs = [o for o in self.owner.creature.faction.unique_object_dict if 'weapon' in self.owner.creature.faction.unique_object_dict[o]['tags']]
+                    item_name = random.choice(unique_objs) if unique_objs else 'shirt'
 
-                if self.owner.creature.intelligence_level == 2 and roll(1, 100) == 1:
-                    #site = Site(world=g.WORLD, type_='hideout', x=self.owner.wx, y=self.owner.wy, char='H', name='test site', color=libtcod.red, culture=self.owner.creature.culture, faction=self.owner.creature.faction)
-                    #goal = goap.BuildingIsConstructed(entity=self.owner, building_type='hideout', target_site=site)
-                    #self.set_goal(goal_state=goal, reason='hehehehehe', priority=1)
+                    self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
 
+                elif self.owner.creature.intelligence_level == 2 and roll(1, 100) == 1:
                     self.set_goal(goal_state=goap.HaveShelter(entity=self.owner), reason='hehehehe', priority=1)
 
-
-
-            # Check for battle if not at a site. TODO - optomize this check (may not need to occur every turn for every creature; may be able to build a list of potential tiles)
-            if not g.WORLD.tiles[self.owner.wx][self.owner.wy].site:
-                self.check_for_battle()
-
+            # If we can threaten the economic output of a tile, flag any economic agents working that tile as unable to work
             if self.owner.creature.threatens_economic_output() and g.WORLD.tiles[wx][wy].territory and self.owner.creature.faction.is_hostile_to(g.WORLD.tiles[wx][wy].territory.faction):
                 for resource, info in g.WORLD.tiles[wx][wy].region.agent_slots.iteritems():
                     for agent in info['agents']:
                         agent.activity_is_blocked = 1
 
-    def check_for_battle(self):
-        ## See whether we ended a turn on a tile with an enemy
-        wx = self.owner.wx
-        wy = self.owner.wy
-
-        enemy_factions_in_this_tile = []
-        ## Originally made a copy of entities - why?
-        for entity in g.WORLD.tiles[wx][wy].entities:
-            ## Piggybacking on this existing loop through entities in order to update knowledge
-            # TODO - should have a chance of spreading rumors too
-            if self.owner.creature.important or entity.creature.important:
-                self.owner.creature.encounter(other=entity)
-                entity.creature.encounter(other=self.owner)
-
-            # Building a list of enemy factions in this tile
-            if self.owner.creature.faction.is_hostile_to(entity.creature.faction) \
-                    and not entity.creature.faction in enemy_factions_in_this_tile \
-                    and not entity in g.WORLD.has_battled and entity.creature.is_available_to_act():
-
-                enemy_factions_in_this_tile.append(entity.creature.faction)
-        #########################################################
-
-        if enemy_factions_in_this_tile:
-            ## Our faction
-            faction1_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature.faction == self.owner.creature.faction and e.creature.is_available_to_act() and not e in g.WORLD.has_battled]
-            faction1_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == self.owner.creature.faction]
-
-            ### Do battle with each potential enemy
-            for faction in enemy_factions_in_this_tile:
-                ## Enemy faction
-                faction2_named = [e for e in g.WORLD.tiles[wx][wy].entities if e.creature.faction == faction and e.creature.is_available_to_act() and not e in g.WORLD.has_battled]
-                faction2_populations = [p for p in g.WORLD.tiles[wx][wy].populations if p.faction == faction]
-
-                if faction1_named and faction2_named:
-                    # May need to optomize this check with g.player
-                    if not g.player in faction1_named + faction2_named:
-                        # This will handle placing these people in the has_battled set, as well as resolving the battle
-                        battle = combat.WorldBattle(g.WORLD.time_cycle.get_current_date(), location=(wx, wy),
-                                                    faction1_named=faction1_named, faction1_populations=faction1_populations,
-                                                    faction2_named=faction2_named, faction2_populations=faction2_populations)
-
-                        g.game.add_message(battle.describe(), libtcod.color_lerp(g.PANEL_FRONT, faction1_named[0].color, .3))
+            # Add to world's set of tiles which can potentially have encounters - later in the turn sequence, the game
+            # will check these tiles and run the encounters as necessary
+            if (not g.WORLD.tiles[self.owner.wx][self.owner.wy].site) and len(g.WORLD.tiles[self.owner.wx][self.owner.wy].entities):
+                g.WORLD.tiles_with_potential_encounters.add(g.WORLD.tiles[self.owner.wx][self.owner.wy])
 
 
     '''
@@ -6929,8 +6826,8 @@ class TimeCycle(object):
                 #figure.world_brain.next_tick = self.next_day()
                 figure.world_brain.take_turn()
 
-        # Clear set of those who've battled this round
-        self.world.has_battled = set([])
+        g.WORLD.check_for_encounters()
+
 
 
     def week_tick(self):
