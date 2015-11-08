@@ -8,7 +8,7 @@ from itertools import chain
 
 import libtcodpy as libtcod
 
-from helpers import infinite_defaultdict, libtcod_path_to_list
+from helpers import infinite_defaultdict, libtcod_path_to_list, join_list, ct_collective
 from traits import TRAIT_INFO
 import config as g
 import data_importer as data
@@ -436,7 +436,7 @@ class GatherCommodityBehavior(BehaviorBase):
         self.time_to_gather = data.commodity_manager.get_days_to_harvest(resource_name=self.commodity)
 
     def get_name(self):
-        goal_name = 'gather {0} {1}'.format(self.quantity, self.commodity)
+        goal_name = 'gather {0}'.format(ct_collective(word=self.commodity, num=self.quantity))
         return goal_name
 
     def is_completed(self):
@@ -473,7 +473,7 @@ class DoReaction(BehaviorBase):
         assert self.number_of_reactions > 0, self.number_of_reactions
 
         # Amount we need total for the reacion, accounting for the amount input / output quantities
-        input_quantity =  self.number_of_reactions * self.reaction.input_amount
+        input_quantity =  self.get_input_commodity_quantity_for_this_reaction()
         self.preconditions = [HaveCommodity(commodity=self.reaction.input_commodity_name, quantity=input_quantity, entity=entity)]
 
         ## For consumed items, we mut have enough to fuel the entire reaction
@@ -493,9 +493,20 @@ class DoReaction(BehaviorBase):
         # Time to do 1 reaction is calculated based off of the weekly reaction yield specified in yaml
         self.days_of_reaction = int(ceil(7 / (quantity / self.reaction.output_amount) ))
 
+    def get_input_commodity_quantity_for_this_reaction(self):
+        return self.number_of_reactions * self.reaction.input_amount
 
     def get_name(self):
-        goal_name = 'do reactions to create {0} {1}'.format(self.quantity, self.commodity)
+        # A string count of the commodity being input as well as the number input
+        input_info = ct_collective(word=self.reaction.input_commodity_name, num=self.get_input_commodity_quantity_for_this_reaction())
+
+        # Info about the reactants in the reaction
+        reactants = join_list([ct_collective(commodity, self.consumed_in_this_reaction[commodity]) for commodity in self.consumed_in_this_reaction])
+        if reactants != 'nothing':      reactant_sentence = ', comsuming {0} in the process'.format(reactants)
+        else:                           reactant_sentence = ''
+
+        product = ct_collective(self.commodity, self.quantity)
+        goal_name = 'craft {0} into {1}{2}'.format(input_info, product, reactant_sentence)
         return goal_name
 
     def is_completed(self):
@@ -512,7 +523,7 @@ class DoReaction(BehaviorBase):
 
             self.entity.creature.econ_inventory[self.commodity] += (self.number_of_reactions * self.reaction.output_amount)
 
-            self.entity.creature.econ_inventory[self.reaction.input_commodity_name] -= (self.number_of_reactions * self.reaction.input_amount)
+            self.entity.creature.econ_inventory[self.reaction.input_commodity_name] -= self.get_input_commodity_quantity_for_this_reaction()
             assert self.entity.creature.econ_inventory[self.reaction.input_commodity_name] >= 0, \
                                                         '{0}\'s inventory of {1} was {2} after doing reaction'.format(self.entity.fulltitle(),
                                                         self.reaction.input_commodity_name, self.entity.creature.econ_inventory[self.reaction.input_commodity_name])
