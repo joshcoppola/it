@@ -4,12 +4,14 @@ copper:
     resource_class: strategic
     break_chance: 300
     harvest:
+        verb: mine
         number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         tools:
+            verb: forge
             number_input: 1
             number_output: 6
             commodities_consumed:
@@ -44,12 +46,14 @@ bronze:
     resource_class: strategic
     break_chance: 200
     harvest:
+        verb: mine
         number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         tools:
+            verb: forge
             number_input: 1
             number_output: 6
             commodities_consumed:
@@ -84,12 +88,14 @@ iron:
     resource_class: strategic
     break_chance: 100
     harvest:
+        verb: mine
         number_output: 6
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         tools:
+            verb: forge
             number_input: 1
             number_output: 10
             commodities_consumed:
@@ -124,11 +130,13 @@ clay:
     resource_class: strategic
     break_chance: 300
     harvest:
+        verb: gather
         number_output: 5
         commodities_consumed:
         commodities_required:
     reactions:
         pottery:
+            verb: throw
             number_input: 1
             number_output: 5
             commodities_consumed:
@@ -175,12 +183,14 @@ wood:
     resource_class: strategic
     break_chance: 215
     harvest:
+        verb: gather
         number_output: 4
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         furniture:
+            verb: craft
             number_input: 1
             number_output: 4
             commodities_consumed:
@@ -205,12 +215,14 @@ stone:
     resource_class: strategic
     break_chance: 75
     harvest:
+        verb: quarry
         number_output: 2
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         cons materials:
+            verb: craft
             number_input: 1
             number_output: 2
             commodities_consumed:
@@ -235,12 +247,14 @@ flax:
     resource_class: strategic
     break_chance: 350
     harvest:
+        verb: harvest
         number_output: 3
         commodities_consumed:
         commodities_required:
             tools: 1
     reactions:
         clothing:
+            verb: spin
             number_input: 1
             number_output: 4
             commodities_consumed:
@@ -266,6 +280,7 @@ food:
     resource_class: strategic
     break_chance: 1
     harvest:
+        verb: harvest
         number_output: 3
         commodities_consumed:
         commodities_required:
