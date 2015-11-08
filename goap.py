@@ -436,7 +436,8 @@ class GatherCommodityBehavior(BehaviorBase):
         self.time_to_gather = data.commodity_manager.get_days_to_harvest(resource_name=self.commodity)
 
     def get_name(self):
-        goal_name = 'gather {0}'.format(ct_collective(word=self.commodity, num=self.quantity))
+        verb = data.commodity_manager.reactions[self.commodity].verb
+        goal_name = '{0} {1}'.format(verb, ct_collective(word=self.commodity, num=self.quantity))
         return goal_name
 
     def is_completed(self):
@@ -506,7 +507,7 @@ class DoReaction(BehaviorBase):
         else:                           reactant_sentence = ''
 
         product = ct_collective(self.commodity, self.quantity)
-        goal_name = 'craft {0} into {1}{2}'.format(input_info, product, reactant_sentence)
+        goal_name = '{0} {1} into {2}{3}'.format(self.reaction.verb, input_info, product, reactant_sentence)
         return goal_name
 
     def is_completed(self):
