@@ -50,6 +50,12 @@ def ct(word, num, use_a=False):
 
     return '{0} {1}'.format(num, pl(word, num))
 
+def ct_collective(word, num, units='units'):
+    ''' Counts collective nouns like "water", "construction materials", etc '''
+    if num == 1:
+        return 'some {0}'.format(word)
+    else:
+        return '{0} {1} of {2}'.format(num, units, word)
 
 def pl(word, num=2):
     ''' Pluralize word based on count '''
