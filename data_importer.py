@@ -41,7 +41,9 @@ class FinishedGood(object):
         self.out_amt = out_amt
 
 class Reaction:
-    def __init__(self, is_finished_good, input_commodity_name, input_amount, output_commodity_name, output_amount, commodities_consumed, commodities_required):
+    def __init__(self, verb, is_finished_good, input_commodity_name, input_amount, output_commodity_name, output_amount, commodities_consumed, commodities_required):
+        self.verb = verb
+
         self.is_finished_good = is_finished_good
 
         self.input_commodity_name = input_commodity_name if input_commodity_name else None
@@ -130,7 +132,7 @@ class CommodityManager:
             self.resources.add(resource)
             self.resource_names.add(rname)
 
-            self.reactions[rname] = Reaction(is_finished_good=0,
+            self.reactions[rname] = Reaction(verb=resource_info[rname]['harvest']['verb'], is_finished_good=0,
                                 input_commodity_name=None, input_amount=None,
                                 output_commodity_name=rname, output_amount=resource_info[rname]['harvest']['number_output'],
                                 commodities_consumed=resource_info[rname]['harvest']['commodities_consumed'],
@@ -144,7 +146,7 @@ class CommodityManager:
 
                 ### Saving those reactions ###
                 reaction_name = '{0} {1}'.format(rname, reaction_type)
-                self.reactions[reaction_name] = Reaction(is_finished_good=1,
+                self.reactions[reaction_name] = Reaction(verb=resource_info[rname]['reactions'][reaction_type]['verb'], is_finished_good=1,
                                 input_commodity_name=rname, input_amount=resource_info[rname]['reactions'][reaction_type]['number_input'],
                                 output_commodity_name=reaction_name, output_amount=resource_info[rname]['reactions'][reaction_type]['number_output'],
                                 commodities_consumed=resource_info[rname]['reactions'][reaction_type]['commodities_consumed'],
