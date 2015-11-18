@@ -1949,10 +1949,15 @@ class World(Map):
         # Make map
         if self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'city':
             hm = g.M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
-            base_color = self.tiles[x][y].get_base_color()
-            g.M.create_map_tiles(hm, base_color, explored=1)
+            g.M.create_map_tiles(hm=hm, base_color=self.tiles[x][y].get_base_color(), explored=1)
 
             g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=35, disorg=5)
+
+        elif self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'village':
+            hm = g.M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
+            g.M.create_map_tiles(hm=hm, base_color=self.tiles[x][y].get_base_color(), explored=1)
+
+            g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=10, min_dist=15, disorg=10)
 
         else:
             hm = g.M.create_heightmap_from_surrounding_tiles()
@@ -2347,6 +2352,16 @@ class Site:
     def set_leader(self, entity):
         ''' Set leader of site - (sites don't need leaders though) '''
         self.leader = entity
+
+    def get_building(self, building_name):
+        ''' Find a specific building by name '''
+        for building in self.buildings:
+            if building.name == building_name:
+                return building
+
+    def get_building_type(self, building_type):
+        ''' Find all buildings of a certain type '''
+        return [building for building in self.buildings if building.type_ == building_type]
 
     def add_citizen(self, entity, house=None):
         ''' Handles removing person from their old site, and adding them to a new site '''
@@ -2813,15 +2828,6 @@ class City(Site):
         ######### Fill positions #########
         for building in self.buildings:
             building.fill_initial_positions()
-
-
-    def get_building(self, building_name):
-        for building in self.buildings:
-            if building.name == building_name:
-                return building
-
-    def get_building_type(self, building_type):
-        return [building for building in self.buildings if building.type_ == building_type]
 
 
     def get_available_materials(self):
@@ -6909,7 +6915,7 @@ class Camera:
                 self.y += dy
 
     def center(self, target_x, target_y):
-        #new g.game.camera coordinates (top-left corner of the screen relative to the map)
+        #new camera coordinates (top-left corner of the screen relative to the map)
         x = target_x - int(round(self.width / 2))  #coordinates so that the target is at the center of the screen
         y = target_y - int(round(self.height / 2))
 
