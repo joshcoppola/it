@@ -169,6 +169,16 @@ class Wmap(Map):
 
         #self.rock_border_cells = []
 
+        ## Variables to help determine size of the rect below
+        hht = int(self.height/2)
+        hwd = int(self.width/2)
+        # Size of rectangle
+        rs = int(self.width/10)
+        # Used to generate a rectangle on this map based on the direction last traveled
+        self.world_last_dir_to_rect = {(-1, -1):Rect(x=1, y=1, w=rs, h=rs),                 (0, -1):Rect(x=hwd, y=1, w=rs, h=rs),                 (1, -1):Rect(x=self.width-(rs+2), y=1, w=rs, h=rs),
+                                       (-1, 0):Rect(x=1, y=hht, w=rs, h=rs),                (0, 0):Rect(x=hwd, y=hht, w=rs*3, h=rs*3),            (1, 0):Rect(x=self.width-(rs+2), y=hht, w=rs, h=rs),
+                                       (-1, 1):Rect(x=1, y=self.height-(rs+2), w=rs, h=rs), (0, 1):Rect(x=hwd, y=self.height-(rs+2), w=rs, h=rs), (1, 1):Rect(x=self.width-(rs+2), y=self.height-(rs+2), w=rs, h=rs)
+                                       }
 
     def cache_factions_for_dmap(self):
         ''' Run when map is created, so it understands the various factions present '''
@@ -464,35 +474,19 @@ class Wmap(Map):
 
 
     def add_sapients_to_map(self, entities, populations, place_anywhere=0):
-        hht = int(self.height/2)
-        hwd = int(self.width/2)
-        # Size of rectangle
-        rs = int(self.width/10)
-
-        world_last_dir_to_rect = {(-1, -1):Rect(x=1, y=1, w=rs, h=rs),           (0, -1):Rect(x=hwd, y=1, w=rs, h=rs),                 (1, -1):Rect(x=self.width-(rs+2), y=1, w=rs, h=rs),
-                            (-1, 0):Rect(x=1, y=hht, w=rs, h=rs),                (0, 0):Rect(x=hwd, y=hht, w=rs*3, h=rs*3),            (1, 0):Rect(x=self.width-(rs+2), y=hht, w=rs, h=rs),
-                            (-1, 1):Rect(x=1, y=self.height-(rs+2), w=rs, h=rs), (0, 1):Rect(x=hwd, y=self.height-(rs+2), w=rs, h=rs), (1, 1):Rect(x=self.width-(rs+2), y=self.height-(rs+2), w=rs, h=rs)
-                            }
+        ''' Add a group of named entities, as well as abstract populations, to the map '''
 
         site = self.world.tiles[self.wx][self.wy].site
 
         ###### Standard placement - in the wilderness somewhere ######
         if site is None:
             for entity in entities:
-                figure_start = world_last_dir_to_rect[entity.world_last_dir]
-                # Find a non-blocked tile
-                while 1:
-                    x = roll(figure_start.x1, figure_start.x2)
-                    y = roll(figure_start.y1, figure_start.y2)
-                    # place_anywhere is set to true when battle takes place in the world scale, so that entire large maps do not need to be generated
-                    # This means in tiny-sized maps, many creatures may be "on top" of each other.
-                    if (g.M.is_val_xy(coords=(x, y)) and not g.M.tile_blocks_mov(x, y)) or place_anywhere:
-                        break
+                x, y = self.find_starting_wmap_location_based_on_last_dir(entity=entity, place_anywhere=place_anywhere)
                 # Add the entity to the map
-                g.M.add_object_to_map(x=x, y=y, obj=entity)
+                self.add_object_to_map(x=x, y=y, obj=entity)
 
             for population in populations:
-                population_start = world_last_dir_to_rect[population.world_last_dir]
+                population_start = self.world_last_dir_to_rect[population.world_last_dir]
                 population.add_to_map(startrect=population_start, startbuilding=None, patrol_locations=[], place_anywhere=place_anywhere)
 
             for site in self.world.tiles[self.wx][self.wy].all_sites:
@@ -515,11 +509,18 @@ class Wmap(Map):
                 elif entity.creature.current_citizenship == site and site.houses:
                     print '{0} has no house but lives in {1}'.format(entity.fulltitle(), site.name )
 
-                else:
+                elif site.get_building_type('Tavern'):
                     taverns = site.get_building_type('Tavern')
+
                     tavern = random.choice(taverns)
                     tavern.place_within(entity)
                     g.game.add_message('placing {0} in tavern at {1}, {2}'.format(entity.fulltitle(), entity.x, entity.y))
+
+                # If we can't find anywhere to place a figure based on the above criteria, place the entity based on the last direction it traveled from the world map
+                else:
+                    x, y = self.find_starting_wmap_location_based_on_last_dir(entity=entity, place_anywhere=place_anywhere)
+                    # Add the entity to the map
+                    self.add_object_to_map(x=x, y=y, obj=entity)
 
             for building in site.buildings:
                 building.add_housed_objects_to_map()
@@ -617,6 +618,17 @@ class Wmap(Map):
 
         self.initialize_fov()
 
+
+    def find_starting_wmap_location_based_on_last_dir(self, entity, place_anywhere):
+        figure_start = self.world_last_dir_to_rect[entity.world_last_dir]
+        # Find a non-blocked tile
+        while 1:
+            x = roll(figure_start.x1, figure_start.x2)
+            y = roll(figure_start.y1, figure_start.y2)
+            # place_anywhere is set to true when battle takes place in the world scale, so that entire large maps do not need to be generated
+            # This means in tiny-sized maps, many creatures may be "on top" of each other.
+            if (self.is_val_xy(coords=(x, y)) and not self.tile_blocks_mov(x, y)) or place_anywhere:
+                return x, y
 
     def clear_objects(self):
         for sap in self.creatures:
@@ -1639,9 +1651,10 @@ class CityMap:
     def historize_buildings(self):
         ## Add in historical figures from the city info to the city
         market = self.city_class.get_building('Market')
-        for x, y in self.markets[0]:
-            self.usemap.tiles[x][y].building = market
-        market.physical_property = self.markets[0]
+        if market:
+            for x, y in self.markets[0]:
+                self.usemap.tiles[x][y].building = market
+            market.physical_property = self.markets[0]
 
         min_industry_size = 5
         ## Loop through the list of historical buildings
@@ -1730,11 +1743,14 @@ class CityMap:
 
         road_thickness = 2
 
+
         building = self.city_class.get_building('City Hall')
-        self.make_municipal_bldg(x=self.cx, y=self.cy, w=block_size, h=block_size, road_thickness=road_thickness, building_info=building)
+        if building:
+            self.make_municipal_bldg(x=self.cx, y=self.cy, w=block_size, h=block_size, road_thickness=road_thickness, building_info=building)
 
         temple = self.city_class.get_building('Temple')
-        self.make_municipal_bldg(x=self.cx-60, y=self.cy, w=block_size, h=block_size, road_thickness=road_thickness, building_info=temple)
+        if temple:
+            self.make_municipal_bldg(x=self.cx-60, y=self.cy, w=block_size, h=block_size, road_thickness=road_thickness, building_info=temple)
 
 
         xlen = block_size * 3
