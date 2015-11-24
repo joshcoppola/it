@@ -61,11 +61,12 @@ class AtLocation:
 class IsHangingOut:
     ''' State needed to get an entity moving somewhere where the movement itself is the end goal.
         Used due to issue with AtLocation directly calling the MoveToLocation behavior'''
-    def __init__(self, target_location, entity):
+    def __init__(self, target_location, entity, action='spend some time'):
         self.target_location = target_location
         self.entity = entity
+        self.action = action
         # Will be set if this status isn't already completed
-        self.behaviors_to_accomplish = [SetupWaitBehavior(target_location=target_location, entity=entity)]
+        self.behaviors_to_accomplish = [SetupWaitBehavior(target_location=target_location, entity=entity, action=action)]
 
     def is_completed(self):
         # Considered complete once we are at the location -- movement behavior will be automatically generated as this
@@ -73,7 +74,7 @@ class IsHangingOut:
         return (self.entity.wx, self.entity.wy) == self.target_location
 
     def get_name(self):
-        return 'spend time at {0}'.format(g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
+        return '{0} at {0}'.format(self.action, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
 
 class GoodsAreUnloaded:
     def __init__(self, target_city, goods, entity):
@@ -164,6 +165,25 @@ class HaveItem:
         return 'have {0}'.format(self.item_name)
 
 
+class BuildingHasSize:
+    def __init__(self, building, size, operator):
+        self.building = building
+        self.size = size
+        self.operator = operator
+
+        self.behaviors_to_accomplish = []
+
+    def is_completed(self):
+        if self.operator == 'less_than':
+            return sum(self.building.cost_to_build.values()) <= self.size
+        elif self.operator == 'greater_than':
+            return sum(self.building.cost_to_build.values()) >= self.size
+
+    def get_name(self):
+        operator_name = {'less_than':'less than', 'greater_than':'greater than'}[self.operator]
+        return 'have {0} have a size {1} of {2} units'.format(self.building.get_name(), operator_name, self.size)
+
+
 class BuildingIsConstructed:
     def __init__(self, entity, building, target_site, target_location=None):
         self.entity = entity
@@ -171,7 +191,10 @@ class BuildingIsConstructed:
         self.target_site = target_site
         self.target_location = target_location
 
-        self.behaviors_to_accomplish = [ConstructBuilding(entity=self.entity, building=self.building, target_site=self.target_site, target_location=self.target_location)]
+        self.behaviors_to_accomplish = [ConstructBuilding(entity=self.entity, building=self.building,
+                                            target_site=self.target_site, target_location=self.target_location)] #,
+                                        # OrderConstructionOfBuilding(entity=self.entity, building=self.building,
+                                        #     target_site=self.target_site, target_location=self.target_location)]
 
     def is_completed(self):
         return self.building.constructed
@@ -541,15 +564,16 @@ class DoReaction(BehaviorBase):
 
 class SetupWaitBehavior(BehaviorBase):
     ''' Used when the end goal of an entity is simply to be in an area, due to an issue using the AtLocation state directly as an end goal '''
-    def __init__(self, target_location, entity):
+    def __init__(self, target_location, entity, action):
         BehaviorBase.__init__(self)
         self.target_location = target_location
         self.entity = entity
+        self.action = action
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
     def get_name(self):
-        goal_name = 'spend some time at {0}'.format(self.target_location)
+        goal_name = '{0} at {1}'.format(self.action, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
         return goal_name
 
     def is_completed(self):
@@ -624,7 +648,8 @@ class ConstructBuilding(BehaviorBase):
         # Fills in any missing information
         self.determine_building_information()
 
-        self.preconditions = [HaveCommodityAtLocation(commodity=self.building.construction_material, quantity=building_info.BUILDING_INFO[self.building.type_]['cons materials'], entity=self.entity, target_location=self.target_location)]
+        self.preconditions = [BuildingHasSize(building=building, size=50, operator='less_than'),
+                              HaveCommodityAtLocation(commodity=self.building.construction_material, quantity=building_info.BUILDING_INFO[self.building.type_]['cons materials'], entity=self.entity, target_location=self.target_location)]
 
         self.behavior_progress = 0
         self.behavior_total_time = building_info.BUILDING_INFO[self.building.type_]['cons materials']
@@ -708,7 +733,7 @@ class MoveIntoBuilding(BehaviorBase):
             return site
 
     def get_name(self):
-        goal_name = 'move into a building'
+        goal_name = 'move into {0}'.format(self.target_building.get_name())
         return goal_name
 
     def is_completed(self):
