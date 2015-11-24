@@ -31,6 +31,8 @@ class Building:
         self.wx = wx
         self.wy = wy
 
+        self.cost_to_build = BUILDING_INFO[self.type_] if self.type_ in BUILDING_INFO else {}
+
         self.linked_economy_agent = None
 
         self.professions = []
