@@ -1951,13 +1951,13 @@ class World(Map):
             hm = g.M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
             g.M.create_map_tiles(hm=hm, base_color=self.tiles[x][y].get_base_color(), explored=1)
 
-            g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=22, min_dist=35, disorg=5)
+            g.M.make_city_map(site=self.tiles[x][y].site, num_nodes=22, min_dist=35, disorg=5)
 
         elif self.tiles[x][y].site and self.tiles[x][y].site.type_ == 'village':
             hm = g.M.create_heightmap_from_surrounding_tiles(minh=1, maxh=4, iterations=20)
             g.M.create_map_tiles(hm=hm, base_color=self.tiles[x][y].get_base_color(), explored=1)
 
-            g.M.make_city_map(city_class=self.tiles[x][y].site, num_nodes=10, min_dist=15, disorg=10)
+            g.M.make_city_map(site=self.tiles[x][y].site, num_nodes=10, min_dist=15, disorg=10)
 
         else:
             hm = g.M.create_heightmap_from_surrounding_tiles()
