@@ -2720,10 +2720,11 @@ class City(Site):
 
             # caravan_leader.world_brain.next_tick = g.WORLD.time_cycle.next_day()
             # Tell the ai where to go
+            commodities = caravan_leader.creature.economy_agent.merchant_travel_inventory
             if destination.econ == caravan_leader.creature.economy_agent.sell_economy:
-                caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreUnloaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
+                caravan_leader.world_brain.set_goal(goal_state=goap.CommoditiesAreUnloaded(target_city=destination, commodities=commodities, entity=caravan_leader), reason='I need to make a living you know')
             elif destination.econ == caravan_leader.creature.economy_agent.buy_economy:
-                caravan_leader.world_brain.set_goal(goal_state=goap.GoodsAreLoaded(target_city=destination, goods='placeholder', entity=caravan_leader), reason='I need to make a living you know')
+                caravan_leader.world_brain.set_goal(goal_state=goap.CommoditiesAreLoaded(target_city=destination, commodities=commodities, entity=caravan_leader), reason='I need to make a living you know')
 
         self.departing_merchants = []
 
@@ -6492,7 +6493,13 @@ class BasicWorldBrain:
 
         return best_path
 
-    def get_goal(self):
+    def get_current_behavior(self):
+        if self.current_goal_path:
+            return self.current_goal_path[0].get_name()
+        else:
+            return 'No current goals'
+
+    def get_final_behavior(self):
         if self.current_goal_path:
             return self.current_goal_path[-1].get_name()
         else:
@@ -7449,11 +7456,15 @@ def get_info_under_mouse():
                     if entity.creature and entity.creature.is_commander():
                         info.append(('{0} ({1} total)'.format(entity.fulltitle(), ct('man', entity.creature.get_total_number_of_commanded_beings())), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
 
-                    # Individual travellers
+                    # Individual travellers - exclude those who have a commander
                     elif entity.creature and not entity.creature.commander:
                         info.append(('{0}'.format(entity.fulltitle()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
 
-                    info.append(('Goal: {0}'.format(entity.world_brain.get_goal()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
+                    # Show information about the entity's goals, if it has a brain
+                    if entity.world_brain:
+                        info.append(('Currently: {0}'.format(entity.world_brain.get_current_behavior()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
+                        info.append(('Eventually: {0}'.format(entity.world_brain.get_final_behavior()), libtcod.color_lerp(color, entity.creature.faction.color, .3)))
+
                     info.append((' ', color))
 
                 # Only show uncommanded populations
