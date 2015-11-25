@@ -76,33 +76,33 @@ class IsHangingOut:
     def get_name(self):
         return '{0} at {0}'.format(self.action, g.WORLD.tiles[self.target_location[0]][self.target_location[1]].get_location_description())
 
-class GoodsAreUnloaded:
-    def __init__(self, target_city, goods, entity):
+class CommoditiesAreUnloaded:
+    def __init__(self, target_city, commodities, entity):
         self.target_city = target_city
-        self.goods = goods
+        self.commodities = commodities
         self.entity = entity
 
-        self.behaviors_to_accomplish = [UnloadGoodsBehavior(target_city=target_city, entity=entity)]
+        self.behaviors_to_accomplish = [UnloadCommoditiesBehavior(target_city=target_city, entity=entity, commodities=commodities)]
 
     def is_completed(self):
             return self.entity in self.target_city.caravans
 
     def get_name(self):
-        return 'have goods unloaded in {0}'.format(self.target_city.name)
+        return 'have {0} unloaded in {1}'.format(join_list(self.commodities.keys()), self.target_city.name)
 
-class GoodsAreLoaded:
-    def __init__(self, target_city, goods, entity):
+class CommoditiesAreLoaded:
+    def __init__(self, target_city, commodities, entity):
         self.target_city = target_city
-        self.goods = goods
+        self.commodities = commodities
         self.entity = entity
 
-        self.behaviors_to_accomplish = [LoadGoodsBehavior(target_city=target_city, entity=entity)]
+        self.behaviors_to_accomplish = [LoadCommoditiesBehavior(target_city=target_city, entity=entity, commodities=commodities)]
 
     def is_completed(self):
             return self.entity in self.target_city.caravans
 
     def get_name(self):
-        return 'have goods in {0} loaded'.format(self.target_city.name)
+        return 'have {0} in {1} loaded'.format(join_list(self.commodities.keys()), self.target_city.name)
 
 class HaveCommodityAtLocation:
     def __init__(self, commodity, quantity, entity, target_location):
@@ -342,7 +342,7 @@ class BuyItem(BehaviorBase):
         return closest_city.x, closest_city.y
 
     def get_name(self):
-        return 'buy {0}'.format(self.item_name)
+        return 'buy {0} in {1}'.format(self.item_name, self.site.name)
 
     def take_behavior_action(self):
 
@@ -586,16 +586,17 @@ class SetupWaitBehavior(BehaviorBase):
         pass  # No behavior needed here -
 
 
-class UnloadGoodsBehavior(BehaviorBase):
-    def __init__(self, target_city, entity):
+class UnloadCommoditiesBehavior(BehaviorBase):
+    def __init__(self, target_city, entity, commodities):
         BehaviorBase.__init__(self)
         self.target_city = target_city
         self.entity = entity
+        self.commodities = commodities
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
     def get_name(self):
-        goal_name = 'unload goods in {0}'.format(self.target_city.name)
+        goal_name = 'unload {0} in {1}'.format(join_list(self.commodities.keys()), self.target_city.name)
         return goal_name
 
     def is_completed(self):
@@ -611,16 +612,17 @@ class UnloadGoodsBehavior(BehaviorBase):
             g.game.add_message('{0} tried to unload caravan goods and was already in {1}.caravans'.format(self.entity.fulltitle(), self.target_city.name), libtcod.red)
 
 
-class LoadGoodsBehavior(BehaviorBase):
-    def __init__(self, target_city, entity):
+class LoadCommoditiesBehavior(BehaviorBase):
+    def __init__(self, target_city, entity, commodities):
         BehaviorBase.__init__(self)
         self.target_city = target_city
         self.entity = entity
+        self.commodities = commodities
 
         self.preconditions = [AmAvailableToAct(self.entity)]
 
     def get_name(self):
-        goal_name = 'load goods in {0}'.format(self.target_city.name)
+        goal_name = 'load {0} in {1}'.format(join_list(self.commodities.keys()), self.target_city.name)
         return goal_name
 
     def is_completed(self):
@@ -929,7 +931,7 @@ if __name__ == '__main__':
     best_path = test_entity_amoral.world_brain.set_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_amoral), reason='because')
     print 'done in {0}'.format(time() - begin)
 
-    best_path = test_entity_moral.world_brain.set_goal(goal_state=GoodsAreUnloaded(target_city='debug', goods='lol', entity=test_entity_moral), reason='because')
+    best_path = test_entity_moral.world_brain.set_goal(goal_state=CommoditiesAreUnloaded(target_city='debug', goods='lol', entity=test_entity_moral), reason='because')
     #print [b.behavior for b in best_path]
 #
 # path_list = find_actions_leading_to_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_normal), action_path=[], all_possible_paths=[])
