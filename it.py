@@ -1486,56 +1486,52 @@ class World(Map):
         self.refresh_road_network(networked_cities)
 
         # Time to go through and see if we can create slightly more efficient paths from city to city
-        for city in networked_cities:
-            for other_city in [c for c in networked_cities if c != city]:
+        for city, other_city in itertools.combinations(networked_cities, 2):
+            current_path_len = max(len(city.path_to[other_city]), 1)
 
-                current_path_len = max(len(city.path_to[other_city]), 1)
+            new_path_len = self.get_astar_distance_to(city.x, city.y, other_city.x, other_city.y)
 
-                new_path_len = self.get_astar_distance_to(city.x, city.y, other_city.x, other_city.y)
+            ratio = new_path_len/current_path_len
 
-                ratio = new_path_len/current_path_len
+            if ratio <= g.NEW_ROAD_PATH_RATIO:
+                # Build a new road
+                city.build_road_to(other_city.x, other_city.y, libtcod.darker_sepia)
+                city.connect_to(other_city)
+                # Translate and save libtcod paths
+                path_to_other_city = libtcod_path_to_list(path_map=self.road_path_map)
 
-                if ratio <= g.NEW_ROAD_PATH_RATIO:
-                    # Build a new road
-                    city.build_road_to(other_city.x, other_city.y, libtcod.darker_sepia)
-                    city.connect_to(other_city)
-                    # Translate and save libtcod paths
-                    path_to_other_city = libtcod_path_to_list(path_map=self.road_path_map)
+                # Kill 2 birds with one stone (sort of)
+                other_city_path_to_us = path_to_other_city[:]
+                other_city_path_to_us.reverse()
 
-                    # Kill 2 birds with one stone (sort of)
-                    other_city_path_to_us = path_to_other_city[:]
-                    other_city_path_to_us.reverse()
+                city.path_to[other_city] = path_to_other_city
+                other_city.path_to[city] = other_city_path_to_us
+                # Now that the road has been built, other cities can use it to path to yet more cities
+                self.refresh_road_network(networked_cities)
 
-                    city.path_to[other_city] = path_to_other_city
-                    other_city.path_to[city] = other_city_path_to_us
-                    # Now that the road has been built, other cities can use it to path to yet more cities
-                    self.refresh_road_network(networked_cities)
+        for city, other_city in itertools.combinations(networked_cities, 2):
+            path = city.path_to[other_city]
+            for (x, y) in path:
 
-        for city in networked_cities:
-            for other_city in [c for c in networked_cities if c != city]:
-                path = city.path_to[other_city]
-                for (x, y) in path:
+                if self.tiles[x][y].has_feature('road'):
+                    self.set_road_tile(x, y)
 
-                    if self.tiles[x][y].has_feature('road'):
-                        self.set_road_tile(x, y)
-
-                    # This will update the graphic on the border tile to make it "connect" to the current road
-                    for xx, yy in get_border_tiles(x, y):
-                        if self.tiles[xx][yy].has_feature('road'):
-                            self.set_road_tile(xx, yy)
+                # This will update the graphic on the border tile to make it "connect" to the current road
+                for xx, yy in get_border_tiles(x, y):
+                    if self.tiles[xx][yy].has_feature('road'):
+                        self.set_road_tile(xx, yy)
 
         ## Now setup the economy since we have all import/export info
         for city in created_cities:
-            # This doesn't necessarily have to be done here, but we should add farms around the city
-            for x in xrange(city.x-5, city.x+6):
-                for y in xrange(city.y-5, city.y+6):
-                    # Loop should only get here if no site is added, due to the continue syntax
-                    if self.is_valid_site(x=x, y=y, civ=city) and roll(1, 100) >= 97:
-                        self.add_shrine(x, y, city)
+            # This doesn't necessarily have to be done here, but we should add shrines around the city
+            x, y = roll(city.x-5, city.x+5), roll(city.y-5, city.y+5)
+            # Loop should only get here if no site is added, due to the continue syntax
+            if self.is_valid_site(x=x, y=y, civ=city) and roll(1, 10) >= 8:
+                self.add_shrine(x, y, city)
 
-            ### v original real reason for this loop - I thought it would make sense to add farms and mines before the economy stuff
+        for city in created_cities
             city.prepare_native_economy()
-            # Use the data to actually add agents to the city
+
         for city in created_cities:
             city.setup_native_economy()
 
