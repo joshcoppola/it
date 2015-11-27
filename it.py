@@ -1529,7 +1529,7 @@ class World(Map):
             if self.is_valid_site(x=x, y=y, civ=city) and roll(1, 10) >= 8:
                 self.add_shrine(x, y, city)
 
-        for city in created_cities
+        for city in created_cities:
             city.prepare_native_economy()
 
         for city in created_cities:
