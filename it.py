@@ -779,18 +779,19 @@ class World(Map):
 
                     if self.tiles[new_x][new_y].height < g.WATER_HEIGHT:
                         break
-                        # Rivers can join existing ones
-                    if self.tiles[new_x][new_y].has_feature('river'):
+
+                    if not self.tiles[new_x][new_y].has_feature('river'):
+                        riv_cur.append((new_x, new_y))
+                        ### Rivers cut through terrain if needed, and also make the areas around them more moist
+                        # Try to lower the tile's height if it's higher than the previous tile, but don't go lower than 100
+                        self.tiles[new_x][new_y].height = min(self.tiles[new_x][new_y].height, max(self.tiles[cur_x][cur_y].height - 1, g.WATER_HEIGHT))
+                        directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
+                        for rx, ry in directions:
+                            self.tiles[rx][ry].moist /= 2
+
+                    # If a river exists on the new tiles, stop
+                    else:
                         break
-
-                    riv_cur.append((new_x, new_y))
-                    ### Rivers cut through terrain if needed, and also make the areas around them more moist
-                    # Try to lower the tile's height if it's higher than the previous tile, but don't go lower than 100
-                    self.tiles[new_x][new_y].height = min(self.tiles[new_x][new_y].height, max(self.tiles[cur_x][cur_y].height - 1, g.WATER_HEIGHT))
-                    directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
-                    for rx, ry in directions:
-                        self.tiles[rx][ry].moist /= 2
-
 
                 for i, (x, y) in enumerate(riv_cur):
                     self.tiles[x][y].char_color = libtcod.Color(10, 35, int(round(self.tiles[x][y].height)))
