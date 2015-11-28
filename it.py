@@ -380,6 +380,15 @@ class World(Map):
         if self.tiles[x][y-1].has_feature('road'):
             N = 1
 
+        char = self.get_line_tile_based_on_surrounding_tiles(N, S, E, W)
+        if char is None:
+            return
+
+        self.tiles[x][y].char = char
+        self.tiles[x][y].char_color = libtcod.darkest_sepia
+
+
+    def get_line_tile_based_on_surrounding_tiles(self, N, S, E, W):
         if N and S and E and W:     char = chr(197)
         elif N and S and E:         char = chr(195)
         elif N and E and W:         char = chr(193)
@@ -396,11 +405,9 @@ class World(Map):
         elif E:                     char = chr(196)
         elif W:                     char = chr(196)
         elif not (N and S and E and W):
-            return
+            char = None
 
-        self.tiles[x][y].char = char
-        self.tiles[x][y].char_color = libtcod.darkest_sepia
-
+        return char
 
     def get_surrounding_tile_heights(self, coords):
         ''' Return a list of the tile heights surrounding this one, including this tile itself '''
@@ -823,35 +830,21 @@ class World(Map):
                             river_feature.add_connected_dir(direction=(d2x, d2y))
 
                     elif i == 0:
-                        if (x - 1, y) in riv_cur:
-                            W = 1
-                        elif (x + 1, y) in riv_cur:
-                            E = 1
-                        elif (x, y + 1) in riv_cur:
-                            S = 1
-                        elif (x, y - 1) in riv_cur:
-                            N = 1
+                        if (x - 1, y) in riv_cur:   W = 1
+                        elif (x + 1, y) in riv_cur: E = 1
+                        elif (x, y + 1) in riv_cur: S = 1
+                        elif (x, y - 1) in riv_cur: N = 1
 
-                    if E and W:
-                        char = chr(196)
-                    elif E and N:
-                        char = chr(192)
-                    elif N and S:
-                        char = chr(179)
-                    elif N and W:
-                        char = chr(217)
-                    elif S and W:
-                        char = chr(191)
-                    elif S and E:
-                        char = chr(218)
-                    elif N:
-                        char = chr(179)
-                    elif S:
-                        char = chr(179)
-                    elif E:
-                        char = chr(196)
-                    elif W:
-                        char = chr(196)
+                    if E and W:     char = chr(196)
+                    elif E and N:   char = chr(192)
+                    elif N and S:   char = chr(179)
+                    elif N and W:   char = chr(217)
+                    elif S and W:   char = chr(191)
+                    elif S and E:   char = chr(218)
+                    elif N:         char = chr(179)
+                    elif S:         char = chr(179)
+                    elif E:         char = chr(196)
+                    elif W:         char = chr(196)
 
                     self.tiles[x][y].char = char
 
@@ -863,7 +856,8 @@ class World(Map):
                 #            (-1, 0):chr(205), (-1, -1):chr(187), (0, -1):chr(186), (1, -1):chr(201)}
 
                 self.rivers.append(riv_cur)
-
+                self.tiles[x][y].color = libtcod.red
+                self.tiles[x][y].char_color = libtcod.red
 
         ## Experimental code to vary moisture and temperature a bit
         noisemap1 = libtcod.noise_new(2, libtcod.NOISE_DEFAULT_HURST, libtcod.NOISE_DEFAULT_LACUNARITY)
@@ -8092,7 +8086,7 @@ class Game:
         enemy_party = g.WORLD.create_population(char='X', name="Enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
 
 
-        hideout_site = g.WORLD.tiles[1][1].create_and_add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black, culture=cult, faction=faction2)
+        hideout_site = g.WORLD.tiles[1][1].create_and_add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black)
         hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
         faction1.set_leader(leader=g.player)
