@@ -723,6 +723,7 @@ class World(Map):
 
     def gen_rivers(self):
         self.rivers = []
+        river_connection_tiles = []
         water_bias = 10
         # Walk through all mountains tiles and make a river if there are none nearby
         while len(self.mountains) > 1:
@@ -798,6 +799,7 @@ class World(Map):
 
                     # If a river exists on the new tiles, stop
                     else:
+                        river_connection_tiles.append((new_x, new_y))
                         break
 
                 for i, (x, y) in enumerate(riv_cur):
@@ -835,29 +837,22 @@ class World(Map):
                         elif (x, y + 1) in riv_cur: S = 1
                         elif (x, y - 1) in riv_cur: N = 1
 
-                    if E and W:     char = chr(196)
-                    elif E and N:   char = chr(192)
-                    elif N and S:   char = chr(179)
-                    elif N and W:   char = chr(217)
-                    elif S and W:   char = chr(191)
-                    elif S and E:   char = chr(218)
-                    elif N:         char = chr(179)
-                    elif S:         char = chr(179)
-                    elif E:         char = chr(196)
-                    elif W:         char = chr(196)
-
+                    char = self.get_line_tile_based_on_surrounding_tiles(N, S, E, W)
                     self.tiles[x][y].char = char
 
-                #self.tiles[x][y].char = river_dir[dx, dy]
-
-                #(1, 0)        E    205 #(1, 1)     NE    201 #(0, 1)     N    182    #(-1, 1)    NW    187
-                #(-1, 0)    W    205    #(-1, -1)    SW    188 #(0, -1)    S    182    #(1, -1)    SE    200
-                #river_dir = {(1, 0):chr(205), (1, 1):chr(200), (0, 1):chr(186), (-1, 1):chr(188),
-                #            (-1, 0):chr(205), (-1, -1):chr(187), (0, -1):chr(186), (1, -1):chr(201)}
-
                 self.rivers.append(riv_cur)
-                self.tiles[x][y].color = libtcod.red
-                self.tiles[x][y].char_color = libtcod.red
+
+        # Add special tiles where rivers intersect
+        ## TODO - does not work as intended in all cases (considering all nearby tiles when it should only consider ones it has directly connected to)
+        for x, y in river_connection_tiles:
+            N, S, E, W = 0, 0, 0, 0
+            if self.tiles[x-1][y].has_feature('river'): W = 1
+            if self.tiles[x+1][y].has_feature('river'): E = 1
+            if self.tiles[x][y+1].has_feature('river'): S = 1
+            if self.tiles[x][y-1].has_feature('river'): N = 1
+
+            char = self.get_line_tile_based_on_surrounding_tiles(N, S, E, W)
+            self.tiles[x][y].char = char
 
         ## Experimental code to vary moisture and temperature a bit
         noisemap1 = libtcod.noise_new(2, libtcod.NOISE_DEFAULT_HURST, libtcod.NOISE_DEFAULT_LACUNARITY)
