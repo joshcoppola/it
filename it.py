@@ -724,7 +724,6 @@ class World(Map):
     def gen_rivers(self):
         self.rivers = []
         river_connection_tiles = []
-        water_bias = 10
         # Walk through all mountains tiles and make a river if there are none nearby
         while len(self.mountains) > 1:
             # Pop out a random mountain tile
@@ -755,22 +754,16 @@ class World(Map):
 
                     # create 4 cardinal directions and set low_height value
                     directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
-                    # Rivers try to flow through lower areas, but take distance to oceans into account to avoid
-                    # getting trapped in local minimum valleys
-                    biased_height = self.tiles[new_x][new_y].wdist * water_bias
-                    low_height = self.tiles[new_x][new_y].height + biased_height
-
+                    # Rivers try to flow through lower areas
+                    low_height = self.tiles[new_x][new_y].height
                     if found_lower_height:
-                        low_height = False
+                        found_lower_height = False
                         for rx, ry in directions:
-                            if self.tiles[rx][ry].height + biased_height <= low_height: # and not (nx, ny) in riv_cur:
-                                low_height = self.tiles[rx][ry].height + biased_height
+                            if self.tiles[rx][ry].height <= low_height: # and not (nx, ny) in riv_cur:
+                                low_height = self.tiles[rx][ry].height
                                 new_x = rx
                                 new_y = ry
-                                low_height = True
-
-                        if not low_height:
-                            found_lower_height = False
+                                found_lower_height = True
 
                     # if it does get trapped in a local minimum, flow in the direction of the lowest distance to water
                     # and preferentially in the lowest height of these tiles
