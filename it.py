@@ -744,7 +744,7 @@ class World(Map):
                 new_x, new_y = x, y
                 found_lower_height = True
                 i = 0
-                while self.tiles[new_x][new_y].height >= g.WATER_HEIGHT:
+                while self.tiles[new_x][new_y].height > g.WATER_HEIGHT:
                     i += 1
                     if i >= 100:
                         print 'river loop exceeded 100 iterations'
@@ -752,17 +752,14 @@ class World(Map):
 
                     cur_x, cur_y = new_x, new_y
 
-                    # create 4 cardinal directions and set low_height value
-                    directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
                     # Rivers try to flow through lower areas
                     low_height = self.tiles[new_x][new_y].height
                     if found_lower_height:
                         found_lower_height = False
-                        for rx, ry in directions:
+                        for rx, ry in get_border_tiles(new_x, new_y):
                             if self.tiles[rx][ry].height <= low_height: # and not (nx, ny) in riv_cur:
                                 low_height = self.tiles[rx][ry].height
-                                new_x = rx
-                                new_y = ry
+                                new_x, new_y = rx, ry
                                 found_lower_height = True
 
                     # if it does get trapped in a local minimum, flow in the direction of the lowest distance to water
@@ -771,12 +768,11 @@ class World(Map):
                         wdist = 1000
                         height = 1000
 
-                        for nx, ny in directions:
+                        for nx, ny in get_border_tiles(new_x, new_y):
                             if self.tiles[nx][ny].wdist <= wdist and self.tiles[nx][ny].height < height and not (nx, ny) in riv_cur:
                                 wdist = self.tiles[nx][ny].wdist
                                 height = self.tiles[nx][ny].height
-                                new_x = nx
-                                new_y = ny
+                                new_x, new_y = nx, ny
 
                     if self.tiles[new_x][new_y].height < g.WATER_HEIGHT:
                         break
@@ -786,8 +782,7 @@ class World(Map):
                         ### Rivers cut through terrain if needed, and also make the areas around them more moist
                         # Try to lower the tile's height if it's higher than the previous tile, but don't go lower than 100
                         self.tiles[new_x][new_y].height = min(self.tiles[new_x][new_y].height, max(self.tiles[cur_x][cur_y].height - 1, g.WATER_HEIGHT))
-                        directions = [(new_x - 1, new_y), (new_x + 1, new_y), (new_x, new_y - 1), (new_x, new_y + 1)]
-                        for rx, ry in directions:
+                        for rx, ry in get_border_tiles(new_x, new_y):
                             self.tiles[rx][ry].moist /= 2
 
                     # If a river exists on the new tiles, stop
@@ -795,14 +790,16 @@ class World(Map):
                         river_connection_tiles.append((new_x, new_y))
                         break
 
+                # This sets the tile and color of the river
                 for i, (x, y) in enumerate(riv_cur):
-                    self.tiles[x][y].char_color = libtcod.Color(10, 35, int(round(self.tiles[x][y].height)))
+                    self.tiles[x][y].char_color = libtcod.Color(20, 45, int(round(self.tiles[x][y].height)))
                     river_feature = River(x=x, y=y)
                     self.tiles[x][y].features.append(river_feature)
 
                     N, S, E, W = 0, 0, 0, 0
 
-                    if 0 < i:
+                    #### If this is not the first tile of the river...
+                    if i > 0:
                         px, py = riv_cur[i - 1]
                         if i < len(riv_cur) - 1:
                             nx, ny = riv_cur[i + 1]
@@ -824,6 +821,7 @@ class World(Map):
 
                             river_feature.add_connected_dir(direction=(d2x, d2y))
 
+                    #### If this is the first tile of the river...
                     elif i == 0:
                         if (x - 1, y) in riv_cur:   W = 1
                         elif (x + 1, y) in riv_cur: E = 1
