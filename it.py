@@ -310,7 +310,7 @@ class World(Map):
         #### Setup actual world ####
 
         steps = 6
-        g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps, []) # self.cm.story_text)
+        g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps, [] ) # self.cm.story_text)
         self.setup_world()
         ########################### Begin with heightmap ##################################
         g.game.render_handler.progressbar_screen('Generating World Map', 'generating heightmap', 2, steps, []) # self.cm.story_text)
@@ -1472,11 +1472,12 @@ class World(Map):
 
             new_path_len = self.get_astar_distance_to(city.x, city.y, other_city.x, other_city.y)
 
-            ratio = new_path_len/current_path_len
+            # Ratio of < 1 means that the new path was shorter than the existing road path
+            ratio = new_path_len / current_path_len
 
             if ratio <= g.NEW_ROAD_PATH_RATIO:
                 # Build a new road
-                city.build_road_to(other_city.x, other_city.y, libtcod.darker_sepia)
+                city.build_road_to(other_city.x, other_city.y, libtcod.black)
                 city.connect_to(other_city)
                 # Translate and save libtcod paths
                 path_to_other_city = libtcod_path_to_list(path_map=self.road_path_map)
@@ -2642,13 +2643,7 @@ class City(Site):
             libtcod.map_set_properties(g.WORLD.road_fov_map, x, y, 1, 1)
 
             if old_x:
-                road_count = 0
-                for xx, yy in ( (old_x + 1, old_y), (old_x - 1, old_y), (old_x, old_y + 1), (old_x, old_y - 1) ):
-                    if g.WORLD.tiles[xx][yy].has_feature('road'):
-                        road_count += 1
-
-                if road_count <= 3 :
-                    g.WORLD.make_world_road(old_x, old_y)
+                g.WORLD.make_world_road(old_x, old_y)
 
             old_x, old_y = x, y
             x, y = libtcod.path_walk(g.WORLD.rook_path_map, True)
