@@ -14,6 +14,7 @@ import pstats
 import copy
 from collections import Counter, defaultdict, namedtuple
 import itertools
+import logging
 
 import economy
 import physics as phys
@@ -308,7 +309,6 @@ class World(Map):
 
     def generate(self):
         #### Setup actual world ####
-
         steps = 6
         g.game.render_handler.progressbar_screen('Generating World Map', 'creating regions', 1, steps, [] ) # self.cm.story_text)
         self.setup_world()
@@ -747,7 +747,7 @@ class World(Map):
                 while self.tiles[new_x][new_y].height > g.WATER_HEIGHT:
                     i += 1
                     if i >= 100:
-                        print 'river loop exceeded 100 iterations'
+                        logging.debug('river loop exceeded 100 iterations')
                         break
 
                     cur_x, cur_y = new_x, new_y
@@ -1344,7 +1344,7 @@ class World(Map):
             if not self.tiles[rx][ry].territory:
                 city = self.get_closest_city(x=rx, y=ry)[0]
                 city.acquire_tile(rx, ry)
-                print '{0} has expanded its territory for {1}'.format(city.get_name(), join_list(self.tiles[rx][ry].res.keys()))
+                logging.debug('{0} has expanded its territory for {1}'.format(city.get_name(), join_list(self.tiles[rx][ry].res.keys())) )
 
         ## We assume the domestication of food has spread to all nearby cities
         for city in created_cities:
@@ -1732,7 +1732,7 @@ class World(Map):
                 while True:
                     iter += 1
                     if iter > 20:
-                        print ' couldn\'t find good spot for bandits'
+                        logging.debug('couldn\'t find good spot for bandits')
                         break
                     # Hideout is min 4 distance away
                     xd = roll(4, 8) * random.choice((-1, 1))
@@ -2158,7 +2158,7 @@ class World(Map):
         closest_city = self.get_closest_city(wx, wy)[0]
         if closest_city is None:
             closest_city = random.choice(self.cities)
-            print 'Bandits could not find closest city'
+            logging.debug('Bandits could not find closest city')
 
         # bname = lang.spec_cap(closest_city.get_culture().language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
         bname = lang.spec_cap(closest_city.get_culture().language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20)) + ' bandits')
@@ -3053,7 +3053,7 @@ class Faction:
                     other_heirs = sorted(other_heirs, key=lambda member: member.creature.born)
 
                 else:
-                    print 'BUG:', self.leader.fullname(), ' has no dynasty'
+                    logging.warning('BUG:', self.leader.fullname(), ' has no dynasty')
                     other_heirs = []
                 # Child heirs will be given priority
                 merged_list = child_heirs + other_heirs
@@ -3076,7 +3076,7 @@ class Faction:
                 return [heir]
 
             else:
-                print self.name, 'was queried for heirs but has no holder'
+                logging.warning(self.name, 'was queried for heirs but has no holder')
                 return []
 
     def create_faction_objects(self):
@@ -3740,7 +3740,7 @@ class Object:
 
         # Finally, create a new object at this location containing the components
         if self.name.endswith('remains'):
-            print 'Creating new object from %s' %self.name
+            logging.debug('Creating new object from %s' %self.name)
             new_name = self.name
         else:
             new_name = self.name + ' remains'
@@ -3752,11 +3752,11 @@ class Object:
         if self.x is None:
             if self.current_holder:
                 # OK - no current location, but it has an owner we can piggyback from
-                print 'Creating new object - %s has no location, so using location of %s.' %(self.fullname(), self.fullname())
+                logging.warning('Creating new object - %s has no location, so using location of %s.' %(self.fullname(), self.fullname()) )
                 x, y = self.current_holder.x, self.current_holder.y
             else:
                 # Bad - there is no location info for object, and it does not have someone currently holding it
-                print 'Creating new object - %s has no location and no current holder!' %self.fullname()
+                logging.warning('Creating new object - %s has no location and no current holder!' %self.fullname() )
                 x, y = 10, 10
         # This would ideally always happen - this object has a concrete location
         else:
@@ -4809,7 +4809,7 @@ class Population:
                     break
             ####### Safety step - couldn't find a valid location ########
             if not found_spot:
-                print 'Could not place', figure.fulltitle(), 'attempting to place nearby'
+                logging.debug('Could not place', figure.fulltitle(), 'attempting to place nearby')
                 # Now keep picking vals at random across the entire map ... one's bound to work
                 while 1:
                     x, y = roll(10, g.M.width-11), roll(10, g.M.height-11)
@@ -6461,7 +6461,8 @@ class BasicWorldBrain:
             self.current_goal_path = best_path
             # print self.owner.fulltitle(), 'desiring to', goal_state.get_name(), ' -- behaviors:', join_list([b.get_name() for b in best_path])
         else:
-            print self.owner.fulltitle(), 'had no best path to', goal_state.get_name()
+            logging.warning("Goal paths:", self.owner.fulltitle(), 'had no best path to', goal_state.get_name() )
+
 
         return best_path
 

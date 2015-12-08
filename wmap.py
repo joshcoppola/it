@@ -4,6 +4,7 @@ import random
 from random import randint as roll
 import time
 from collections import defaultdict
+import logging
 
 import libtcodpy as libtcod
 from dijkstra import Dijmap
@@ -460,14 +461,14 @@ class Wmap(Map):
             obj.creature.next_tick = self.world.time_cycle.current_tick + 1
         ## DEBUG - If not, log it
         elif obj in self.creatures:
-            print 'Creature duplication -- {0} was already in map.creatures'.format(obj.fulltitle())
+            logging.warning('Creature duplication -- {0} was already in map.creatures'.format(obj.fulltitle()) )
 
         ## If it's not a creature and it's not already in the map's list of objects
         if not obj.creature and obj not in self.objects:
             self.objects.append(obj)
         ## DEBUG - log the object duplication
         elif not obj.creature and obj in self.objects:
-            print 'Object duplication -- {0} was already in map.objects'.format(obj.fulltitle())
+            logging.warning('Object duplication -- {0} was already in map.objects'.format(obj.fulltitle()) )
 
         obj.x = x
         obj.y = y
@@ -510,7 +511,7 @@ class Wmap(Map):
                     entity.creature.house.place_within(entity)
 
                 elif entity.creature.current_citizenship == site and site.houses:
-                    print '{0} has no house but lives in {1}'.format(entity.fulltitle(), site.name )
+                    logging.warning('{0} has no house but lives in {1}'.format(entity.fulltitle(), site.name ))
 
                 elif site.get_building_type('Tavern'):
                     taverns = site.get_building_type('Tavern')
@@ -1115,7 +1116,7 @@ class Wmap(Map):
                             break
                 # Should have given it plenty of range and time to execute, but otherwise...
                 if not found_point:
-                    print 'Patrol route could not find acceptable location near', px, ',', py
+                    logging.warning('Patrol route could not find acceptable location near', px, ',', py)
 
         return cleaned_patrol_route
 
@@ -1324,7 +1325,7 @@ class CityMapGenerator:
             distx, disty = random.choice(development_option)
 
             if not has_market and 300 < len(development_option) < 400:
-                print 'market will be', len(development_option), 'tiles big'
+                logging.debug('market will be', len(development_option), 'tiles big')
                 has_market = True
                 self.make_market(empty_lot=development_option, zone='market')
 
@@ -1696,7 +1697,7 @@ class CityMapGenerator:
 
 
                 else:
-                    print 'Not enough buildings matching criteria'
+                    logging.warning('Not enough physical buildings to match historical buildings')
                     break
 
     def make_municipal_bldg(self, x, y, w, h, road_thickness, building_info):
