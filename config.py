@@ -1,6 +1,6 @@
 from __future__ import division
 import libtcodpy as libtcod
-
+import logging
 
 # Code to detect screen resolution (libtcod's doesn't work for some reason?)
 try:
@@ -11,6 +11,9 @@ except:
     print 'Cannot auto-size resolution, fall back to default...'
     SCREEN_RES = (1280, 720)
 
+
+logging.basicConfig(filename='log.txt', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.debug('\n\n -==== New run ====- \n\n')
 
 TILE_SIZE = 12 if SCREEN_RES[1] < 1080 else 16
 #actual size of the window
