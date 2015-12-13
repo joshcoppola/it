@@ -981,7 +981,7 @@ class Economy:
                             region.add_resource_gatherer_to_region(resource_name=resource, agent=agent)
                             return
 
-            debug.warning('ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name))
+            logging.warning('ERROR - {0} was tried to be added to {1} and could not find open slot!!!!'.format(resource, self.owner.name))
 
         ###### IF GOOD PRODUCER - give it a building in the city #############
         elif token in [g.name for g in data.commodity_manager.goods]:
