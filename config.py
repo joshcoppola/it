@@ -12,7 +12,8 @@ except:
     SCREEN_RES = (1280, 720)
 
 
-logging.basicConfig(filename='log.txt', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+#logging.basicConfig(filename='log.txt', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='log.txt', level=logging.DEBUG, format='%(filename)s:%(lineno)s - %(funcName)20s() \n   %(levelname)s - %(message)s')
 logging.debug('\n\n -==== New run ====- \n\n')
 
 TILE_SIZE = 12 if SCREEN_RES[1] < 1080 else 16
