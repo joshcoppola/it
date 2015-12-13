@@ -3053,7 +3053,7 @@ class Faction:
                     other_heirs = sorted(other_heirs, key=lambda member: member.creature.born)
 
                 else:
-                    logging.warning('BUG:', self.leader.fullname(), ' has no dynasty')
+                    logging.warning('BUG: {0} has no dynasty'.format(self.leader.fullname()) )
                     other_heirs = []
                 # Child heirs will be given priority
                 merged_list = child_heirs + other_heirs
@@ -3076,7 +3076,7 @@ class Faction:
                 return [heir]
 
             else:
-                logging.warning(self.name, 'was queried for heirs but has no holder')
+                logging.warning('{0} was queried for heirs but has no holder'.format(self.name))
                 return []
 
     def create_faction_objects(self):
@@ -4809,7 +4809,7 @@ class Population:
                     break
             ####### Safety step - couldn't find a valid location ########
             if not found_spot:
-                logging.debug('Could not place', figure.fulltitle(), 'attempting to place nearby')
+                logging.debug('Could not place {0}, attempting to place nearby'.format(figure.fulltitle()) )
                 # Now keep picking vals at random across the entire map ... one's bound to work
                 while 1:
                     x, y = roll(10, g.M.width-11), roll(10, g.M.height-11)
@@ -5475,16 +5475,30 @@ class Creature:
 
             elif question_type == 'sites':
                 found_site = 0
+                sites = []
+                hostile_sites = []
+                site_at_entity_location = g.WORLD.tiles[self.owner.wx][self.owner.wy].site
+
+                if site_at_entity_location not in self.knowledge['sites']:
+                    logging.warning('{0} doesn\'t know about {1}, despite being at that location'.format(self.owner.fulltitle(), site_at_entity_location.get_name()))
+
                 for site in self.knowledge['sites']:
                     if site.get_faction() and self.owner.creature.faction.is_hostile_to(site.get_faction()):
-                        found_site = 1
-                        if site.name:
-                            name = ' called {0}'.format(site.name)
-                        else:
-                            name = ''
-                        self.say('I know of {0}{1} located in {2}'.format(indef(site.type_), name, g.WORLD.tiles[site.x][site.y].get_location_description_relative_to((self.owner.wx, self.owner.wy)) ))
+                        hostile_sites.append(site)
+                    else:
+                        sites.append(site)
 
-                if not found_site:
+
+                if site_at_entity_location:
+                    self.say('We are currently in {0}'.format(site_at_entity_location.get_name()))
+
+                for site in itertools.chain(sites, hostile_sites):
+                    if site.name: name = ' called {0}'.format(site.name)
+                    else:         name = ''
+                    self.say('I know of {0}{1} located in {2}'.format(indef(site.type_), name, g.WORLD.tiles[site.x][site.y].get_location_description_relative_to((self.owner.wx, self.owner.wy)) ))
+
+
+                if not sites and not hostile_sites:
                     self.say('I actually don\'t know about any sites at all')
 
             elif question_type == 'age':
@@ -6461,7 +6475,7 @@ class BasicWorldBrain:
             self.current_goal_path = best_path
             # print self.owner.fulltitle(), 'desiring to', goal_state.get_name(), ' -- behaviors:', join_list([b.get_name() for b in best_path])
         else:
-            logging.warning("Goal paths:", self.owner.fulltitle(), 'had no best path to', goal_state.get_name() )
+            logging.warning("Goal paths: {0} had no best path to {1}".format(self.owner.fulltitle(), goal_state.get_name()) )
 
 
         return best_path
@@ -7070,13 +7084,18 @@ class Culture:
         self.c_knowledge['sites'][site] = {'description': {}, 'location': {} }
         self.c_knowledge['sites'][site]['location']['accuracy'] = location_accuracy
 
-
     def transfer_c_knowledge_to_entity(self, entity, date):
         # print self.name, self.subsistence, self.c_knowledge['sites']
         for site in self.c_knowledge['sites']:
             accuracy = self.c_knowledge['sites'][site]['location']['accuracy']
             entity.creature.add_knowledge_of_site(site=site, date_learned=date, source=self, location_accuracy=accuracy)
 
+    def setup_entity_knowledge(self, entity, date):
+        ''' Make sure the entity starts with some knowledge '''
+        self.transfer_c_knowledge_to_entity(entity=entity, date=date)
+
+        if entity.wx and entity.wy and g.WORLD.tiles[entity.wx][entity.wy].site:
+            entity.creature.add_knowledge_of_site(site=g.WORLD.tiles[entity.wx][entity.wy].site, date_learned=date, source=self, location_accuracy=1)
 
     def gen_word(self, syllables, num_phonemes=(3, 20), cap=0):
         word = self.language.gen_word(syllables=syllables, num_phonemes=num_phonemes)
@@ -7168,7 +7187,7 @@ class Culture:
         human.creature.update_language_knowledge(language=self.language, verbal=10, written=0)
 
         # Transfer the sum of all cultural knowledge to our new creature
-        self.transfer_c_knowledge_to_entity(entity=human, date=born)
+        self.setup_entity_knowledge(entity=human, date=born)
 
         # Placeholder for now, but adding the lingua franca to all those who are part of agricultural socieities
         if self.subsistence == 'agricultural' and g.WORLD.lingua_franca not in human.creature.languages:

@@ -1116,7 +1116,7 @@ class Wmap(Map):
                             break
                 # Should have given it plenty of range and time to execute, but otherwise...
                 if not found_point:
-                    logging.warning('Patrol route could not find acceptable location near', px, ',', py)
+                    logging.warning('Patrol route could not find acceptable location near {0}, {1}'.format(px, py))
 
         return cleaned_patrol_route
 
@@ -1325,7 +1325,7 @@ class CityMapGenerator:
             distx, disty = random.choice(development_option)
 
             if not has_market and 300 < len(development_option) < 400:
-                logging.debug('market will be', len(development_option), 'tiles big')
+                logging.debug('market will be {0} tiles big'.format(len(development_option)) )
                 has_market = True
                 self.make_market(empty_lot=development_option, zone='market')
 
