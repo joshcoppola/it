@@ -273,6 +273,14 @@ def get_circle_tiles(center_x, center_y, radius):
     #         if x != center_x:                       yield (center_x + (center_x - x), y)
     #         if y != center_y and ydist:             yield (x, y + ydist)
 
+def get_sorted_circle_tiles(cx, cy, r):
+    ''' Gets a list of tiles in the circle, sorted by distance to the center (starting in the center and radiating outwards '''
+    circle_tiles = [(x, y) for x in xrange(cx - r, cx + r + 1) for y in xrange(cy - r, cy + r + 1) if (cx - x) ** 2 + (cy - y) ** 2 <= r ** 2]
+    # Sort tiles based on distance to center
+    circle_tiles.sort(key=lambda pos: get_distance_to(pos[0], pos[1], cx, cy))
+
+    return circle_tiles
+
 def weighted_choice(choices):
     ''' Taken from http://stackoverflow.com/questions/3679694/a-weighted-version-of-random-choice '''
     total = sum(w for c, w in choices)
