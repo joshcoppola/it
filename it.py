@@ -1633,7 +1633,7 @@ class World(Map):
     def refresh_road_network(self, cities):
         #for i, city in enumerate(networked_cities):
         #    for other_city in networked_cities[i+1:]:
-        for city, other_city in itertools.combinations(cities, 2):
+        for city, other_city in itertools.permutations(cities, 2):
             # Compute path to other
             road_path = libtcod.path_compute(self.road_path_map, city.x, city.y, other_city.x, other_city.y)
             # Walk through path and save as a list
@@ -2293,15 +2293,18 @@ class Site:
 
         self.leader = None
 
+        # Set to the economy instance a site is attached to, if it has one
+        self.econ = None
+
         self.departing_merchants = []
         self.goods = {}
         self.caravans = []
 
-        #structures
+        # Structures
         self.buildings = []
-        # major figures who are citizens
+        # Major figures who are citizens
         self.entities_living_here = []
-        # populations
+        # Populations
         self.populations_living_here = []
 
         # Manage the world's dict of site types
@@ -2497,8 +2500,7 @@ class City(Site):
         self.imports = defaultdict(list)
         self.exports = defaultdict(list)
 
-        # Below are set up in prepare_native_economy()
-        self.econ = None
+        # Below are set up in prepare_native_economy(), as well as self.econ
         self.resource_slots = {}
         self.industry_slots = {}
 
@@ -7402,7 +7404,7 @@ def get_info_under_mouse():
             for feature in g.WORLD.tiles[x][y].features + g.WORLD.tiles[x][y].caves:
                 info.append((feature.get_name(), color))
             for site in g.WORLD.tiles[x][y].minor_sites:
-                info.append((site.get_name(), color))
+                info.append(('{} ({})'.format(site.get_name(), site.get_population()), color))
                 if site.is_holy_site_to:
                     for pantheon in site.is_holy_site_to:
                         info.append((' - This is considered a holy site to the {0}.'.format(pantheon.name), color ))
@@ -7411,7 +7413,7 @@ def get_info_under_mouse():
             # Sites
             site = g.WORLD.tiles[x][y].site
             if site:
-                info.append(('The {0} of {1}'.format(site.type_, site.name.capitalize()), color))
+                info.append(('The {0} of {1} ({2})'.format(site.type_, site.name.capitalize(), site.get_population()), color))
                 if site.type_ == 'city':
                     info.append(('{0} harbored here'.format(ct('caravan', len(site.caravans))), color))
                     num_figures = len([f for f in g.WORLD.tiles[x][y].entities if (f.creature.is_commander() or not f.creature.commander)])
