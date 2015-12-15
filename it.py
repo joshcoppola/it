@@ -1633,26 +1633,25 @@ class World(Map):
     def refresh_road_network(self, cities):
         #for i, city in enumerate(networked_cities):
         #    for other_city in networked_cities[i+1:]:
-        for city in cities:
-            for other_city in [c for c in cities if c != city]:
-                # Compute path to other
-                road_path = libtcod.path_compute(self.road_path_map, city.x, city.y, other_city.x, other_city.y)
-                # Walk through path and save as a list
-                x = 1
-                path_to_other_city = []
+        for city, other_city in itertools.combinations(cities, 2):
+            # Compute path to other
+            road_path = libtcod.path_compute(self.road_path_map, city.x, city.y, other_city.x, other_city.y)
+            # Walk through path and save as a list
+            x = 1
+            path_to_other_city = []
 
-                while x is not None:
-                    x, y = libtcod.path_walk(self.road_path_map, True)
+            while x is not None:
+                x, y = libtcod.path_walk(self.road_path_map, True)
 
-                    if x is not None:
-                        path_to_other_city.append((x, y))
+                if x is not None:
+                    path_to_other_city.append((x, y))
 
-                #other_city_path_to_us = path_to_other_city[:]
-                #other_city_path_to_us.reverse()
+            #other_city_path_to_us = path_to_other_city[:]
+            #other_city_path_to_us.reverse()
 
-                # Now we know how to get from one city to another
-                city.path_to[other_city] = path_to_other_city
-                #other_city.path_to[city] = other_city_path_to_us
+            # Now we know how to get from one city to another
+            city.path_to[other_city] = path_to_other_city
+            #other_city.path_to[city] = other_city_path_to_us
 
 
     def find_closest_clumped_cities(self, clump1, clump2):
