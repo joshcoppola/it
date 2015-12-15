@@ -2504,7 +2504,7 @@ class City(Site):
         self.resource_slots = {}
         self.industry_slots = {}
 
-
+        # self.building_construction_queue =
         # Maps objects (keys) to a list of agents
         # Eg. 'sword':['Bronze Weaponsmith', 'Copper Weaponsmith']
         self.object_to_agents_dict = defaultdict(list)
@@ -2723,14 +2723,21 @@ class City(Site):
         self.caravans.append(caravan_leader)
 
     def increase_radius(self, amount=1):
-        # Increase the territory held by the city
+        ''' Increase the territory held by the city '''
         self.territory_radius += amount
-        for x, y in get_circle_tiles(self.x, self.y, self.territory_radius):
-            if not g.WORLD.tiles[x][y].blocks_mov and g.WORLD.tiles[x][y].territory is None:
+        # It is important to make sure the tiles in the circle have been sorted first, so that is_valid_territory_to_acquire doesn't get a disconnected tile
+        for x, y in get_sorted_circle_tiles(self.x, self.y, self.territory_radius):
+            if g.WORLD.tiles[x][y].territory != self and self.is_valid_territory_to_acquire(x, y) and not g.WORLD.tiles[x][y].blocks_mov \
+                    and (g.WORLD.tiles[x][y].territory is None or self.is_valid_to_steal_from_other_city(x, y)):
                 self.acquire_tile(x, y)
-            # Force-acquire any tile within 2 distance of us
-            elif not g.WORLD.tiles[x][y].blocks_mov and g.WORLD.tiles[x][y].territory != self and self.distance(x, y) <= 2:
-                self.acquire_tile(x, y)
+
+    def is_valid_territory_to_acquire(self, x, y):
+        ''' Only is valid territory if it borders at least one existing tile '''
+        return any([g.WORLD.tiles[xx][yy].territory == self for xx, yy in get_border_tiles(x, y)]) or g.WORLD.tiles[x][y].site == self
+
+    def is_valid_to_steal_from_other_city(self, x, y):
+        ''' If it's a closeby territory, even if another city owns it, if it's closer to use, we can acquire it '''
+        return g.WORLD.tiles[x][y].territory and g.WORLD.tiles[x][y].territory != self and self.distance(x, y) < g.WORLD.tiles[x][y].territory.distance(x, y)
 
     def obtain_resource(self, resource, amount):
         if resource not in self.native_res:
