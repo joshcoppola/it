@@ -2341,6 +2341,14 @@ class Site:
         ''' Find all buildings of a certain type '''
         return [building for building in self.buildings if building.type_ == building_type]
 
+    def get_population(self):
+        ''' Get total population at this site, both abstracted and generated '''
+
+        ## TODO - ensure economy agents get added as part of the self.populations_living_here list
+        population_from_econony = sum(agent.population_number for agent in self.econ.agents) if self.econ else 0
+
+        return  population_from_econony + len(self.entities_living_here) + len(self.populations_living_here)
+
     def add_citizen(self, entity, house=None):
         ''' Handles removing person from their old site, and adding them to a new site '''
 
@@ -2532,9 +2540,6 @@ class City(Site):
     def connect_to(self, other_city):
         self.connected_to.append(other_city)
         other_city.connected_to.append(self)
-
-    def get_population(self):
-        return sum(agent.population_number for agent in self.econ.agents)
 
     def add_import(self, city, good):
         # Add other city as an importer if it's not already
@@ -2750,24 +2755,6 @@ class City(Site):
         for resource, amount in g.WORLD.tiles[x][y].res.iteritems():
             self.obtain_resource(resource=resource, amount=amount)
 
-    def abandon_site(self):
-        if self in self.owner.cities:
-            self.owner.cities.remove(self)
-            #Collapse the civ if this was the last city
-        if len(self.owner.cities) == 0:
-            self.owner.collapse()
-
-        g.WORLD.cities.remove(self)
-        self.owner = None
-
-        self.color = libtcod.dark_grey
-        self.name += ' (abandoned)'
-        # Clear up the territory, and save info about the territory it used to own
-        for (x, y) in self.territory:
-            g.WORLD.tiles[x][y].territory = None
-            self.old_territory.append((x, y))
-        self.territory = []
-
     def setup_initial_buildings(self):
         """Start the city off with some initial buildings"""
         city_hall_professions = [Profession(name='Scribe', category='commoner'),
@@ -2804,19 +2791,8 @@ class City(Site):
 
 
     def get_available_materials(self):
-        available_materials = []
-        for material in self.native_res:
-            available_materials.append(material)
-
-        for import_list in self.imports.values():
-            for material in import_list:
-                if material not in available_materials:
-                    available_materials.append(material)
-
-        return available_materials
-
-
-
+        ''' Return a raw resources that this city has access to'''
+        return list({material for material in itertools.chain(self.native_res, self.get_all_imports()) if material in data.commodity_manager.resource_names})
 
 
 class Profession:
