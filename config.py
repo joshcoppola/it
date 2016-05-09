@@ -16,15 +16,16 @@ except:
 logging.basicConfig(filename='log.txt', level=logging.DEBUG, format='%(filename)s:%(lineno)s - %(funcName)20s() \n   %(levelname)s - %(message)s')
 logging.debug('\n\n -==== New run ====- \n\n')
 
-TILE_SIZE = 12 if SCREEN_RES[1] < 1080 else 16
+# TILE_SIZE = 12 if SCREEN_RES[1] < 1080 else 16
+TILE_SIZE = (8, 16)
 #actual size of the window
-SCREEN_WIDTH = int(SCREEN_RES[0]/TILE_SIZE)
-SCREEN_HEIGHT = int(SCREEN_RES[1]/TILE_SIZE)
+SCREEN_WIDTH = int(SCREEN_RES[0]/TILE_SIZE[0])
+SCREEN_HEIGHT = int(SCREEN_RES[1]/TILE_SIZE[1])
 
 
 PANEL1_HEIGHT = 17
 #sizes and coordinates relevant for the GUI
-PANEL2_WIDTH = 30
+PANEL2_WIDTH = 36
 PANEL2_XPOS = SCREEN_WIDTH - PANEL2_WIDTH
 PANEL2_HEIGHT = SCREEN_HEIGHT - PANEL1_HEIGHT
 PANEL2_TEXTX = 2
@@ -101,18 +102,64 @@ PAIN_FRONT = libtcod.color_lerp(PANEL_FRONT, libtcod.red, .6)
 PAIN_BACK = libtcod.color_lerp(libtcod.dark_red, libtcod.black, .6)
 
 
-# When looping trough, these are the tree trunk characters for large (2x2) trees
-TREE_CHARS = {0:(307, 308), 1:(311, 312), 2:(313, 314), 3:(309, 310) }
-TREE_STUMP_CHARS = {0:315, 1:317, 2:318, 3:316 }
-
-ARMED_MAN_CHAR = 255
-UNARMED_MAN_CHAR = 256
-CARAVAN_CHAR = 257
 
 MIN_MARRIAGE_AGE = 16
 MAX_MARRIAGE_AGE = 50
 MIN_CHILDBEARING_AGE = 16
 MAX_CHILDBEARING_AGE = 40
+
+
+# -------------- Tiles ----------------- #
+# MISC TILES
+X_TILE = 431
+PLUS_TILE = 341
+
+# When looping trough, these are the tree trunk characters for large (2x2) trees
+TREE_CHARS = {0:(869, 871), 1:(873, 875), 2:(881, 883),  3:(877, 889) }
+TREE_STUMP_CHARS = {0: 885, 1: 887, 2: 891, 3: 889 }
+
+SMALL_TREE_TILE_1 = 829
+SMALL_TREE_TILE_2 = 831
+
+STICK_TILE_1 = 841
+STICK_TILE_2 = 843
+
+SMALL_STUMP_TILE = 833
+
+SHRUB_TILE_1 = 861
+SHRUB_TILE_2 = 863
+SHRUB_TILE_3 = 865
+
+
+EMPTY_TILE = 255
+
+MOUNTAIN_TILE = 315
+
+TAIGA_TILES = (265, 443)
+
+TEMPERATE_STEPPE_TILE = 610
+
+FOREST_TILES = (265, 267)
+RAIN_FOREST_TILES = (267, 339)
+
+TREE_SAVANNA_TILE = 339
+
+HILL_TILE = 758
+
+
+CITY_TILE = 275
+VILLAGE_TILE = 269
+CAVE_CHAR = 732
+MINE_TILE = 325
+FARM_TILE = 325
+SHRINE_TILE = 443
+RUINS_TILE = 773
+HIDEOUT_TILE = 325
+
+HUMAN_TILE = 799
+PLAYER_TILE = 765
+MYTHIC_TILE = 720
+MERCHANT_TILE = 769
 
 
 PROF_OPINIONS = {
@@ -306,7 +353,7 @@ MCFG = {
                      'large_tree_chance':1,
                      'large_stump_chance':1,
                      'shrub_chance':15,
-                     'unique_ground_tiles':((293, 4), (294, 4)),
+                     'unique_ground_tiles':((STICK_TILE_1, 4), (STICK_TILE_2, 4)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -328,7 +375,7 @@ MCFG = {
                      'large_tree_chance':10,
                      'large_stump_chance':2,
                      'shrub_chance':85,
-                     'unique_ground_tiles':((293, 8), (294, 8)),
+                     'unique_ground_tiles':((STICK_TILE_1, 8), (STICK_TILE_2, 8)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -349,7 +396,7 @@ MCFG = {
                      'large_tree_chance':1,
                      'large_stump_chance':1,
                      'shrub_chance':10,
-                     'unique_ground_tiles':((293, 4), (294, 4)),
+                     'unique_ground_tiles':((STICK_TILE_1, 4), (STICK_TILE_2, 4)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -371,7 +418,7 @@ MCFG = {
                      'large_tree_chance':15,
                      'large_stump_chance':5,
                      'shrub_chance':100,
-                     'unique_ground_tiles':((293, 9), (294, 9)),
+                     'unique_ground_tiles':((STICK_TILE_1, 9), (STICK_TILE_2, 9)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -392,7 +439,7 @@ MCFG = {
                      'large_tree_chance':10,
                      'large_stump_chance':2,
                      'shrub_chance':15,
-                     'unique_ground_tiles':((293, 8), (294, 8)),
+                     'unique_ground_tiles':((STICK_TILE_1, 8), (STICK_TILE_2, 8)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -413,7 +460,7 @@ MCFG = {
                      'large_tree_chance':1,
                      'large_stump_chance':1,
                      'shrub_chance':20,
-                     'unique_ground_tiles':((293, 1), (294, 1)),
+                     'unique_ground_tiles':((STICK_TILE_1, 1), (STICK_TILE_2, 1)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -434,7 +481,7 @@ MCFG = {
                      'large_tree_chance':1,
                      'large_stump_chance':5,
                      'shrub_chance':10,
-                     'unique_ground_tiles':((293, 5), (294, 5)),
+                     'unique_ground_tiles':((STICK_TILE_1, 5), (STICK_TILE_2, 5)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
@@ -455,7 +502,7 @@ MCFG = {
                      'large_tree_chance':0,
                      'large_stump_chance':1,
                      'shrub_chance':5,
-                     'unique_ground_tiles':((293, 1), (294, 1)),
+                     'unique_ground_tiles':((STICK_TILE_1, 1), (STICK_TILE_2, 1)),
                      'map_pad':0,
                      'map_pad_type':0
                      },
