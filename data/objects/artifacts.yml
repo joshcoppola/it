@@ -1,5 +1,5 @@
 holy relic:
-   char: "*"
+   char: 285
    color: use_material
    blocks_mov: 0
    blocks_vis: 0

@@ -1,5 +1,5 @@
 sword:
-   char: "/"
+   char: 439
    color: use_material
    blocks_mov: 0
    blocks_vis: 0
@@ -24,7 +24,7 @@ sword:
             dimensions: [.08, .8, .01, .9]
             layer_thickness: null
 dagger:
-   char: "/"
+   char: 439
    color: use_material
    blocks_mov: 0
    blocks_vis: 0
@@ -49,7 +49,7 @@ dagger:
             dimensions: [.05, .2, .01, .9]
             layer_thickness: null
 mace:
-   char: "/"
+   char: 439
    color: use_material
    blocks_mov: 0
    blocks_vis: 0
@@ -74,7 +74,7 @@ mace:
             dimensions: [.06, .7, .01, .9]
             layer_thickness: null
 spear:
-   char: "/"
+   char: 439
    color: use_material
    blocks_mov: 0
    blocks_vis: 0
@@ -99,7 +99,7 @@ spear:
             dimensions: [.03, 1.2, .03, .9]
             layer_thickness: null
 axe:
-   char: "/"
+   char: 439
    color: use_material
    blocks_mov: 0
    blocks_vis: 0
