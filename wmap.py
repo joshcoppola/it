@@ -31,7 +31,7 @@ class Tile:
         self.color = None
         self.shadow_color = None
 
-        self.char = ' '
+        self.char = 255
         self.char_color = None
         self.shadow_char_color = None
         ## Noise for shading/texturing the map...
@@ -40,7 +40,7 @@ class Tile:
         self.blocks_mov = blocks_mov
         #by default, if a tile is blocked, it also blocks sight
         if blocks_vis is None:  self.blocks_vis = blocks_mov
-        else:                    self.blocks_vis = blocks_vis
+        else:                   self.blocks_vis = blocks_vis
 
         #all tiles start unexplored
         self.explored = True
@@ -59,7 +59,6 @@ class Tile:
 
         # For flood filling, if you want to mark that a tile is passed but not do anything
         self.tmp_flag = 0
-
 
     def set_height(self, height):
         self.height = height
@@ -369,7 +368,6 @@ class Wmap(Map):
         octaves = 10
         div_amt = 50
 
-        #1576
         # Loop through everything and create tiles
         for y in xrange(self.height):
             # Make an empty list of tile rows
@@ -377,7 +375,7 @@ class Wmap(Map):
             for x in xrange(self.width):
                 # Anything outside this range will be unwalkable
                 if (0 < x < self.width - 1) and (0 < y < self.height - 1):      tile = Tile(blocks_mov=False)
-                else:                                                           tile = Tile(blocks_mov=True)
+                else:                                                           tile = Tile(blocks_mov=True, blocks_vis=True)
 
                 tile.explored = explored
 
@@ -444,7 +442,9 @@ class Wmap(Map):
         ''' For adding an existing object to the map '''
 
         # Make sure to remove it from another spot on the map if need be
-        if obj.x and obj.y and obj in self.tiles[obj.x][obj.y].objects:
+        # The `obj.x < len(self.tiles)` checks are for the off-chance that the object was on another map whose size exceeds
+        # the size of the new map (in that case, the object's x or y val would be out of index on this smaller map)
+        if obj.x and obj.x < len(self.tiles) and obj.y and obj.y < len(self.tiles[0]) and obj in self.tiles[obj.x][obj.y].objects:
             self.tiles[obj.x][obj.y].objects.remove(obj)
             # Remove it from the owning map chunk if need be
             if obj in self.tiles[obj.x][obj.y].chunk.objects:
@@ -663,43 +663,34 @@ class Wmap(Map):
 
         # NORMAL RENDERING
         if not debug_active_unit_dijmap:
-            #go through all tiles, and set their background color according to the FOV
-            for cam_y in xrange(g.game.camera.height):
-                for cam_x in xrange(g.game.camera.width):
-                    (x, y) = g.game.camera.cam2map(cam_x, cam_y)
-                    if self.is_val_xy((x, y)):
-                        visible = libtcod.map_is_in_fov(self.fov_map, x, y)
+            # Go through all tiles, and set their background color according to the FOV
+            for x, y, mx, my in g.game.camera.get_xy_for_rendering():
+                if libtcod.map_is_in_fov(self.fov_map, mx, my): # If the tile is visible
+                    g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, self.tiles[mx][my].char, self.tiles[mx][my].char_color, self.tiles[mx][my].color)
+                    #since it's visible, explore it
+                    self.tiles[mx][my].explored = True
 
-                        if visible:
-                            #libtcod.console_set_char_background(con.con, x, y, g.M.tiles[map_x][map_y].color, libtcod.BKGND_SET)
-                            libtcod.console_put_char_ex(g.game.interface.map_console.con, cam_x, cam_y, self.tiles[x][y].char, self.tiles[x][y].char_color, self.tiles[x][y].color)
-                            #since it's visible, explore it
-                            self.tiles[x][y].explored = True
-
-                        elif self.tiles[x][y].explored:
-                            #if it's not visible right now, the g.player can only see it if it's explored
-                            #libtcod.console_set_char_background(con.con, x, y, g.M.tiles[map_x][map_y].color * .5, libtcod.BKGND_SET)
-                            libtcod.console_put_char_ex(g.game.interface.map_console.con, cam_x, cam_y, self.tiles[x][y].char, self.tiles[x][y].shadow_char_color, self.tiles[x][y].shadow_color)
+                # If not visible, but explored
+                elif self.tiles[mx][my].explored:
+                    g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, self.tiles[mx][my].char, self.tiles[mx][my].shadow_char_color, self.tiles[mx][my].shadow_color)
 
 
         ## UNOPTIMIZED DIJMAP RENDERING
         elif debug_active_unit_dijmap:
-            for cam_y in xrange(g.game.camera.height):
-                for cam_x in xrange(g.game.camera.width):
-                    #(map_x, map_y) = (g.game.camera.x + x, g.game.camera.y + y)
-                    (x, y) = g.game.camera.cam2map(cam_x, cam_y)
-                    if self.is_val_xy((x, y)):
-                        if not self.tiles[x][y].blocks_mov:
-                            intensity = 0
-                            # Sum all desires for this square, weighted by intensity
-                            for desire, value in g.game.render_handler.debug_active_unit_dijmap.creature.dijmap_desires.iteritems():
-                                if g.M.dijmaps[desire].dmap[x][y] is not None:
-                                    intensity += int(round(value)) * self.dijmaps[desire].dmap[x][y]
+            for x, y, mx, my in g.game.camera.get_xy_for_rendering():
+                if not self.tiles[mx][my].blocks_mov:
+                    intensity = 0
+                    # Sum all desires for this square, weighted by intensity
+                    for desire, value in g.game.render_handler.debug_active_unit_dijmap.creature.dijmap_desires.iteritems():
+                        if g.M.dijmaps[desire].dmap[mx][my] is not None:
+                            intensity += int(round(value)) * self.dijmaps[desire].dmap[mx][my]
 
-                            libtcod.console_set_char_background(g.game.interface.map_console.con, cam_x, cam_y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
-                            #libtcod.console_set_char_background(con.con, x, y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
-                        else:
-                            libtcod.console_set_char_background(g.game.interface.map_console.con, cam_x, cam_y, libtcod.darkest_red, libtcod.BKGND_SET)
+                    libtcod.console_set_char_background(g.game.interface.map_console.con, x, y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
+                    libtcod.console_set_char_background(g.game.interface.map_console.con, x+1, y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
+                    #libtcod.console_set_char_background(con.con, x, y, libtcod.Color((255 - intensity), (255 - intensity), (255 - intensity)), libtcod.BKGND_SET)
+                else:
+                    libtcod.console_set_char_background(g.game.interface.map_console.con, x, y, libtcod.darkest_red, libtcod.BKGND_SET)
+                    libtcod.console_set_char_background(g.game.interface.map_console.con, x+1, y, libtcod.darkest_red, libtcod.BKGND_SET)
         #########################################
 
 
@@ -753,7 +744,7 @@ class Wmap(Map):
         #self.tiles[x][y].blocks_vis = 1
 
         #self.tiles[x][y].set_color(libtcod.darkest_sepia)
-        self.tiles[x][y].char = random.choice((288, 289))
+        self.tiles[x][y].char = random.choice((g.SMALL_TREE_TILE_1, g.SMALL_TREE_TILE_2))
         self.tiles[x][y].set_char_color(libtcod.darkest_sepia)
 
         self.shade_tree(x=x, y=y, height=roll(0, 3), radius=roll(5, 10))
@@ -764,18 +755,18 @@ class Wmap(Map):
         self.tiles[x][y].surface = 'Tree stump'
         self.tiles[x][y].blocks_mov = 1
 
-        self.tiles[x][y].char = 290
+        self.tiles[x][y].char = g.SMALL_STUMP_TILE
         self.tiles[x][y].set_char_color(libtcod.darkest_sepia)
 
     def make_large_tree(self, x, y):
         ''' Make a large tree trunk '''
         # First check whether it's a valid location
-        for i, (xx, yy) in enumerate( ( (x, y), (x, y+1), (x+1, y+1), (x+1, y) ) ):
+        for i, (xx, yy) in enumerate( ( (x, y), (x+1, y), (x+1, y+1), (x, y+1) ) ):
             if self.tiles[xx][yy].blocks_mov or self.tiles[xx][yy].surface != 'ground':
                 return
 
         # Next add the tree
-        for i, (xx, yy) in enumerate( ( (x, y), (x, y+1), (x+1, y+1), (x+1, y) ) ):
+        for i, (xx, yy) in enumerate( ( (x, y), (x+1, y), (x+1, y+1), (x, y+1) ) ):
             #self.tiles[xx][yy].set_color(libtcod.darkest_sepia)
             #self.tiles[xx][yy].set_shadow(amount=.2)
             self.tiles[xx][yy].char = random.choice(g.TREE_CHARS[i])
@@ -789,12 +780,12 @@ class Wmap(Map):
     def make_large_stump(self, x, y):
         ''' Make a large tree trunk '''
         # First check whether it's a valid location
-        for (xx, yy) in ( (x, y), (x, y+1), (x+1, y+1), (x+1, y) ):
+        for (xx, yy) in ( (x, y), (x+1, y), (x+1, y+1), (x, y+1) ):
             if self.tiles[xx][yy].blocks_mov or self.tiles[xx][yy].surface != 'ground':
                 return
 
         # Next add the tree
-        for i, (xx, yy) in enumerate( ( (x, y), (x, y+1), (x+1, y+1), (x+1, y) ) ):
+        for i, (xx, yy) in enumerate( ( (x, y), (x+1, y), (x+1, y+1), (x, y+1) ) ):
             #self.tiles[xx][yy].set_color(libtcod.darkest_sepia)
             #self.tiles[xx][yy].set_shadow(amount=.2)
             self.tiles[xx][yy].char = g.TREE_STUMP_CHARS[i]
@@ -805,7 +796,7 @@ class Wmap(Map):
 
     def make_shrub(self, x, y):
         self.tiles[x][y].set_char_color(libtcod.Color(49, 120, 36))
-        self.tiles[x][y].char = random.choice((304, 305, 306))
+        self.tiles[x][y].char = random.choice((g.SHRUB_TILE_1, g.SHRUB_TILE_2, g.SHRUB_TILE_3))
 
     def make_ground_tile(self, x, y, char):
         self.tiles[x][y].set_char_color(libtcod.darkest_sepia)
@@ -902,7 +893,7 @@ class Wmap(Map):
                             borders_rock = True
                             break
             #cx, cy = random.choice(self.rock_border_cells)
-            self.tiles[cx][cy].char = 'O'
+            self.tiles[cx][cy].char = g.CAVE_CHAR
             self.tiles[cx][cy].interactable = {'func':self.world.make_cave_map, 'args':[x, y, cave], 'text':'Enter cave', 'hover_text':['Cave entrance']}
 
             g.game.add_message(new_msg='cave at %i, %i' %(cx, cy), color=libtcod.green)
@@ -1671,7 +1662,7 @@ class CityMapGenerator:
 
                             # Create the entity
                             born = g.WORLD.time_cycle.years_ago(roll(18, 40))
-                            entity = building.site.create_inhabitant(sex=1, born=born, char='o', dynasty=None, important=0, house=None)
+                            entity = building.site.create_inhabitant(sex=1, born=born, char=g.PLAYER_TILE, dynasty=None, important=0, house=None)
 
                             # Set profession of figure and link to economy agent
                             profession.give_profession_to(figure=entity)
