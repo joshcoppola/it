@@ -35,8 +35,6 @@ import goap
 import data_importer as data
 
 
-
-
 mouse = libtcod.Mouse()
 key = libtcod.Key()
 
@@ -48,7 +46,7 @@ class Region:
         self.x = x
         self.y = y
         self.color = None
-        self.char = ' '
+        self.char = 255
         self.char_color = libtcod.black
         self.region_number = None # For figuring out play region
 
@@ -177,10 +175,10 @@ class Region:
         return site
 
     def add_cave(self, world, name):
-        cave = Site(world=world, type_='cave', x=self.x, y=self.y, char='C', name=name, color=libtcod.black, underground=1)
+        cave = Site(world=world, type_='cave', x=self.x, y=self.y, char=g.CAVE_CHAR, name=name, color=libtcod.black, underground=1)
         self.caves.append(cave)
         self.all_sites.append(cave)
-        self.char = 'C'
+        self.char = g.CAVE_CHAR
 
         g.WORLD.all_sites.append(cave)
 
@@ -357,7 +355,7 @@ class World(Map):
                 figure.w_draw()
 
         for site in self.sites:
-            site.draw()
+            site.w_draw()
 
         if g.player is not None:
             g.player.w_draw()
@@ -389,23 +387,24 @@ class World(Map):
 
 
     def get_line_tile_based_on_surrounding_tiles(self, N, S, E, W):
-        if N and S and E and W:     char = chr(197)
-        elif N and S and E:         char = chr(195)
-        elif N and E and W:         char = chr(193)
-        elif S and E and W:         char = chr(194)
-        elif N and S and W:         char = chr(180)
-        elif E and W:               char = chr(196)
-        elif E and N:               char = chr(192)
-        elif N and S:               char = chr(179)
-        elif N and W:               char = chr(217)
-        elif S and W:               char = chr(191)
-        elif S and E:               char = chr(218)
-        elif N:                     char = chr(179)
-        elif S:                     char = chr(179)
-        elif E:                     char = chr(196)
-        elif W:                     char = chr(196)
+        ''' Determines a tile for a river or road based on the connections it has '''
+        if N and S and E and W:     char = 648 # chr(197)
+        elif N and S and E:         char = 644 # chr(195)
+        elif N and E and W:         char = 640 # chr(193)
+        elif S and E and W:         char = 642 # chr(194)
+        elif N and S and W:         char = 614 # chr(180)
+        elif E and W:               char = 646 # chr(196)
+        elif E and N:               char = 638 # chr(192)
+        elif N and S:               char = 612 # chr(179)
+        elif N and W:               char = 688 # chr(217)
+        elif S and W:               char = 636 # chr(191)
+        elif S and E:               char = 690 # chr(218)
+        elif N:                     char = 612 # chr(179)
+        elif S:                     char = 612 # chr(179)
+        elif E:                     char = 646 # chr(196)
+        elif W:                     char = 646 # chr(196)
         elif not (N and S and E and W):
-            char = None
+            char = 255 # Empty character
 
         return char
 
@@ -923,7 +922,7 @@ class World(Map):
                     this_tile.color = libtcod.Color(d + 43 + roll(-a, a), d + 55 + roll(-a, a), d + 34 + roll(-a, a))
                     if this_tile.height > 235:      this_tile.char_color = libtcod.grey # Tall mountain - snowy peak
                     else:                           this_tile.char_color = libtcod.Color(c + 38 + roll(-a, a), c + 25 + roll(-a, a), c + 21 + roll(-a, a))
-                    this_tile.char = chr(036)
+                    this_tile.char = g.MOUNTAIN_TILE
 
                 ######################## TUNDRA ########################
                 elif this_tile.temp < 18 and not (tundra_min < y < tundra_max):
@@ -937,7 +936,7 @@ class World(Map):
 
                     if not this_tile.has_feature('river'):
                         this_tile.char_color = libtcod.Color(23 + roll(-a, a), 58 + mmod + roll(-a, a), 9 + roll(-a, a))
-                        this_tile.char = random.choice(taiga_chars)
+                        this_tile.char = random.choice(g.TAIGA_TILES)
 
                 ######################## TEMPERATE FOREST ########################
                 elif this_tile.temp < 30 and this_tile.moist < 18:
@@ -946,7 +945,7 @@ class World(Map):
 
                     if not this_tile.has_feature('river'):
                         this_tile.char_color = libtcod.Color(25 + roll(-a, a), 55 + mmod + roll(-a, a), 20 + roll(-a, a))
-                        this_tile.char = random.choice(forest_chars)
+                        this_tile.char = random.choice(g.FOREST_TILES)
 
                 ######################## TEMPERATE STEPPE ########################
                 elif this_tile.temp < 35:
@@ -955,7 +954,7 @@ class World(Map):
 
                     if not this_tile.has_feature('river'):
                         this_tile.char_color = this_tile.color * .85
-                        this_tile.char = chr(176)
+                        this_tile.char = g.TEMPERATE_STEPPE_TILE
 
                 ######################## RAIN FOREST ########################
                 elif this_tile.temp > 47 and this_tile.moist < 18:
@@ -964,7 +963,7 @@ class World(Map):
 
                     if not this_tile.has_feature('river'):
                         this_tile.char_color = libtcod.Color(16 + roll(-a, a), 40 + roll(-a - 5, a + 5), 5 + roll(-a, a))
-                        this_tile.char = random.choice(rain_forest_chars)
+                        this_tile.char = random.choice(g.RAIN_FOREST_TILES)
 
                 ######################## TREE SAVANNA ########################
                 elif this_tile.temp >= 35 and this_tile.moist < 18:
@@ -976,10 +975,10 @@ class World(Map):
                     if not this_tile.has_feature('river'):
                         if roll(1, 5) > 1:
                             this_tile.char_color = this_tile.color * .85
-                            this_tile.char = chr(176)
+                            this_tile.char = g.TEMPERATE_STEPPE_TILE
                         else:
                             this_tile.char_color = this_tile.color * .75
-                            this_tile.char = '*'
+                            this_tile.char = g.TREE_SAVANNA_TILE
 
                 ######################## GRASS SAVANNA ########################
                 elif this_tile.temp >= 35 and this_tile.moist < 34:
@@ -990,7 +989,7 @@ class World(Map):
 
                     if not this_tile.has_feature('river'):
                         this_tile.char_color = this_tile.color * .80
-                        this_tile.char = chr(176)
+                        this_tile.char = g.TEMPERATE_STEPPE_TILE
 
                 ######################## DRY STEPPE ########################
                 elif this_tile.temp <= 44:
@@ -1050,7 +1049,7 @@ class World(Map):
 
                     # Experimental badly placed code to add a "hill" character to hilly map spots
                     if alpha == max_alpha and not(this_tile.region in hill_excluders) and not this_tile.has_feature('river'):
-                        this_tile.char = chr(252)
+                        this_tile.char = g.HILL_TILE
                         # if this_tile.region in ('semi-arid desert', 'arid desert', 'dry steppe'):
                         this_tile.char_color = this_tile.color - libtcod.Color(20, 20, 20)
 
@@ -1158,7 +1157,8 @@ class World(Map):
             description = gen_creatures.gen_creature_description(creature_name=lang.spec_cap(creature_name), creature_size=3)
 
             phys_info['name'] = creature_name
-            phys_info['char'] = creature_name[0].upper()
+            # phys_info['char'] = creature_name[0].upper()
+            phys_info['char'] = g.MYTHIC_TILE
             phys_info['description'] = description
 
             phys.creature_dict[creature_name] = phys_info
@@ -1175,11 +1175,11 @@ class World(Map):
                 name = self.default_mythic_culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 8))
                 faction = Faction(leader_prefix=None, name=name, color=libtcod.black, succession='strongman', defaultly_hostile=1)
                 born = g.WORLD.time_cycle.years_ago(50)
-                myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char="m", dynasty=None, important=1, faction=faction, wx=site.x, wy=site.y, armed=1, race=race, save_being=1, intelligence_level=2)
+                myth_creature = self.default_mythic_culture.create_being(sex=1, born=born, char=g.MYTHIC_TILE, dynasty=None, important=1, faction=faction, wx=site.x, wy=site.y, armed=1, race=race, save_being=1, intelligence_level=2)
 
                 num_creatures = roll(5, 25)
                 sentients = {myth_creature.creature.culture:{myth_creature.creature.type_:{None:num_creatures}}}
-                population = self.create_population(char="m", name="myth creature group", faction=faction, creatures=None, sentients=sentients, econ_inventory={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
+                population = self.create_population(char=g.MYTHIC_TILE, name="myth creature group", faction=faction, creatures=None, sentients=sentients, econ_inventory={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
 
 
     def gen_sentient_races(self):
@@ -1313,7 +1313,7 @@ class World(Map):
 
             leader, all_new_figures = culture.create_initial_dynasty(faction=city_faction, wx=nx, wy=ny, wife_is_new_dynasty=1)
 
-            city = self.make_city(cx=nx, cy=ny, char=chr(10), color=civ_color, name=name)
+            city = self.make_city(cx=nx, cy=ny, char=g.CITY_TILE, color=civ_color, name=name)
             city.set_leader(leader)
             for entity in all_new_figures:
                 city.add_citizen(entity=entity)
@@ -1745,7 +1745,6 @@ class World(Map):
                         break
 
 
-
     def run_history(self, weeks):
         ## Some history...
         #begin = time.time()
@@ -1774,10 +1773,8 @@ class World(Map):
 
         for x in xrange(self.width):
             for y in xrange(self.height):
-                #libtcod.map_set_properties(self.road_fov_map, x, y, 1, 'road' in self.tiles[x][y].features)
                 libtcod.map_set_properties(self.road_fov_map, x, y, 1, 0)
         self.road_path_map = libtcod.path_new_using_map(self.road_fov_map)
-    #libtcod.console_clear(con)  #unexplored areas start black (which is the default background color)
 
     def display(self):
         ''' Display the world '''
@@ -1787,55 +1784,48 @@ class World(Map):
             ##### Micro-optimizations to avoid lookups in the loop
             tiles = self.tiles
             con = g.game.interface.map_console.con
-            c2m = g.game.camera.cam2map
-            put_char_ex = libtcod.console_put_char_ex
+            render_tile = g.game.render_handler.render_tile
             ##### End micro-optimizations
 
-            for y in xrange(g.game.camera.height):
-                for x in xrange(g.game.camera.width):
-                    (wmap_x, wmap_y) = c2m(x, y)
-                    put_char_ex(con, x, y, tiles[wmap_x][wmap_y].char, tiles[wmap_x][wmap_y].char_color, tiles[wmap_x][wmap_y].color)
-                    #bc = g.WORLD.tiles[wmap_x][wmap_y].color
-                    #fc = g.WORLD.tiles[wmap_x][wmap_y].char_color
-                    #buffer.set(x=x, y=y, back_r=g.WORLD.tiles[wmap_x][wmap_y].color.r, back_g=g.WORLD.tiles[wmap_x][wmap_y].color.g, back_b=g.WORLD.tiles[wmap_x][wmap_y].color.b, \
-                    #            fore_r=g.WORLD.tiles[wmap_x][wmap_y].char_color.r, fore_g=g.WORLD.tiles[wmap_x][wmap_y].char_color.g, fore_b=g.WORLD.tiles[wmap_x][wmap_y].char_color.b, char=g.WORLD.tiles[wmap_x][wmap_y].char)
+            for x, y, mx, my in g.game.camera.get_xy_for_rendering():
+                render_tile(con, x, y, tiles[mx][my].char, tiles[mx][my].char_color, tiles[mx][my].color)
+
+                #bc = g.WORLD.tiles[wmap_x][wmap_y].color
+                #fc = g.WORLD.tiles[wmap_x][wmap_y].char_color
+                #buffer.set(x=x, y=y, back_r=g.WORLD.tiles[wmap_x][wmap_y].color.r, back_g=g.WORLD.tiles[wmap_x][wmap_y].color.g, back_b=g.WORLD.tiles[wmap_x][wmap_y].color.b, \
+                #            fore_r=g.WORLD.tiles[wmap_x][wmap_y].char_color.r, fore_g=g.WORLD.tiles[wmap_x][wmap_y].char_color.g, fore_b=g.WORLD.tiles[wmap_x][wmap_y].char_color.b, char=g.WORLD.tiles[wmap_x][wmap_y].char)
 
             #buffer.blit(con.con)
 
         elif g.game.world_map_display_type == 'culture':
-            for y in xrange(g.game.camera.height):
-                for x in xrange(g.game.camera.width):
-                    (wmap_x, wmap_y) = g.game.camera.cam2map(x, y)
-                    if self.tiles[wmap_x][wmap_y].culture is not None:
-                        color = self.tiles[wmap_x][wmap_y].culture.color
-                        #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, g.WORLD.tiles[wmap_x][wmap_y].color)
-                        libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, chr(177), color, color * 1.2)
+            for x, y, mx, my in g.game.camera.get_xy_for_rendering():
+                if self.tiles[mx][my].culture is not None:
+                    color = self.tiles[mx][my].culture.color
+                    g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, 255, color, color * 1.2)
 
-                    else:
-                        libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
+                else:
+                    g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, self.tiles[mx][my].char, self.tiles[mx][my].char_color, self.tiles[mx][my].color)
 
         ######################### Territories ##################################
         elif g.game.world_map_display_type == 'territory':
-            for y in xrange(g.game.camera.height):
-                for x in xrange(g.game.camera.width):
-                    (wmap_x, wmap_y) = g.game.camera.cam2map(x, y)
-                    if self.tiles[wmap_x][wmap_y].territory is not None:
-                        color = self.tiles[wmap_x][wmap_y].territory.color
-                        #libtcod.console_put_char_ex(con.con, x, y, chr(178), color, g.WORLD.tiles[wmap_x][wmap_y].color)
-                        libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, chr(177), color, color * 1.5)
+            for x, y, mx, my in g.game.camera.get_xy_for_rendering():
+                if self.tiles[mx][my].territory is not None:
+                    color = self.tiles[mx][my].territory.color
+                    g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, 255, color, color * 1.5)
 
-                    else:
-                        libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
+                else:
+                    g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, self.tiles[mx][my].char, self.tiles[mx][my].char_color, self.tiles[mx][my].color)
+
         ######################### Resources ##################################
         elif g.game.world_map_display_type == 'resource':
-            for y in xrange(g.game.camera.height):
-                for x in xrange(g.game.camera.width):
-                    (wmap_x, wmap_y) = g.game.camera.cam2map(x, y)
-                    libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, self.tiles[wmap_x][wmap_y].char, self.tiles[wmap_x][wmap_y].char_color, self.tiles[wmap_x][wmap_y].color)
+            for x, y, mx, my in g.game.camera.get_xy_for_rendering():
+                g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, self.tiles[mx][my].char, self.tiles[mx][my].char_color, self.tiles[mx][my].color)
 
-                    if self.tiles[wmap_x][wmap_y].res and not 'wood' in self.tiles[wmap_x][wmap_y].res:
-                        char = self.tiles[wmap_x][wmap_y].res.keys()[0][0].capitalize()
-                        libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, char, libtcod.green, libtcod.black)
+                if self.tiles[mx][my].res and not 'wood' in self.tiles[mx][my].res:
+                    # TODO - convert this to actual tiles and not half-tiles
+                    char = ord(self.tiles[mx][my].res.keys()[0][0].capitalize())
+                    libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, char, libtcod.green, libtcod.black)
+                    libtcod.console_put_char_ex(g.game.interface.map_console.con, x+1, y, g.EMPTY_TILE, libtcod.green, libtcod.black)
         ###########################################################################
 
         self.draw_world_objects()
@@ -2089,27 +2079,27 @@ class World(Map):
         return city
 
     def add_mine(self, x, y, city):
-        mine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='mine',char='#', name=None, color=city.get_faction().color)
+        mine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='mine', char=g.MINE_TILE, name=None, color=city.get_faction().color)
         mine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-        self.tiles[x][y].char = "+"
+        self.tiles[x][y].char = g.MINE_TILE
         self.tiles[x][y].char_color = city.get_faction().color
 
         return mine
 
     def add_farm(self, x, y, city):
-        farm = self.tiles[x][y].create_and_add_minor_site(world=self, type_='farm', char='#', name=None, color=city.get_faction().color)
+        farm = self.tiles[x][y].create_and_add_minor_site(world=self, type_='farm', char=g.FARM_TILE, name=None, color=city.get_faction().color)
         farm.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
         if not self.tiles[x][y].has_feature('road'):
-            self.tiles[x][y].char = "."
+            self.tiles[x][y].char = g.FARM_TILE
             self.tiles[x][y].char_color = city.get_faction().color
 
         return farm
 
     def add_shrine(self, x, y, city):
         name = '{0} shrine'.format(city.get_culture().pantheon.name)
-        shrine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='shrine', char='^', name=name, color=libtcod.black)
+        shrine = self.tiles[x][y].create_and_add_minor_site(world=self, type_='shrine', char=g.SHRINE_TILE, name=name, color=libtcod.black)
         shrine.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
-        self.tiles[x][y].char = "^"
+        self.tiles[x][y].char = g.SHRINE_TILE
         self.tiles[x][y].char_color = libtcod.black
 
         city.get_culture().pantheon.add_holy_site(shrine)
@@ -2121,10 +2111,10 @@ class World(Map):
         site_name = self.tiles[x][y].culture.language.gen_word(syllables=roll(1, 2), num_phonemes=(3, 20))
         name = lang.spec_cap(site_name)
 
-        ruin_site = self.tiles[x][y].create_and_add_minor_site(world=self, type_='ancient settlement', char=259, name=name, color=libtcod.black)
+        ruin_site = self.tiles[x][y].create_and_add_minor_site(world=self, type_='ancient settlement', char=g.RUINS_TILE, name=name, color=libtcod.black)
         self.tiles[x][y].chunk.add_site(ruin_site)
 
-        self.tiles[x][y].char = 259
+        self.tiles[x][y].char = g.RUINS_TILE
         self.tiles[x][y].char_color = libtcod.black
         for i in xrange(roll(1, 3)):
             building = ruin_site.create_building(zone='residential', type_='hideout', template='TEST', professions=[], inhabitants=[], tax_status=None)
@@ -2269,7 +2259,7 @@ class Feature:
 
 class River(Feature):
     def __init__(self, x, y):
-        Feature.__init__(self,   'river', x, y)
+        Feature.__init__(self, 'river', x, y)
 
         # Stores which directions the river is connected from
         self.connected_dirs = []
@@ -2461,7 +2451,7 @@ class Site:
         #return the distance to some coordinates
         return math.sqrt((x - self.x) ** 2 + (y - self.y) ** 2)
 
-    def draw(self):
+    def w_draw(self):
         #only show if it's visible to the g.player
         #if libtcod.map_is_in_fov(fov_map, self.x, self.y):
         (x, y) = g.game.camera.map2cam(self.x, self.y)
@@ -2470,8 +2460,11 @@ class Site:
             #set the color and then draw the character that represents this object at its position
             libtcod.console_set_default_foreground(g.game.interface.map_console.con, self.color)
             #libtcod.console_set_default_background(con.con, self.color)
+
             libtcod.console_put_char(g.game.interface.map_console.con, x, y, self.char, libtcod.BKGND_NONE)
-            #libtcod.console_put_char_ex(con.con, x, y, self.char, libtcod.black, self.color)
+            # 2nd half of the tile
+            libtcod.console_put_char(g.game.interface.map_console.con, x+1, y, self.char+1, libtcod.BKGND_NONE)
+
 
     def clear(self):
         #erase the character that represents this object
@@ -2657,7 +2650,7 @@ class City(Site):
     def create_merchant(self, sell_economy, sold_commodity_name):
         ## Create a human to attach an economic agent to
         born = g.WORLD.time_cycle.years_ago(roll(20, 60))
-        human = self.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None, world_char=g.CARAVAN_CHAR)
+        human = self.create_inhabitant(sex=1, born=born, dynasty=None, important=0, house=None, world_char=g.MERCHANT_TILE)
         human.set_world_brain(BasicWorldBrain())
 
         ## Actually give profession to the person ##
@@ -3812,7 +3805,7 @@ class Object:
             blocks_mov = 0
 
             g.M.tiles[self.x][self.y].objects.remove(self)
-            libtcod.map_set_properties(g.M.fov_map, self.x, self.y, True, True)
+            libtcod.map_set_properties(g.M.fov_map, self.x, self.y, not g.M.tiles[self.x][self.y].blocks_vis, not g.M.tiles[self.x][self.y].blocks_mov)
 
             self.handle_chunk_move(self.x, self.y, x, y)
 
@@ -3987,6 +3980,7 @@ class Object:
             #set the color and then draw the character that represents this object at its position
             libtcod.console_set_default_foreground(g.game.interface.map_console.con, self.color)
             libtcod.console_put_char(g.game.interface.map_console.con, x, y, self.world_char, libtcod.BKGND_NONE)
+            libtcod.console_put_char(g.game.interface.map_console.con, x+1, y, self.world_char+1, libtcod.BKGND_NONE)
 
     #### End moving world-coords style ########
 
@@ -3999,6 +3993,7 @@ class Object:
                 #set the color and then draw the character that represents this object at its position
                 libtcod.console_set_default_foreground(g.game.interface.map_console.con, self.display_color)
                 libtcod.console_put_char(g.game.interface.map_console.con, x, y, self.char, libtcod.BKGND_NONE)
+                libtcod.console_put_char(g.game.interface.map_console.con, x+1, y, self.char+1, libtcod.BKGND_NONE)
 
         elif not self.local_brain:
             (x, y) = g.game.camera.map2cam(self.x, self.y)
@@ -4007,6 +4002,7 @@ class Object:
                 libtcod.console_set_default_foreground(g.game.interface.map_console.con, self.shadow_color)
                 #libtcod.console_set_default_foreground(con.con, self.dark_color)
                 libtcod.console_put_char(g.game.interface.map_console.con, x, y, self.char, libtcod.BKGND_NONE)
+                libtcod.console_put_char(g.game.interface.map_console.con, x+1, y, self.char+1, libtcod.BKGND_NONE)
 
     def clear(self):
         #erase the character that represents this object
@@ -4308,9 +4304,12 @@ def player_give_order(target, order):
             while not libtcod.path_is_empty(p=g.M.path_map):
                 px, py = libtcod.path_walk(g.M.path_map, True)
                 cpx, cpy = g.game.camera.map2cam(px, py)
-                libtcod.console_put_char_ex(con=g.game.interface.map_console.con, x=cpx, y=cpy, c='*', fore=libtcod.light_grey, back=libtcod.BKGND_NONE)
+                g.game.render_handler.render_tile(con=g.game.interface.map_console.con, x=cpx, y=cpy, c=g.PLUS_TILE, fore=libtcod.light_grey, back=libtcod.BKGND_NONE)
+
             # Draw the final location
-            libtcod.console_put_char_ex(con=g.game.interface.map_console.con, x=mx, y=my, c='X', fore=libtcod.grey, back=libtcod.black)
+            if mx % 2 != 0:
+                mx -= 1
+            g.game.render_handler.render_tile(con=g.game.interface.map_console.con, x=mx, y=my, c=g.X_TILE, fore=libtcod.grey, back=libtcod.black)
 
             if mouse.lbutton:
                 g.player.creature.say('%s, move over there'%target.fullname())
@@ -4351,12 +4350,13 @@ def player_order_move():
 
         # Draw the final location
         locs = []
+        # TODO - this is off now with new 2-char-per-tile approach
         for i in xrange(mx-offset, mx+sq_size+1):
             for j in xrange(my-offset, my+sq_size+1):
                 ii, jj = g.game.camera.cam2map(i, j)
                 if not g.M.tile_blocks_mov(ii, jj):
                     locs.append((ii, jj))
-                    libtcod.console_put_char_ex(con=g.game.interface.map_console.con, x=i, y=j, c='X', fore=libtcod.grey, back=libtcod.black)
+                    g.game.render_handler.render_tile(con=g.game.interface.map_console.con, x=i, y=j, c=g.X_TILE, fore=libtcod.grey, back=libtcod.black)
 
         if mouse.lbutton_pressed and len(locs) >= len(figures):
             g.player.creature.say('Everyone, move over there')
@@ -4503,24 +4503,26 @@ def choose_object_to_interact_with(objs, x, y):
     ''' There may be multiple objects to interact with on a given tile
     This function handles that. '''
 
+    # Filter out the player as a possible object to interact with
+    objs = [obj for obj in objs if obj != g.player]
+
     # If there's only one object, either talk to it or attack it (for now)
     if len(objs) == 1 and (not g.M.tiles[x][y].interactable and not objs[0].interactable):
         obj = objs[0]
-        if obj.creature and obj.creature and obj.creature.status == 'alive':
+        if obj.creature and obj.creature.status == 'alive':
             talk_screen(actor=g.player, target=obj)
         else:
             attack_menu(actor=g.player, target=obj)
 
     # Else, a button menu which shows the interactions
     else:
-
         (cx, cy) = g.game.camera.map2cam(x, y)
 
         height = 30
         width = 28
 
         bx = 4
-        by = 5
+        by = 0
 
         b_width = width - (4 * 2)
 
@@ -4531,36 +4533,35 @@ def choose_object_to_interact_with(objs, x, y):
                    gui.Button(gui_panel=wpanel, func=g.game.interface.prepare_to_delete_panel, args=[wpanel],
                           text='X', topleft=(width-4, 1), width=3, height=3, color=g.PANEL_FRONT, do_draw_box=True)]
 
-        y = 0
+        by = 0
         for obj in objs:
             if obj.creature and obj.creature.status == 'alive':
-                y += 4
+                by += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=talk_screen, args=[g.player, obj],
-                                  text='Talk to ' + obj.fullname(), topleft=(bx, y),
+                                  text='Talk to ' + obj.fullname(), topleft=(bx, by),
                                   width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
             if obj.interactable:
-                y += 4
+                by += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=obj.interactable['func'], args=obj.interactable['args'],
-                                  text=obj.interactable['text'], topleft=(bx, y),
+                                  text=obj.interactable['text'], topleft=(bx, by),
                                   width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
             else:
-                y += 4
+                by += 4
                 buttons.append(gui.Button(gui_panel=wpanel, func=attack_menu, args=[g.player, obj],
-                                  text='Interact with ' + obj.fullname(), topleft=(bx, y),
+                                  text='Interact with ' + obj.fullname(), topleft=(bx, by),
                                   width=b_width, height=4, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
         # Specific tile interaction...
         if g.M.tiles[x][y].interactable:
-
             func = g.M.tiles[x][y].interactable['func']
             args = g.M.tiles[x][y].interactable['args']
             text = g.M.tiles[x][y].interactable['text']
 
-            y += 4
+            by += 4
             buttons.append(gui.Button(gui_panel=wpanel, func=func, args=args, text=text,
-                                   topleft=(bx, y), width=b_width, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
+                                   topleft=(bx, by), width=b_width, height=3, color=g.PANEL_FRONT, do_draw_box=True, closes_menu=1))
 
 
         wpanel.gen_buttons = buttons
@@ -4935,7 +4936,6 @@ class Creature:
 
         self.faction = None
 
-        #self.army = None
         self.commander = None
         self.commanded_populations = []
         self.commanded_figures = []
@@ -5732,9 +5732,6 @@ class Creature:
 
     def sapient_free_from_captivity(self):
         ''' Handles setting a sapient free from captivity, and making sure any army holding it captive is also properly handled '''
-        #if self.captor.sapient.army and self.owner in self.captor.sapient.army.captives:
-        #    self.captor.sapient.army.captives.remove(self.owner)
-
         self.captor.creature.captives.remove(self.owner)
         self.captor = None
 
@@ -5825,9 +5822,9 @@ class Creature:
                     # Drop the object (and release hold on it)
                     self.owner.drop_object(own_component=component, obj=component.grasped_item)
 
-            g.M.creatures.remove(creature_obj)
-            g.M.objects.append(creature_obj)
-            libtcod.map_set_properties(g.M.fov_map, self.owner.x, self.owner.y, True, True)
+            g.M.creatures.remove(figure)
+            g.M.objects.append(figure)
+            libtcod.map_set_properties(g.M.fov_map, figure.x, figure.y, True, True)
 
         # Object properties
         self.owner.set_display_color(self.owner.death_color)
@@ -6875,59 +6872,90 @@ class TimeCycle(object):
             self.month_tick()
 
 class Camera:
-    def __init__(self, width, height):
-        self.width = width
+    def __init__(self, width_in_characters, height):
+        self.width_in_characters = width_in_characters
         self.height = height
 
         self.x = 0
         self.y = 0
 
-    def move(self, dx, dy):
-        if g.game.map_scale == 'world':
-            # Make sure the new g.game.camera coordinate won't let the g.game.camera see off the map
-            if 0 <= self.x + dx < g.WORLD.width - self.width:
-                self.x += dx
-            if 0 <= self.y + dy < g.WORLD.height - self.height:
-                self.y += dy
+        self.scalemap = {'world': g.WORLD, 'human': g.M}
 
-        if g.game.map_scale == 'human':
-            # Make sure the new g.game.camera coordinate won't let the g.game.camera see off the map
-            if 0 <= self.x + dx <= g.M.width - self.width:
-                self.x += dx
-            if 0 <= self.y + dy <= g.M.height - self.height:
-                self.y += dy
+    def get_xy_for_rendering(self):
+        ''' Will get the xy points of the camera, skipping every second  '''
+        for y in xrange(self.height):
+            for x in xrange(0, self.width_in_characters, 2):
+                mx, my = self.cam2map(x, y)
+                yield (x, y, mx, my)
+
+    def move_in_direction(self, dx, dy):
+        ''' Moves the camera in a direction '''
+        if dx or dy:
+            # Set the target x and y values, to be modified by the direction
+            target_x, target_y = self.x, self.y
+
+            if g.game.map_scale == 'world':
+                # Make sure the new camera coordinate won't let the camera see off the map
+                if 0 <= self.x + dx < (g.WORLD.width * 2) - self.width_in_characters:   target_x += dx
+                if 0 <= self.y + dy < g.WORLD.height - self.height:                     target_y += dy
+
+            if g.game.map_scale == 'human':
+                # Make sure the new camera coordinate won't let the camera see off the map
+                if 0 <= self.x + dx <= (g.M.width * 2) - self.width_in_characters:  target_x += dx
+                if 0 <= self.y + dy <= g.M.height - self.height:                    target_y += dy
+
+
+            # if g.WORLD.is_val_xy((target_x, target_y)):
+            #     # Actually perform the move
+            self.move_to_location(target_x, target_y)
+
+
+    def move_to_location(self, x, y):
+        ''' Move camera to a target location '''
+        # Ensure camera X is always even, to prevent some issues from arising no that
+        # each "tile" is two characters wide.
+        if x % 2 != 0:
+            x -= 1
+
+        self.x, self.y = x, y
+
 
     def center(self, target_x, target_y):
         #new camera coordinates (top-left corner of the screen relative to the map)
-        x = target_x - int(round(self.width / 2))  #coordinates so that the target is at the center of the screen
+        x = (target_x * 2) - int(round(self.width_in_characters / 2)) #coordinates so that the target is at the center of the screen
         y = target_y - int(round(self.height / 2))
 
-        #make sure the g.game.camera doesn't see outside the map
-        if x < 0: x = 0
-        if y < 0: y = 0
+        #make sure the camera doesn't see outside the map
+        x, y = max(0, x), max(0, y)
+
         if g.game.map_scale == 'world':
-            if x > g.WORLD.width - self.width:
-                x = g.WORLD.width - self.width
+            if x > (g.WORLD.width * 2) - self.width_in_characters:
+                x = (g.WORLD.width * 2) - self.width_in_characters
             if y > g.WORLD.height - self.height:
                 y = g.WORLD.height - self.height
 
         ## Add FOV compute once it works for the world.
         elif g.game.map_scale == 'human':
-            if x > g.M.width - self.width:
-                x = g.M.width - self.width
+            if x > (g.M.width * 2) - self.width_in_characters:
+                x = (g.M.width * 2) - self.width_in_characters
             if y > g.M.height - self.height:
                 y = g.M.height - self.height
 
-        (self.x, self.y) = (x, y)
+        # Actually perform the move
+        self.move_to_location(x, y)
 
     def map2cam(self, x, y):
         ''' 'convert coordinates on the map to coordinates on the screen '''
-        (x, y) = (x - self.x, y - self.y)
+
+        # Awful hack to account for camera "moving" when it actually doesn't (due to 2 characters per "tile")
+        adjusted_x = self.x if self.x % 2 == 0 else self.x - 1
+
+        (x, y) = ((x*2) - adjusted_x, y - self.y)
         return (x, y)
 
     def cam2map(self, x, y):
-        ''' convert coordinates on the map to coordinates on the screen '''
-        (x, y) = (x + self.x, y + self.y)
+        ''' convert coordinates on the screen to coordinates on the map '''
+        (x, y) = (int((x + self.x) * .5), y + self.y)
         return (x, y)
 
     def click_and_drag(self, mouse):
@@ -6947,39 +6975,39 @@ class Camera:
 
             dif_x, dif_y = (x - ox, y - oy)
             # add some momentum to the g.game.camera
-            if dif_x != ox and dif_y != oy:
-                momentum += 2
-            else:
-                momentum = max(momentum - 1, 0)
+            # if dif_x != ox and dif_y != oy:
+            #     momentum += 2
+            # else:
+            #     momentum = max(momentum - 1, 0)
 
-            self.move(-dif_x, -dif_y)
+            self.move_in_direction(-dif_x, -dif_y)
 
         # after button is released, move the g.game.camera a bit more based on momentum
-        total_momentum = momentum
-        m_amt = 1
-        while momentum > 0 and int(round(dif_x * m_amt)) + int(round(dif_y * m_amt)):
-            momentum -= 1
-            m_amt = momentum / total_momentum
-            # Need to force game to update FOV while dragging if on human-scale map; otherwise map console will not update
-            if g.game.map_scale == 'human':
-                g.game.handle_fov_recompute()
-            g.game.render_handler.render_all()
-
-            self.move(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
-
-            # Remove any extra momentum on hitting map edge
-            if g.game.map_scale == 'world':
-                wx, wy = self.cam2map(x=self.x, y=self.y)
-                if not (0 < wx < g.WORLD.width - self.width or 0 < wy < g.WORLD.height - self.height):
-                    momentum = 0
-            elif g.game.map_scale == 'human':
-                mx, my = self.cam2map(x=self.x, y=self.y)
-                if not (0 < mx < g.M.width - self.width or 0 < my < g.M.height - self.height):
-                    momentum = 0
+        # total_momentum = momentum
+        # m_amt = 1
+        # while momentum and int(round(dif_x * m_amt)) + int(round(dif_y * m_amt)):
+        #     momentum -= 1
+        #     m_amt = momentum / total_momentum
+        #     # Need to force game to update FOV while dragging if on human-scale map; otherwise map console will not update
+        #     if g.game.map_scale == 'human':
+        #         g.game.handle_fov_recompute()
+        #     g.game.render_handler.render_all()
+        #
+        #     self.move_in_direction(-int(round(dif_x * m_amt)), -int(round(dif_y * m_amt)))
+        #
+        #     # Remove any extra momentum on hitting map edge
+        #     if g.game.map_scale == 'world':
+        #         wx, wy = self.cam2map(x=self.x, y=self.y)
+        #         if not (0 < wx < (g.WORLD.width * 2) - self.width_in_characters and 0 < wy < g.WORLD.height - self.height):
+        #             momentum = 0
+        #     elif g.game.map_scale == 'human':
+        #         mx, my = self.cam2map(x=self.x, y=self.y)
+        #         if not (0 < mx < (g.M.width * 2) - self.width_in_characters and 0 < my < g.M.height - self.height):
+        #             momentum = 0
 
     def mouse_is_on_map(self):
         ''' Ensures mouse doesn't pick up activity outside edge of g.game.camera '''
-        return (0 <= mouse.cx <= self.width and 0 <= mouse.cy <= self.height)
+        return (0 <= mouse.cx <= self.width_in_characters and 0 <= mouse.cy <= self.height)
 
 
 class Culture:
@@ -7132,7 +7160,7 @@ class Culture:
 
     def add_village(self, x, y):
         name = lang.spec_cap(self.language.gen_word(syllables=roll(1, 2), num_phonemes=(2, 14)))
-        village = Site(world=g.WORLD, type_='village', x=x, y=y, char=chr(7), name=name, color=self.color)
+        village = Site(world=g.WORLD, type_='village', x=x, y=y, char=g.VILLAGE_TILE, name=name, color=self.color)
         g.WORLD.sites.append(village)
 
         g.WORLD.tiles[x][y].site = village
@@ -7458,14 +7486,19 @@ class RenderHandler:
         self.debug_active_unit_dijmap = None
 
 
+    def render_tile(self, console, x, y, char, color, background_color):
+        ''' Renders a tile, accounting for the fact that each "tile" is now 2 characters wide '''
+        libtcod.console_put_char_ex(console, x, y, char, color, background_color)
+        libtcod.console_put_char_ex(console, x+1, y, char+1, color, background_color)
+
     def debug_dijmap_view(self, figure=None):
         if figure is None and self.debug_active_unit_dijmap is not None:
-            self.debug_active_unit_dijmap.char = 'o'
+            self.debug_active_unit_dijmap.char = g.PLAYER_TILE
             self.debug_active_unit_dijmap = None
 
         else:
             self.debug_active_unit_dijmap = figure
-            self.debug_active_unit_dijmap.char = 'X'
+            self.debug_active_unit_dijmap.char = g.X_TILE
 
 
     def progressbar_screen(self, header, current_action, min_val, max_val, background_text=None):
@@ -7494,13 +7527,15 @@ class RenderHandler:
 
         for repetition in xrange(repetitions):
             # Render red
-            #libtcod.console_put_char_ex(con.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, color, color)
-            libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, 'X', color, color)
+            g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, g.X_TILE, color, color)
+
             libtcod.console_blit(g.game.interface.map_console.con, 0, 0, g.CAMERA_WIDTH, g.CAMERA_HEIGHT, 0, 0, 0)
             libtcod.console_flush()
             time.sleep(speed)
+
             # Render background color
-            libtcod.console_put_char_ex(g.game.interface.map_console.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, g.WORLD.tiles[wmap_x][wmap_y].char_color, g.WORLD.tiles[wmap_x][wmap_y].color)
+            g.game.render_handler.render_tile(g.game.interface.map_console.con, x, y, g.WORLD.tiles[wmap_x][wmap_y].char, g.WORLD.tiles[wmap_x][wmap_y].char_color, g.WORLD.tiles[wmap_x][wmap_y].color)
+
             libtcod.console_blit(g.game.interface.map_console.con, 0, 0, g.game.camera.width, g.game.camera.height, 0, 0, 0)
             libtcod.console_flush()
             time.sleep(speed)
@@ -7705,9 +7740,6 @@ def battle_hover_information():
         if target and target.creature:
             header = [target.fulltitle()]
 
-            #if target.creature.army:
-            #    header.append(target.creature.army.name)
-
             inventory = target.get_inventory()
 
             header.append('Wearing {0}'.format(join_list([indef(item.name) for item in inventory['clothing'] ])))
@@ -7885,7 +7917,7 @@ class Game:
         self.map_scale = 'world'
         self.world_map_display_type = 'normal'
 
-        self.camera = Camera(width=g.CAMERA_WIDTH, height=g.CAMERA_HEIGHT)
+        self.camera = Camera(width_in_characters=g.CAMERA_WIDTH, height=g.CAMERA_HEIGHT)
 
         self.msgs = []
 
@@ -8000,7 +8032,7 @@ class Game:
 
         g.playerciv = g.WORLD.cities[0]
         born = g.WORLD.time_cycle.years_ago(roll(20, 45))
-        g.player = g.playerciv.get_culture().create_being(sex=1, born=born, char='@', dynasty=None, important=0, faction=g.playerciv.get_faction(), armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
+        g.player = g.playerciv.get_culture().create_being(sex=1, born=born, char=g.PLAYER_TILE, dynasty=None, important=0, faction=g.playerciv.get_faction(), armed=1, wx=g.playerciv.x, wy=g.playerciv.y)
         # Make player literate
         for language in g.player.creature.languages:
             g.player.creature.update_language_knowledge(language=language, verbal=0, written=g.player.creature.languages[language]['verbal'])
@@ -8056,22 +8088,22 @@ class Game:
 
         ### Make the player ###
         born = g.WORLD.time_cycle.years_ago(roll(20, 40))
-        g.player = cult.create_being(sex=1, born=born, char='@', dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
+        g.player = cult.create_being(sex=1, born=born, char=g.PLAYER_TILE, dynasty=None, important=1, faction=faction1, armed=0, wx=1, wy=1, save_being=1)
         #g.player.creature.skills['fighting'] += 100
-        g.player.char = '@'
+        g.player.char = g.PLAYER_TILE
         g.player.local_brain = None
 
         sentients = {cult:{random.choice(cult.races):{'Adventurers':10}}}
-        g.player_party = g.WORLD.create_population(char='@', name="Player party", faction=faction1, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=g.player)
+        g.player_party = g.WORLD.create_population(char=g.PLAYER_TILE, name="Player party", faction=faction1, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=g.player)
 
 
         born = g.WORLD.time_cycle.years_ago(roll(20, 40))
-        leader = cult.create_being(sex=1, born=born, char='@', dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
+        leader = cult.create_being(sex=1, born=born, char=g.PLAYER_TILE, dynasty=None, important=1, faction=faction2, armed=1, wx=1, wy=1, save_being=1)
         sentients = {cult:{random.choice(cult.races):{'Bandits':10}}}
-        enemy_party = g.WORLD.create_population(char='X', name="Enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
+        enemy_party = g.WORLD.create_population(char=g.PLAYER_TILE, name="Enemy party", faction=faction2, creatures={}, sentients=sentients, econ_inventory={}, wx=1, wy=1, commander=leader)
 
 
-        hideout_site = g.WORLD.tiles[1][1].create_and_add_minor_site(world=g.WORLD, type_='hideout', char='#', name='Hideout', color=libtcod.black)
+        hideout_site = g.WORLD.tiles[1][1].create_and_add_minor_site(world=g.WORLD, type_='hideout', char=g.HIDEOUT_TILE, name='Hideout', color=libtcod.black)
         hideout_building = hideout_site.create_building(zone='residential', type_='hideout', template='temple1', professions=[], inhabitants=[], tax_status=None)
 
         faction1.set_leader(leader=g.player)
@@ -8326,10 +8358,12 @@ if __name__ == '__main__':
 
     g.init()
 
-    spritesheet = 't12_test.png' if g.TILE_SIZE == 12 else 't16_exp2.png'
+    # spritesheet = 't12_test.png' if g.TILE_SIZE == 12 else 't16_exp2.png'
+    spritesheet = 't12_test.png' if g.TILE_SIZE == 12 else 'cp437-thin-8x16_inverted_doubled_mega.png'
     font_path = os.path.join(os.getcwd(), 'fonts', spritesheet)
 
-    libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
+    # libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 16, 20)
+    libtcod.console_set_custom_font(font_path, libtcod.FONT_LAYOUT_ASCII_INROW|libtcod.FONT_TYPE_GREYSCALE, 32, 64)
     libtcod.console_init_root(g.SCREEN_WIDTH, g.SCREEN_HEIGHT, 'Iron Testament v0.5', True, renderer=libtcod.RENDERER_GLSL)
     libtcod.mouse_show_cursor(visible=1)
     libtcod.sys_set_fps(g.LIMIT_FPS)
