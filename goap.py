@@ -731,7 +731,7 @@ class MoveIntoBuilding(BehaviorBase):
         else:
             TEMPORARY_X = self.entity.wx
             TEMPORARY_Y = self.entity.wy
-            site = it.Site(world=g.WORLD, type_='hideout', x=TEMPORARY_X, y=TEMPORARY_Y, char='H', name='test site', color=libtcod.red)
+            site = it.Site(world=g.WORLD, type_='hideout', x=TEMPORARY_X, y=TEMPORARY_Y, char=g.HIDEOUT_TILE, name='test site', color=libtcod.red)
             return site
 
     def get_name(self):
