@@ -291,7 +291,7 @@ class World(Map):
         phys.main()
 
         # Out of order for now, to get creation myth on load screen
-        self.gen_mythological_creatures()
+        self.generate_mythological_creatures()
         self.cm = religion.CreationMyth(creator=self.default_mythic_culture.pantheon.gods[0], pantheon=self.default_mythic_culture.pantheon)
         self.cm.create_myth()
         #self.generate()
@@ -321,7 +321,7 @@ class World(Map):
         #self.calculate_rainfall()
         ########################## Now, generate rivers ########################
         g.game.render_handler.progressbar_screen('Generating World Map', 'generating rivers', 4, steps, []) # self.cm.story_text)
-        self.gen_rivers()
+        self.generate_rivers()
         ################################ Resources ##########################################
         g.game.render_handler.progressbar_screen('Generating World Map', 'setting resources and biome info', 5, steps, []) #self.cm.story_text)
 
@@ -338,7 +338,7 @@ class World(Map):
 
         ######## Add some buttons #######
         panel2.wmap_buttons = [
-                          gui.Button(gui_panel=panel2, func=self.gen_history, args=[1],
+                          gui.Button(gui_panel=panel2, func=self.generate_history, args=[1],
                                      text='Generate History', topleft=(4, g.PANEL2_HEIGHT-11), width=20, height=5, color=g.PANEL_FRONT, do_draw_box=True),
                           gui.Button(gui_panel=panel2, func=self.generate, args=[],
                                      text='Regenerate Map', topleft=(4, g.PANEL2_HEIGHT-6), width=20, height=5, color=g.PANEL_FRONT, do_draw_box=True)
@@ -720,7 +720,7 @@ class World(Map):
                                 found_square = True
                                 break
 
-    def gen_rivers(self):
+    def generate_rivers(self):
         self.rivers = []
         river_connection_tiles = []
         # Walk through all mountains tiles and make a river if there are none nearby
@@ -1119,10 +1119,10 @@ class World(Map):
         self.play_tiles = tuple(biggest_filled_tiles)
 
 
-    def gen_history(self, years):
-        #self.gen_mythological_creatures()
-        self.gen_sentient_races()
-        self.gen_cultures()
+    def generate_history(self, years):
+        #self.generate_mythological_creatures()
+        self.generate_sentient_races()
+        self.generate_cultures()
         self.create_civ_cradle()
         self.settle_cultures()
         self.run_history(years)
@@ -1136,7 +1136,7 @@ class World(Map):
                                     text='Start Playing', topleft=(4, g.PANEL2_HEIGHT-16), width=20, height=5, color=g.PANEL_FRONT, do_draw_box=True))
 
 
-    def gen_mythological_creatures(self):
+    def generate_mythological_creatures(self):
 
         # Create a language for the culture to use
         language = lang.Language()
@@ -1182,7 +1182,7 @@ class World(Map):
                 population = self.create_population(char=g.MYTHIC_TILE, name="myth creature group", faction=faction, creatures=None, sentients=sentients, econ_inventory={'food':1}, wx=site.x, wy=site.y, commander=myth_creature)
 
 
-    def gen_sentient_races(self):
+    def generate_sentient_races(self):
         ''' Generate some sentient races to populate the world. Very basic for now '''
         for i in xrange(5):
             # Throwaway language for now
@@ -1202,7 +1202,7 @@ class World(Map):
         g.game.add_message('{0} added'.format(join_list([lang.spec_cap(creature_name) for creature_name in self.sentient_races])))
 
 
-    def gen_cultures(self):
+    def generate_cultures(self):
         begin = time.time()
 
         number_of_cultures = roll(75, 100)
@@ -2181,7 +2181,8 @@ class World(Map):
         sentients = {leader.creature.culture:{leader.creature.type_:{'Bandit':10}}}
         self.create_population(char='u', name='Bandit band', faction=bandit_faction, creatures={}, sentients=sentients, econ_inventory={'food':1}, wx=wx, wy=wy, site=hideout_site, commander=leader)
 
-        leader.world_brain.set_goal(goal_state=goap.HaveShelter(entity=leader), reason='I need shelter!', priority=1)
+        building = leader.world_brain.choose_building_to_live_in()
+        leader.world_brain.set_goal(goal_state=goap.HaveShelterInBuilding(entity=leader, building=building), reason='I need shelter!', priority=1)
 
         ## Prisoner
         #prisoner = closest_city.create_inhabitant(sex=1, born=WORLD.time_cycle.current_year-roll(18, 35), dynasty=None, important=0, house=None)
@@ -6565,7 +6566,8 @@ class BasicWorldBrain:
                     self.set_goal(goal_state=goap.HaveItem(item_name=item_name, entity=self.owner), reason='hehehehehe', priority=1)
 
                 elif self.owner.creature.intelligence_level == 2 and roll(1, 100) == 1:
-                    self.set_goal(goal_state=goap.HaveShelter(entity=self.owner), reason='hehehehe', priority=1)
+                    building = self.choose_building_to_live_in()
+                    self.set_goal(goal_state=goap.HaveShelterInBuilding(entity=self.owner, building=building), reason='hehehehe', priority=1)
 
             # If we can threaten the economic output of a tile, flag any economic agents working that tile as unable to work
             if self.owner.creature.threatens_economic_output() and g.WORLD.tiles[wx][wy].territory and self.owner.creature.faction.is_hostile_to(g.WORLD.tiles[wx][wy].territory.faction):
@@ -6579,6 +6581,31 @@ class BasicWorldBrain:
             if (not g.WORLD.tiles[self.owner.wx][self.owner.wy].site) and len(g.WORLD.tiles[self.owner.wx][self.owner.wy].entities) > 1:
                 g.WORLD.tiles_with_potential_encounters.add(g.WORLD.tiles[self.owner.wx][self.owner.wy])
 
+
+    def choose_building_to_live_in(self):
+        ''' Pick a building to move into '''
+
+        ## TODO - make this work for regular people, not just bandits
+        # Look at nearby buildings, pick one if empty, or construct a new one
+        entity_region = g.WORLD.tiles[self.owner.wx][self.owner.wy]
+        nearby_chunks = g.WORLD.get_nearby_chunks(chunk=entity_region.chunk, distance=3)
+
+        # Find some nearby non-city non-village sites, and then find any empty buildings within these
+        nearby_sites = [site for chunk in nearby_chunks for site in chunk.get_all_sites() if site.type_ not in ('city', 'village')]
+        nearby_empty_buildings = [building for site in nearby_sites for building in site.buildings if not building.inhabitants]
+
+        # If there are nearby empty buildings, choose one at random
+        if nearby_empty_buildings and roll(0, 1):
+            building = random.choice(nearby_empty_buildings)
+        # If not, make a building object to send to the parent (but this doesn't actually exist yet - it will be added to a site later)
+        else:
+            # Choose a site for the building
+            site = Site(world=g.WORLD, type_='hideout', x=self.owner.wx, y=self.owner.wy, char=g.HIDEOUT_TILE, name='test site', color=libtcod.red)
+
+            building = building_info.Building(zone='residential', type_='hideout', template='TEST', construction_material='stone cons materials',
+                                              site=site, professions=[], inhabitants=[], tax_status='commoner', wx=None, wy=None, constructed=0)
+
+        return building
 
     '''
     def make_decision(self, decision_name):
@@ -8071,7 +8098,7 @@ class Game:
         ##################### Create a dummy world just for the quick battle
         g.WORLD = World(width=3, height=3)
         g.WORLD.setup_world()
-        g.WORLD.gen_sentient_races()
+        g.WORLD.generate_sentient_races()
         cult = Culture(color=libtcod.grey, language=lang.Language(), world=g.WORLD, races=g.WORLD.sentient_races)
         for x in xrange(g.WORLD.width):
             for y in xrange(g.WORLD.height):
