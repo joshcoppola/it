@@ -185,14 +185,13 @@ class BuildingHasSize:
 
 
 class BuildingIsConstructed:
-    def __init__(self, entity, building, target_site, target_location=None):
+    def __init__(self, entity, building, target_location=None):
         self.entity = entity
         self.building = building
-        self.target_site = target_site
         self.target_location = target_location
 
         self.behaviors_to_accomplish = [ConstructBuilding(entity=self.entity, building=self.building,
-                                            target_site=self.target_site, target_location=self.target_location)] #,
+                                            target_location=self.target_location)] #,
                                         # OrderConstructionOfBuilding(entity=self.entity, building=self.building,
                                         #     target_site=self.target_site, target_location=self.target_location)]
 
@@ -203,59 +202,17 @@ class BuildingIsConstructed:
         return 'have a {0} constructed at {1}'.format(self.building.type_, self.target_site.name)
 
 
-class HaveShelter:
-    def __init__(self, entity):
+class HaveShelterInBuilding:
+    def __init__(self, entity, building):
         self.entity = entity
 
-        self.behaviors_to_accomplish = [MoveIntoBuilding(entity=self.entity, target_building=None, target_site=None)]
+        self.behaviors_to_accomplish = [MoveIntoBuilding(entity=self.entity, target_building=building)]
 
     def is_completed(self):
         return self.entity.creature.house
 
     def get_name(self):
-        return 'have shelter'
-
-
-
-# class KnowWhereItemisLocated:
-#     def __init__(self, item, entity):
-#         self.item = item
-#         self.entity = entity
-#         self.behaviors_to_accomplish = [FindOutWhereItemIsLocated(self.item, self.entity)]
-#
-#     def is_completed(self):
-#         return self.entity.creature.knowledge['objects'][self.item]['location']['accuracy'] == 1
-#
-#
-# class HaveRoughIdeaOfLocation:
-#     def __init__(self, item, entity):
-#         self.item = item
-#         self.entity = entity
-#         self.behaviors_to_accomplish = []
-#
-#     def is_completed(self):
-#         return self.entity.creature.knowledge['objects'][self.item]['location']['accuracy'] <= 2
-#
-# class HaveMoney:
-#     def __init__(self, money, entity):
-#         self.money = money
-#         self.entity = entity
-#         # Will be set if this status isn't already completed
-#         self.behaviors_to_accomplish = [GetMoneyThroughWork(self.money, self.entity), StealMoney(self.money, self.entity)]
-#
-#     def is_completed(self):
-#         return 1
-#         #return self.entity.creature.gold >= self.money
-#
-#
-# class HaveJob:
-#     def __init__(self, entity):
-#         self.entity = entity
-#         # Will be set if this status isn't already completed
-#         self.behaviors_to_accomplish = [GetJob(self.entity)]
-#
-#     def is_completed(self):
-#         return self.entity.creature.profession
+        return 'take shelter in {0}'.format(self.building.name)
 
 
 class AmAvailableToAct:
@@ -640,11 +597,10 @@ class LoadCommoditiesBehavior(BehaviorBase):
 
 
 class ConstructBuilding(BehaviorBase):
-    def __init__(self, entity, building, target_site, target_location=None):
+    def __init__(self, entity, building, target_location=None):
         BehaviorBase.__init__(self)
         self.entity = entity
         self.building = building
-        self.target_site = target_site
         self.target_location = target_location
 
         # Fills in any missing information
@@ -665,7 +621,7 @@ class ConstructBuilding(BehaviorBase):
 
 
     def get_name(self):
-        goal_name = 'construct a {0} in {1}'.format(self.building.type_, self.target_site.name)
+        goal_name = 'construct a {0} in {1}'.format(self.building.type_, self.building.site.name)
         return goal_name
 
     def is_completed(self):
@@ -679,60 +635,22 @@ class ConstructBuilding(BehaviorBase):
 
         if self.behavior_progress > self.behavior_total_time:
             # self.target_site.create_building(zone='residential', type_=self.building_type, template='TEST', professions=[], inhabitants=[], tax_status=None)
-            self.target_site.finish_constructing_building(self.building)
+            self.building.site.finish_constructing_building(self.building)
 
             # In case this is the first building in the site, we'll have to add it in to the site
-            if self.target_site not in g.WORLD.tiles[self.target_location[0]][self.target_location[1]].all_sites:
-                g.WORLD.tiles[self.target_location[0]][self.target_location[1]].add_minor_site(self.target_site)
+            if self.building.site not in g.WORLD.tiles[self.target_location[0]][self.target_location[1]].all_sites:
+                g.WORLD.tiles[self.target_location[0]][self.target_location[1]].add_minor_site(self.building.site)
 
             #g.game.add_message('{0} has constructed a {1} in {2}'.format(self.entity.fulltitle(), self.building_type, self.target_site.name))
 
 
 class MoveIntoBuilding(BehaviorBase):
-    def __init__(self, entity, target_building, target_site):
+    def __init__(self, entity, target_building):
         BehaviorBase.__init__(self)
         self.entity = entity
-        self.target_building = self.choose_target_building(target_building)
-        self.target_site = self.choose_target_site(target_site)
+        self.target_building = target_building
 
-        self.preconditions = [BuildingIsConstructed(entity=self.entity, building=self.target_building, target_site=self.target_site)]
-
-
-    def choose_target_building(self, target_building):
-        ''' Pick a building to move into '''
-        if target_building:
-            return target_building
-
-        # Else do some magic to look at nearby buildings, pick one if empty, or construct a new one
-        else:
-            entity_region = g.WORLD.tiles[self.entity.wx][self.entity.wy]
-            nearby_chunks = g.WORLD.get_nearby_chunks(chunk=entity_region.chunk, distance=3)
-
-            # Find some nearby non-city non-village sites, and then find any empty buildings within these
-            nearby_sites = [site for chunk in nearby_chunks for site in chunk.get_all_sites() if site.type_ not in ('city', 'village')]
-            nearby_empty_buildings = [building for site in nearby_sites for building in site.buildings if not building.inhabitants]
-
-            # If there are nearby empty buildings, choose one at random
-            if nearby_empty_buildings and roll(0, 1):
-                building = random.choice(nearby_empty_buildings)
-            # If not, make a building object to send to the parent (but this doesn't actually exist yet - it will be added to a site later)
-            else:
-                building = building_info.Building(zone='residential', type_='hideout', template='TEST', construction_material='stone cons materials',
-                                                  site=None, professions=[], inhabitants=[], tax_status='commoner', wx=None, wy=None, constructed=0)
-
-            return building
-
-    def choose_target_site(self, target_site):
-        ''' Figures out an appropriate site '''
-        if target_site:
-            return target_site
-        elif self.target_building.site:
-            return self.target_building.site
-        else:
-            TEMPORARY_X = self.entity.wx
-            TEMPORARY_Y = self.entity.wy
-            site = it.Site(world=g.WORLD, type_='hideout', x=TEMPORARY_X, y=TEMPORARY_Y, char=g.HIDEOUT_TILE, name='test site', color=libtcod.red)
-            return site
+        self.preconditions = [BuildingIsConstructed(entity=self.entity, building=self.target_building)]
 
     def get_name(self):
         goal_name = 'move into {0}'.format(self.target_building.get_name())
@@ -931,25 +849,5 @@ if __name__ == '__main__':
     best_path = test_entity_amoral.world_brain.set_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_amoral), reason='because')
     print 'done in {0}'.format(time() - begin)
 
-    best_path = test_entity_moral.world_brain.set_goal(goal_state=CommoditiesAreUnloaded(target_city='debug', goods='lol', entity=test_entity_moral), reason='because')
+    best_path = test_entity_moral.world_brain.set_goal(goal_state=CommoditiesAreUnloaded(target_city='debug', commodities='lol', entity=test_entity_moral), reason='because')
     #print [b.behavior for b in best_path]
-#
-# path_list = find_actions_leading_to_goal(goal_state=HaveItem(item_name=GOAL_ITEM, entity=test_entity_normal), action_path=[], all_possible_paths=[])
-# #for p in path_list:
-# #    print [b.behavior for b in p]
-#
-# behavior_list_including_movement = check_paths_for_movement(entity=test_entity_normal, behavior_lists=path_list)
-# for list_ in behavior_list_including_movement:
-#     print [b.behavior for b in list_]
-#
-# behavior_lists_costed = get_behavior_list_costs(behavior_lists=behavior_list_including_movement)
-# for behavior_list, cost in behavior_lists_costed:
-#     print [b.behavior for b in behavior_list]
-#     print cost
-#     print ''
-#
-# cheapest = test_entity_normal.world_brain.find_cheapest_behavior_path(behavior_paths_costed=behavior_lists_costed)
-# print [b.behavior for b in cheapest]
-#
-# cheapest = test_entity_amoral.world_brain.find_cheapest_behavior_path(behavior_paths_costed=behavior_lists_costed)
-# print [b.behavior for b in cheapest]
