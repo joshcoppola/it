@@ -5464,7 +5464,7 @@ class Creature:
                 hostile_sites = []
                 site_at_entity_location = g.WORLD.tiles[self.owner.wx][self.owner.wy].site
 
-                if site_at_entity_location not in self.knowledge['sites']:
+                if site_at_entity_location and site_at_entity_location not in self.knowledge['sites']:
                     logging.warning('{0} doesn\'t know about {1}, despite being at that location'.format(self.owner.fulltitle(), site_at_entity_location.get_name()))
 
                 for site in self.knowledge['sites']:
